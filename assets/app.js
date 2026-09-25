@@ -2,6 +2,7 @@
  * 雨后 · 校园操场 —— Three.js 实时渲染
  * 400m 塑胶跑道 / 足球场 / 篮球场 / 看台 / 教学楼
  * 核心：自研「湿地平面反射」着色器（投影纹理采样 + 程序化水洼 + 涟漪）
+ * ★ 联机版：接入 zsync.js / mp-bridge.js / p2p.js
  * ========================================================================= */
 (function () {
 'use strict';
@@ -11,6 +12,9 @@ if (!window.THREE) {
   document.getElementById('loader').style.display = 'none';
   return;
 }
+
+/* ★ 联机：全局丧尸数组（zsync.js 读这个做序列化广播/快照对齐） */
+window.__zombies = window.__zombies || [];
 
 /* ================= 基础常量 ================= */
 var TRACK_L = 84.39;          // 直道长度 (m)
@@ -91,10 +95,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
 
-/* 阴影脏标记的唯一入口：任何投/收影物体（含 groundGroup）发生
- * 位移/旋转/缩放后，必须调用本函数强制下一帧重烘焙阴影贴图。
- * 若物体是「持续」旋转/移动（而非离散一步变换），请改为
- * renderer.shadowMap.autoUpdate = true（每帧重绘，有性能开销）。 */
 function invalidateShadows() {
   renderer.shadowMap.needsUpdate = true;
 }
@@ -145,7 +145,7 @@ function texAsphalt() {
   var c = makeCanvas(512, 512), x = c.getContext('2d');
   x.fillStyle = '#3c4147'; x.fillRect(0, 0, 512, 512);
   var i, px, py, v;
-  for (i = 0; i < 260; i++) {                       // 大块暗斑
+  for (i = 0; i < 260; i++) {
     px = rng() * 512; py = rng() * 512;
     var r = 20 + rng() * 60;
     var g = x.createRadialGradient(px, py, 0, px, py, r);
@@ -154,13 +154,13 @@ function texAsphalt() {
     g.addColorStop(1, 'rgba(20,22,26,0)');
     x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2);
   }
-  for (i = 0; i < 14000; i++) {                     // 骨料颗粒
+  for (i = 0; i < 14000; i++) {
     px = rng() * 512; py = rng() * 512;
     v = 52 + rng() * 66;
     x.fillStyle = 'rgba(' + (v | 0) + ',' + ((v + 3) | 0) + ',' + ((v + 8) | 0) + ',' + (0.16 + rng() * 0.3) + ')';
     x.fillRect(px, py, 1 + rng() * 1.6, 1 + rng() * 1.6);
   }
-  for (i = 0; i < 60; i++) {                        // 细微裂缝
+  for (i = 0; i < 60; i++) {
     px = rng() * 512; py = rng() * 512;
     x.strokeStyle = 'rgba(16,18,21,' + (0.1 + rng() * 0.12) + ')';
     x.lineWidth = 0.7;
@@ -175,8 +175,8 @@ function texAsphalt() {
 function texGrass() {
   var c = makeCanvas(512, 512), x = c.getContext('2d');
   x.fillStyle = '#3a7440'; x.fillRect(0, 0, 512, 512);
-  x.fillStyle = 'rgba(255,255,255,0.055)'; x.fillRect(0, 0, 256, 512);   // 修剪亮条
-  x.fillStyle = 'rgba(0,0,0,0.06)'; x.fillRect(256, 0, 256, 512);        // 修剪暗条
+  x.fillStyle = 'rgba(255,255,255,0.055)'; x.fillRect(0, 0, 256, 512);
+  x.fillStyle = 'rgba(0,0,0,0.06)'; x.fillRect(256, 0, 256, 512);
   var i, px, py;
   for (i = 0; i < 16000; i++) {
     px = rng() * 512; py = rng() * 512;
@@ -184,7 +184,7 @@ function texGrass() {
     x.fillStyle = 'rgba(' + ((g * 0.55) | 0) + ',' + (g | 0) + ',' + ((g * 0.5) | 0) + ',' + (0.1 + rng() * 0.25) + ')';
     x.fillRect(px, py, 1 + rng() * 2, 1 + rng() * 2.5);
   }
-  for (i = 0; i < 40; i++) {                        // 草簇阴影
+  for (i = 0; i < 40; i++) {
     px = rng() * 512; py = rng() * 512;
     x.fillStyle = 'rgba(18,42,22,' + (0.08 + rng() * 0.1) + ')';
     x.beginPath(); x.ellipse(px, py, 4 + rng() * 10, 3 + rng() * 6, rng() * 3, 0, 6.29); x.fill();
@@ -205,7 +205,7 @@ function texTrack() {
     else x.fillStyle = 'rgba(235,190,190,' + (0.06 + rng() * 0.1) + ')';
     x.fillRect(px, py, 1 + rng() * 1.5, 1 + rng() * 1.5);
   }
-  for (i = 0; i < 26; i++) {                        // 拖痕（沿跑道方向）
+  for (i = 0; i < 26; i++) {
     py = rng() * 256;
     x.strokeStyle = 'rgba(120,36,44,' + (0.05 + rng() * 0.07) + ')';
     x.lineWidth = 1 + rng() * 3;
@@ -238,7 +238,7 @@ function texConcrete() {
     x.fillStyle = 'rgba(' + (v | 0) + ',' + (v | 0) + ',' + ((v + 4) | 0) + ',' + (0.1 + rng() * 0.2) + ')';
     x.fillRect(px, py, 1 + rng() * 1.5, 1 + rng() * 1.5);
   }
-  x.strokeStyle = 'rgba(90,94,100,0.25)'; x.lineWidth = 1;   // 伸缩缝
+  x.strokeStyle = 'rgba(90,94,100,0.25)'; x.lineWidth = 1;
   x.beginPath(); x.moveTo(0, 128); x.lineTo(256, 128); x.moveTo(128, 0); x.lineTo(128, 256); x.stroke();
   return toTexture(c);
 }
@@ -284,17 +284,17 @@ function texFacade(baseColor, glassA, glassB, litChance) {
     for (var q = 0; q < cols; q++) {
       var px = q * mw + (mw - cw) / 2;
       var py = r * mh + (mh - ch) / 2;
-      if (rng() < litChance) x.fillStyle = '#f4d9a4';           // 少量亮灯
+      if (rng() < litChance) x.fillStyle = '#f4d9a4';
       else if (rng() < 0.5) x.fillStyle = glassA;
       else x.fillStyle = glassB;
       x.fillRect(px, py, cw, ch);
-      x.fillStyle = 'rgba(255,255,255,0.16)';                    // 玻璃反光
+      x.fillStyle = 'rgba(255,255,255,0.16)';
       x.fillRect(px, py, cw, ch * 0.32);
-      x.fillStyle = 'rgba(8,12,18,0.35)';                        // 窗框阴影
+      x.fillStyle = 'rgba(8,12,18,0.35)';
       x.fillRect(px, py + ch - 3, cw, 3);
     }
   }
-  x.fillStyle = 'rgba(0,0,0,0.14)';                              // 楼层线
+  x.fillStyle = 'rgba(0,0,0,0.14)';
   for (r = 0; r <= rows; r++) x.fillRect(0, r * mh - 2, 256, 3);
   return toTexture(c);
 }
@@ -306,7 +306,7 @@ function texBackboard() {
   x.strokeStyle = '#d8402e'; x.lineWidth = 10;
   x.strokeRect(6, 6, 244, 148);
   x.lineWidth = 6;
-  x.strokeRect(103, 88, 50, 62);                                  // 瞄准框
+  x.strokeRect(103, 88, 50, 62);
   var t = toTexture(c);
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   return t;
@@ -456,8 +456,6 @@ var WET_FRAG = [
   '  vec3 V = normalize(cameraPosition - vWP);',
   '  vec4 prj = uTexMatrix * vec4(vWP, 1.0);',
   '  float rk = step(0.0001, prj.w);',
-  /* uTexMatrix 已含 bias(0.5缩放+0.5偏移)，prj.xy/prj.w 即为 [0,1] 纹理坐标。
-     倒影需左右镜像：up 翻转渲染出的反射纹理相对采样坐标是左右反的，这里把 X 镜像还原 */
   '  vec2 suv = prj.xy / max(prj.w, 0.0001);',
   '  suv.x = 1.0 - suv.x;',
   '  vec2 roff = ripple * (pud * 0.030 + uRain * pud * 0.03)',
@@ -474,7 +472,6 @@ var WET_FRAG = [
   '}'
 ].join('\n');
 
-/* 生成「湿地材质」：MeshStandardMaterial + 注入反射着色器 */
 function wetMaterial(opts) {
   opts = opts || {};
   var m = new THREE.MeshStandardMaterial({
@@ -513,11 +510,9 @@ function wetMaterial(opts) {
   return m;
 }
 
-/* 地表组（反射渲染时隐藏自身） */
 var groundGroup = new THREE.Group();
 scene.add(groundGroup);
 
-/* 镜像相机渲染反射（Reflector 算法，平面 y=0） */
 var _vTmp1 = new THREE.Vector3();
 var _vTmp2 = new THREE.Vector3();
 var _vTmp3 = new THREE.Vector3();
@@ -529,19 +524,15 @@ var _texBias = new THREE.Matrix4().set(
   0, 0, 0, 1
 );
 function renderReflection() {
-  /* ★ 关键：先同步主相机世界矩阵。
-     animate 循环中 updateControls 只更新 position/quaternion，
-     matrixWorld 要到 renderer.render 才刷新；若不同步，此处读到的是
-     上一帧姿态 → 旋转视角时镜像相机「新位置+旧朝向」，倒影错位漂移 */
   camera.updateMatrixWorld();
   if (camera.position.y <= 0.05) return;
   groundGroup.visible = false;
-  if (typeof gunGrp !== 'undefined') gunGrp.visible = false;   /* 枪械不参与反射 */
+  if (typeof gunGrp !== 'undefined') gunGrp.visible = false;
   reflCam.position.set(camera.position.x, -camera.position.y, camera.position.z);
   _mRot.extractRotation(camera.matrixWorld);
-  _vTmp2.set(0, 0, -1).applyMatrix4(_mRot).add(camera.position);   // 前视点
+  _vTmp2.set(0, 0, -1).applyMatrix4(_mRot).add(camera.position);
   _vTmp3.copy(_vTmp2);
-  _vTmp3.y = -_vTmp3.y;                                 // 镜像目标
+  _vTmp3.y = -_vTmp3.y;
   reflCam.up.set(0, 1, 0).applyMatrix4(_mRot);
   reflCam.up.y = -reflCam.up.y;
   reflCam.lookAt(_vTmp3);
@@ -551,7 +542,6 @@ function renderReflection() {
   reflCam.aspect = camera.aspect;
   reflCam.updateProjectionMatrix();
   reflCam.updateMatrixWorld();
-  /* 投影纹理矩阵：bias · proj · view⁻¹，片元世界坐标 → 反射纹理 UV */
   sharedU.uTexMatrix.value
     .copy(reflCam.projectionMatrix)
     .multiply(reflCam.matrixWorldInverse)
@@ -563,7 +553,6 @@ function renderReflection() {
   if (typeof gunGrp !== 'undefined') gunGrp.visible = true;
 }
 
-/* 重新设定反射缓冲尺寸 */
 function resizeReflection() {
   var w = Math.max(2, Math.floor(window.innerWidth * MAX_PR * REFL_SCALE));
   var h = Math.max(2, Math.floor(window.innerHeight * MAX_PR * REFL_SCALE));
@@ -594,7 +583,6 @@ GeoBatch.prototype.mesh = function (material) {
   return new THREE.Mesh(g, material);
 };
 
-/* 直线白条（地面标线） */
 function batchLine(b, x0, z0, x1, z1, w, y) {
   var dx = x1 - x0, dz = z1 - z0;
   var len = Math.hypot(dx, dz) || 1;
@@ -606,7 +594,6 @@ function batchLine(b, x0, z0, x1, z1, w, y) {
   );
 }
 
-/* 弧线条（XZ 平面，世界角度） */
 function batchArc(b, cx, cz, r, a0, a1, w, y, nseg) {
   nseg = nseg || 24;
   for (var i = 0; i < nseg; i++) {
@@ -623,7 +610,6 @@ function batchArc(b, cx, cz, r, a0, a1, w, y, nseg) {
   }
 }
 
-/* 体育场（跑道形）分段参数采样：seg 0左弯 1上直道 2右弯 3下直道 */
 function stadiumSegPoint(L, r, seg, u) {
   if (seg === 0) {
     var a = -Math.PI / 2 - Math.PI * u;
@@ -637,7 +623,6 @@ function stadiumSegPoint(L, r, seg, u) {
   return { x: L / 2 - u * L, z: -r, nx: 0, nz: -1 };
 }
 
-/* 体育场环形水平条带（跑道面层 / 道线 / 台面） */
 function batchStadiumStrip(b, L, rIn, rOut, y, uM, vM) {
   var counts = [44, 36, 44, 36];
   var samples = [];
@@ -664,7 +649,6 @@ function batchStadiumStrip(b, L, rIn, rOut, y, uM, vM) {
   }
 }
 
-/* 体育场竖直条带（道牙立面） */
 function batchStadiumBand(b, L, r, y0, y1, uM) {
   var counts = [44, 36, 44, 36];
   var samples = [];
@@ -687,7 +671,6 @@ function batchStadiumBand(b, L, r, y0, y1, uM) {
   }
 }
 
-/* 两点之间放置圆柱 */
 function cylinderBetween(p0, p1, r, mat) {
   var d = new THREE.Vector3().subVectors(p1, p0);
   var len = d.length();
@@ -709,9 +692,9 @@ var concreteTex = texConcrete();
 concreteTex.repeat.set(6, 1);
 var chainTex = texChainlink();
 var netTex = texNet();
-var facadeA = texFacade('#5c6774', '#8fa6ba', '#7492ac', 0.10);   // 教学楼
-var facadeB = texFacade('#6a7076', '#9db4c6', '#7fa0b6', 0.06);   // 实验楼
-var facadeC = texFacade('#7d7469', '#a8bcc8', '#8ea9ba', 0.03);   // 体育馆（大窗）
+var facadeA = texFacade('#5c6774', '#8fa6ba', '#7492ac', 0.10);
+var facadeB = texFacade('#6a7076', '#9db4c6', '#7fa0b6', 0.06);
+var facadeC = texFacade('#7d7469', '#a8bcc8', '#8ea9ba', 0.03);
 var backboardTex = texBackboard();
 var rainbowTex = texRainbow();
 
@@ -735,7 +718,6 @@ var rainbowTex = texRainbow();
   mesh.receiveShadow = true;
   groundGroup.add(mesh);
 
-  /* 9 条白色分道线（合并为一组几何） */
   var lb = new GeoBatch();
   for (var i = 0; i <= LANES; i++) {
     var r = TRACK_R + i * LANE_W;
@@ -746,7 +728,6 @@ var rainbowTex = texRainbow();
   lm.receiveShadow = true;
   groundGroup.add(lm);
 
-  /* 内道牙（白色凸缘） */
   var kb = new GeoBatch();
   batchStadiumBand(kb, TRACK_L, TRACK_R - 0.15, 0, 0.09, 3);
   var kerbMat = wetMaterial({ color: 0xe8edf2, roughness: 0.55, wetness: 0.5, puddle: 0.05, reflMin: 0.25, side: THREE.DoubleSide });
@@ -759,7 +740,6 @@ var rainbowTex = texRainbow();
   ktm.receiveShadow = true;
   groundGroup.add(ktm);
 
-  /* 起跑线 + 道次号码（下直道，跑进方向 -x） */
   var sb = new GeoBatch();
   batchLine(sb, 10, -(TRACK_R - 0.35), 10, -(TRACK_OUT + 0.35), 0.1, 0.026);
   batchLine(sb, 9.6, -(TRACK_R - 0.35), 9.6, -(TRACK_OUT + 0.35), 0.05, 0.026);
@@ -801,7 +781,6 @@ var rainbowTex = texRainbow();
   m.receiveShadow = true;
   groundGroup.add(m);
 
-  /* 足球场标线（105 × 68） */
   var fb = new GeoBatch();
   var W = 52.5, H = 34, y = 0.03, lw = 0.12;
   batchLine(fb, -W, -H, W, -H, lw, y); batchLine(fb, -W, H, W, H, lw, y);
@@ -811,18 +790,18 @@ var rainbowTex = texRainbow();
   batchArc(fb, 0, 0, 0.28, 0, Math.PI * 2, 0.56, y, 12);
   [-1, 1].forEach(function (s) {
     var gx = s * W;
-    batchLine(fb, gx, -20.16, gx - s * 16.5, -20.16, lw, y);   // 罚球区
+    batchLine(fb, gx, -20.16, gx - s * 16.5, -20.16, lw, y);
     batchLine(fb, gx, 20.16, gx - s * 16.5, 20.16, lw, y);
     batchLine(fb, gx - s * 16.5, -20.16, gx - s * 16.5, 20.16, lw, y);
-    batchLine(fb, gx, -9.16, gx - s * 5.5, -9.16, lw, y);      // 球门区
+    batchLine(fb, gx, -9.16, gx - s * 5.5, -9.16, lw, y);
     batchLine(fb, gx, 9.16, gx - s * 5.5, 9.16, lw, y);
     batchLine(fb, gx - s * 5.5, -9.16, gx - s * 5.5, 9.16, lw, y);
-    batchArc(fb, s * 41.5, 0, 0.22, 0, Math.PI * 2, 0.44, y, 10);   // 点球点
+    batchArc(fb, s * 41.5, 0, 0.22, 0, Math.PI * 2, 0.44, y, 10);
     var a = Math.acos(5.5 / 9.15);
     if (s < 0) batchArc(fb, -41.5, 0, 9.15, -a, a, lw, y, 28);
     else batchArc(fb, 41.5, 0, 9.15, Math.PI - a, Math.PI + a, lw, y, 28);
   });
-  batchArc(fb, -W, H, 1, -Math.PI / 2, 0, lw, y, 8);            // 角球弧
+  batchArc(fb, -W, H, 1, -Math.PI / 2, 0, lw, y, 8);
   batchArc(fb, W, H, 1, Math.PI, Math.PI * 1.5, lw, y, 8);
   batchArc(fb, W, -H, 1, Math.PI / 2, Math.PI, lw, y, 8);
   batchArc(fb, -W, -H, 1, 0, Math.PI / 2, lw, y, 8);
@@ -854,16 +833,16 @@ var rainbowTex = texRainbow();
     batchArc(lb, cx, cz, 1.8, 0, Math.PI * 2, lw, y, 24);
     [-1, 1].forEach(function (s) {
       var rz = cz + s * hl;
-      batchLine(lb, cx - 2.45, rz, cx - 2.45, rz - s * 5.8, lw, y);   // 限制区
+      batchLine(lb, cx - 2.45, rz, cx - 2.45, rz - s * 5.8, lw, y);
       batchLine(lb, cx + 2.45, rz, cx + 2.45, rz - s * 5.8, lw, y);
       batchLine(lb, cx - 2.45, rz - s * 5.8, cx + 2.45, rz - s * 5.8, lw, y);
-      batchArc(lb, cx, rz - s * 5.8, 1.8, 0, Math.PI * 2, lw, y, 24); // 罚球圈
-      var rimZ = cz + s * 15.2;                                        // 篮圈投影
+      batchArc(lb, cx, rz - s * 5.8, 1.8, 0, Math.PI * 2, lw, y, 24);
+      var rimZ = cz + s * 15.2;
       var a = Math.asin(6.6 / 6.75);
       var base = s > 0 ? -Math.PI / 2 : Math.PI / 2;
-      batchArc(lb, cx, rimZ, 6.75, base - a, base + a, lw, y, 30);     // 三分弧
+      batchArc(lb, cx, rimZ, 6.75, base - a, base + a, lw, y, 30);
       var zMeet = s * (Math.abs(rimZ - cz) - Math.sqrt(6.75 * 6.75 - 6.6 * 6.6)) + cz;
-      batchLine(lb, cx - 6.6, rz, cx - 6.6, zMeet, lw, y);             // 底角三分直线
+      batchLine(lb, cx - 6.6, rz, cx - 6.6, zMeet, lw, y);
       batchLine(lb, cx + 6.6, rz, cx + 6.6, zMeet, lw, y);
     });
   });
@@ -871,7 +850,6 @@ var rainbowTex = texRainbow();
   lm.receiveShadow = true;
   groundGroup.add(lm);
 
-  /* 篮球架 ×4 */
   var poleMat = new THREE.MeshStandardMaterial({ color: 0x4a5259, roughness: 0.5, metalness: 0.6 });
   var boardMat = new THREE.MeshStandardMaterial({ map: backboardTex, roughness: 0.35, metalness: 0.05 });
   var rimMat = new THREE.MeshStandardMaterial({ color: 0xe8622c, roughness: 0.4, metalness: 0.5 });
@@ -957,19 +935,17 @@ var rainbowTex = texRainbow();
   });
   var postMat = new THREE.MeshStandardMaterial({ color: 0x59626b, roughness: 0.5, metalness: 0.5 });
   var sides = [
-    { x0: COMPOUND.x0, z0: COMPOUND.z0, x1: COMPOUND.x0, z1: -3.5 },   // 西·北段
-    { x0: COMPOUND.x0, z0: 3.5, x1: COMPOUND.x0, z1: COMPOUND.z1 },    // 西·南段（中留大门）
-    { x0: COMPOUND.x1, z0: COMPOUND.z0, x1: COMPOUND.x1, z1: COMPOUND.z1 },   // 东
-    { x0: COMPOUND.x0, z0: COMPOUND.z0, x1: COMPOUND.x1, z1: COMPOUND.z0 },   // 北
-    { x0: COMPOUND.x0, z0: COMPOUND.z1, x1: COMPOUND.x1, z1: COMPOUND.z1 }    // 南
+    { x0: COMPOUND.x0, z0: COMPOUND.z0, x1: COMPOUND.x0, z1: -3.5 },
+    { x0: COMPOUND.x0, z0: 3.5, x1: COMPOUND.x0, z1: COMPOUND.z1 },
+    { x0: COMPOUND.x1, z0: COMPOUND.z0, x1: COMPOUND.x1, z1: COMPOUND.z1 },
+    { x0: COMPOUND.x0, z0: COMPOUND.z0, x1: COMPOUND.x1, z1: COMPOUND.z0 },
+    { x0: COMPOUND.x0, z0: COMPOUND.z1, x1: COMPOUND.x1, z1: COMPOUND.z1 }
   ];
-  /* 围栏碰撞体（薄 AABB，西门留 7m 缺口） */
   addCollider(COMPOUND.x0 - 0.3, COMPOUND.x0 + 0.3, COMPOUND.z0, -3.5);
   addCollider(COMPOUND.x0 - 0.3, COMPOUND.x0 + 0.3, 3.5, COMPOUND.z1);
   addCollider(COMPOUND.x1 - 0.3, COMPOUND.x1 + 0.3, COMPOUND.z0, COMPOUND.z1);
   addCollider(COMPOUND.x0, COMPOUND.x1, COMPOUND.z0 - 0.3, COMPOUND.z0 + 0.3);
   addCollider(COMPOUND.x0, COMPOUND.x1, COMPOUND.z1 - 0.3, COMPOUND.z1 + 0.3);
-  /* 西门警示灯柱 */
   var warnMat = new THREE.MeshStandardMaterial({ color: 0x66121c, emissive: 0xd42a3c, emissiveIntensity: 1.6, roughness: 0.4 });
   [-4.1, 4.1].forEach(function (gz) {
     var gw = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.6, 0.3), postMat);
@@ -994,13 +970,11 @@ var rainbowTex = texRainbow();
     m.position.set((sd.x0 + sd.x1) / 2, 1.5, (sd.z0 + sd.z1) / 2);
     m.rotation.y = Math.atan2(-(sd.z1 - sd.z0), sd.x1 - sd.x0);
     scene.add(m);
-    /* 顶横杆 */
     var rail = cylinderBetween(
       new THREE.Vector3(sd.x0, 3.02, sd.z0),
       new THREE.Vector3(sd.x1, 3.02, sd.z1), 0.035, postMat);
     rail.castShadow = true;
     scene.add(rail);
-    /* 立柱 */
     var n = Math.max(2, Math.round(len / 6));
     for (var i = 0; i <= n; i++) {
       var t2 = i / n;
@@ -1097,16 +1071,15 @@ var rainbowTex = texRainbow();
     grp.add(col);
   }
   scene.add(grp);
-  /* 看台碰撞体（整块阻隔，含背墙） */
   addCollider(-34.5, 34.5, -69.0, -57.8);
 })();
 
 /* ================= 9. 教学楼群（镂空可进入） ================= */
 function makeBuilding(w, h, d, x, z, tex, winRepeatX, winRepeatZ) {
   var grp = new THREE.Group();
-  var T = 0.45;                          /* 墙厚 */
-  var doorW = 3.0, doorH = 3.2;          /* 东侧门洞尺寸 */
-  var innerH = Math.min(h - 1.5, 6.0);   /* 可进入层净高 */
+  var T = 0.45;
+  var doorW = 3.0, doorH = 3.2;
+  var innerH = Math.min(h - 1.5, 6.0);
 
   var wallMat = new THREE.MeshStandardMaterial({ color: 0xb8b5a8, roughness: 0.92 });
   var inFloorMat = new THREE.MeshStandardMaterial({ color: 0x8f948c, roughness: 0.95 });
@@ -1141,16 +1114,14 @@ function makeBuilding(w, h, d, x, z, tex, winRepeatX, winRepeatZ) {
     return m;
   }
 
-  /* --- 结构墙（碰撞体随建） --- */
-  addBox(w, h, T, 0, h / 2, -d / 2 + T / 2, wallMat, true);            // 北
-  addBox(w, h, T, 0, h / 2, d / 2 - T / 2, wallMat, true);              // 南
-  addBox(T, h, d, -w / 2 + T / 2, h / 2, 0, wallMat, true);             // 西
-  var segLen = (d - doorW) / 2;                                          // 东·两段
+  addBox(w, h, T, 0, h / 2, -d / 2 + T / 2, wallMat, true);
+  addBox(w, h, T, 0, h / 2, d / 2 - T / 2, wallMat, true);
+  addBox(T, h, d, -w / 2 + T / 2, h / 2, 0, wallMat, true);
+  var segLen = (d - doorW) / 2;
   addBox(T, h, segLen, w / 2 - T / 2, h / 2, -(doorW / 2 + segLen / 2), wallMat, true);
   addBox(T, h, segLen, w / 2 - T / 2, h / 2, (doorW / 2 + segLen / 2), wallMat, true);
-  addBox(T, h - doorH, doorW, w / 2 - T / 2, doorH + (h - doorH) / 2, 0, wallMat, false);   // 门楣
+  addBox(T, h - doorH, doorW, w / 2 - T / 2, doorH + (h - doorH) / 2, 0, wallMat, false);
 
-  /* --- 外立面贴皮（纯视觉） --- */
   addSkin(w, h, 0, h / 2, -d / 2 - 0.02, Math.PI);
   addSkin(w, h, 0, h / 2, d / 2 + 0.02, 0);
   addSkin(d, h, -w / 2 - 0.02, h / 2, 0, Math.PI / 2);
@@ -1158,7 +1129,6 @@ function makeBuilding(w, h, d, x, z, tex, winRepeatX, winRepeatZ) {
   addSkin(segLen, h, w / 2 + 0.02, h / 2, (doorW / 2 + segLen / 2), -Math.PI / 2);
   addSkin(doorW, h - doorH, w / 2 + 0.02, doorH + (h - doorH) / 2, 0, -Math.PI / 2);
 
-  /* --- 内部：地板 / 吊顶 / 灯带 / 点灯 --- */
   var fl = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * T, 0.12, d - 2 * T), inFloorMat);
   fl.position.y = 0.06;
   fl.receiveShadow = true;
@@ -1175,7 +1145,6 @@ function makeBuilding(w, h, d, x, z, tex, winRepeatX, winRepeatZ) {
   pl.position.set(0, innerH - 0.7, 0);
   grp.add(pl);
 
-  /* --- 课桌（带碰撞） --- */
   var rows = Math.max(2, Math.floor((d - 10) / 7));
   for (var r = 0; r < rows; r++) {
     var zOff = -d / 2 + 6 + r * ((d - 12) / Math.max(1, rows - 1));
@@ -1184,12 +1153,10 @@ function makeBuilding(w, h, d, x, z, tex, winRepeatX, winRepeatZ) {
     }
   }
 
-  /* --- 门框警示灯 --- */
   var dl = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.25), warnMat);
   dl.position.set(w / 2 + 0.1, doorH + 0.35, 0);
   grp.add(dl);
 
-  /* --- 屋顶（复用原有造型） --- */
   var roof = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 0.3, d - 0.3), roofMat);
   roof.position.y = h - 0.15;
   roof.castShadow = true;
@@ -1334,7 +1301,7 @@ makeBuilding(26, 13, 34, -132, 44, facadeC);
   scene.add(inst);
 })();
 
-/* ================= 13. 彩虹（下雨时淡出，雨后重现） ================= */
+/* ================= 13. 彩虹 ================= */
 var rainbowMat = null;
 (function buildRainbow() {
   var b = new GeoBatch();
@@ -1358,14 +1325,13 @@ var rainbowMat = null;
     side: THREE.DoubleSide, fog: false, toneMapped: false
   });
   var mesh = b.mesh(rainbowMat);
-  /* 几何本身位于竖直 XY 平面（拱形朝 +Y），绕 Y 轴转向太阳对侧 */
   mesh.rotation.set(0, 2.147, 0);
   mesh.position.set(0, -92, 0);
   mesh.frustumCulled = false;
   scene.add(mesh);
 })();
 
-/* ================= 14. 雨滴粒子（可开关） ================= */
+/* ================= 14. 雨滴粒子 ================= */
 var rain = (function () {
   var N = isMobile ? 900 : 1800;
   var pos = new Float32Array(N * 3);
@@ -1432,11 +1398,10 @@ var btnReset = document.getElementById('btnReset');
 var touchCapable = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 if (touchCapable) document.body.classList.add('has-touch');
 
-/* 人物参数 */
-var P_EYE = 1.7;                       /* 眼高（米） */
-var P_WALK = 4.4;                      /* 步行速度 */
-var P_RUN = 9.5;                       /* 奔跑速度 */
-var P_BOUND = {                        /* 活动边界（操场围栏 + 西侧教学楼区） */
+var P_EYE = 1.7;
+var P_WALK = 4.4;
+var P_RUN = 9.5;
+var P_BOUND = {
   x0: -150, x1: COMPOUND.x1 - 1.2,
   z0: COMPOUND.z0 - 8, z1: COMPOUND.z1 + 1.2
 };
@@ -1508,7 +1473,6 @@ if (joyEl) {
   joyEl.addEventListener('touchcancel', joyEnd);
 }
 
-/* ---------- 环视拖拽：鼠标左键拖拽 / 触屏滑动（非摇杆区） ---------- */
 var dom = renderer.domElement;
 dom.style.touchAction = 'none';
 dom.addEventListener('contextmenu', function (e) { e.preventDefault(); });
@@ -1536,7 +1500,6 @@ function endDrag(e) {
 dom.addEventListener('pointerup', endDrag);
 dom.addEventListener('pointercancel', endDrag);
 
-/* ---------- 射击输入：桌面端指针锁定（锁定后鼠标直接环视+左键开火） ---------- */
 dom.addEventListener('click', function () {
   if (!touchCapable && !game.dead && document.pointerLockElement !== dom && dom.requestPointerLock) {
     dom.requestPointerLock();
@@ -1555,7 +1518,6 @@ window.addEventListener('mouseup', function (e) {
   if (e.button === 0) game.shooting = false;
 });
 
-/* ---------- 工具与状态更新 ---------- */
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
 var _fwd = new THREE.Vector3();
@@ -1563,11 +1525,9 @@ var _rgt = new THREE.Vector3();
 var _look = new THREE.Vector3();
 
 function updateControls(dt) {
-  /* 水平前向 / 右向（不受俯仰影响） */
   _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   _rgt.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
 
-  /* 汇总移动输入：键盘 + 虚拟摇杆 */
   var mvx = 0, mvz = 0;
   if (keys.KeyW || keys.ArrowUp) mvz += 1;
   if (keys.KeyS || keys.ArrowDown) mvz -= 1;
@@ -1579,32 +1539,28 @@ function updateControls(dt) {
   var ml = Math.hypot(mvx, mvz);
   var moving = ml > 0.001 && !game.dead;
 
-  /* 走路 / 疾跑区分：疾跑耗体力、FOV 拉伸、头摆加重 */
   game.sprinting = moving && wantSprint && game.stamina > 1.5;
   if (game.sprinting) game.stamina = Math.max(0, game.stamina - 26 * dt);
   else game.stamina = Math.min(100, game.stamina + 15 * dt);
 
   if (moving) {
-    var inv = ml > 1 ? 1 / ml : 1;                 /* 归一化，避免斜向加速 */
+    var inv = ml > 1 ? 1 / ml : 1;
     var sp = (game.sprinting ? P_RUN : P_WALK) * dt * inv;
     player.pos.x += (_fwd.x * mvz + _rgt.x * mvx) * sp;
     player.pos.z += (_fwd.z * mvz + _rgt.z * mvx) * sp;
     player.bob += dt * (game.sprinting ? 13.5 : 9);
   } else {
-    player.bob *= Math.max(0, 1 - dt * 6);         /* 静止时头摆衰减 */
+    player.bob *= Math.max(0, 1 - dt * 6);
   }
 
-  /* 墙体碰撞（可穿门洞）+ 外边界兜底 */
   var cr = collideXZ(player.pos.x, player.pos.z, 0.42);
   player.pos.x = clamp(cr[0], P_BOUND.x0, P_BOUND.x1);
   player.pos.z = clamp(cr[1], P_BOUND.z0, P_BOUND.z1);
   var bobY = Math.sin(player.bob) * (game.sprinting ? 0.075 : 0.045) * (moving ? 1 : 0);
 
-  /* 疾跑 FOV 动态拉伸 */
   camera.fov += ((game.sprinting ? 66 : 55) - camera.fov) * Math.min(1, dt * 7);
   camera.updateProjectionMatrix();
 
-  /* 设置相机（第一人称） */
   var cp = Math.cos(player.pitch);
   _look.set(cp * -Math.sin(player.yaw), Math.sin(player.pitch), cp * -Math.cos(player.yaw));
   camera.position.set(player.pos.x, P_EYE + bobY, player.pos.z);
@@ -1627,7 +1583,7 @@ if (btnReset) btnReset.addEventListener('click', function () {
   player.bob = 0;
 });
 
-/* ================= 16.5 战斗系统：状态 / 枪械 / 丧尸 / 血量 ================= */
+/* ================= 16.5 战斗系统 ================= */
 var game = {
   hp: 100, maxHp: 100, stamina: 100,
   ammo: 30, magSize: 30, reloading: false, reloadT: 0,
@@ -1637,7 +1593,7 @@ var game = {
   dead: false, hurtT: 0, noDmgT: 0, shake: 0, hitmarkT: 0
 };
 
-/* ---------- 枪械模型（挂载相机） ---------- */
+/* ---------- 枪械模型 ---------- */
 var gunGrp = new THREE.Group();
 (function buildGun() {
   var body = new THREE.MeshStandardMaterial({ color: 0x454c54, roughness: 0.42, metalness: 0.6 });
@@ -1649,18 +1605,17 @@ var gunGrp = new THREE.Group();
     gunGrp.add(m);
     return m;
   }
-  part(0.09, 0.11, 0.62, 0, 0, -0.18);            /* 机匣 */
-  part(0.07, 0.07, 0.34, 0, 0.015, -0.62);        /* 枪管 */
-  part(0.05, 0.09, 0.16, 0, -0.09, 0.02, grip);   /* 握把 */
-  part(0.06, 0.13, 0.07, 0, -0.1, -0.28, grip);   /* 弹匣 */
-  part(0.05, 0.05, 0.2, 0, 0.085, -0.3, acc);     /* 导轨 */
-  part(0.045, 0.05, 0.05, 0, 0.115, -0.34, acc);  /* 准星 */
+  part(0.09, 0.11, 0.62, 0, 0, -0.18);
+  part(0.07, 0.07, 0.34, 0, 0.015, -0.62);
+  part(0.05, 0.09, 0.16, 0, -0.09, 0.02, grip);
+  part(0.06, 0.13, 0.07, 0, -0.1, -0.28, grip);
+  part(0.05, 0.05, 0.2, 0, 0.085, -0.3, acc);
+  part(0.045, 0.05, 0.05, 0, 0.115, -0.34, acc);
   gunGrp.position.set(0.22, -0.18, -0.42);
   camera.add(gunGrp);
-  scene.add(camera);                              /* 相机入场景树以渲染枪械 */
+  scene.add(camera);
 })();
 
-/* 枪口火光 */
 var muzzle = new THREE.Mesh(
   new THREE.PlaneGeometry(0.46, 0.46),
   new THREE.MeshBasicMaterial({
@@ -1706,7 +1661,6 @@ function makeZombie() {
   var head = box(0.3, 0.32, 0.3, 0, 1.58, 0, skin);
   box(0.05, 0.045, 0.02, -0.07, 1.62, -0.16, zEyeMat);
   box(0.05, 0.045, 0.02, 0.07, 1.62, -0.16, zEyeMat);
-  /* 四肢：枢轴组便于摆动 */
   function limb(w, len, x, y, mat) {
     var g = new THREE.Group();
     var m = new THREE.Mesh(new THREE.BoxGeometry(w, len, w), mat);
@@ -1718,10 +1672,9 @@ function makeZombie() {
   }
   var armL = limb(0.13, 0.52, -0.33, 1.36, skin);
   var armR = limb(0.13, 0.52, 0.33, 1.36, skin);
-  armL.rotation.x = -1.4; armR.rotation.x = -1.4;   /* 前伸 */
+  armL.rotation.x = -1.4; armR.rotation.x = -1.4;
   var legL = limb(0.17, 0.62, -0.14, 0.78, cloth);
   var legR = limb(0.17, 0.62, 0.14, 0.78, cloth);
-  /* 地面假阴影（静态烘焙阴影不含动态丧尸） */
   var blob = new THREE.Mesh(zShadowGeo, zShadowMat);
   blob.rotation.x = -Math.PI / 2;
   blob.position.y = 0.02;
@@ -1730,17 +1683,31 @@ function makeZombie() {
   grp.scale.set(sc, sc, sc);
   var runner = Math.random() < 0.1;
   var z = {
-    grp: grp, hp: 100, r: 0.5,
+    grp: grp, r: 0.5,
     speed: runner ? 4.4 + Math.random() * 0.8 : 1.15 + Math.random() * 1.05,
     runner: runner, atkCd: 0, phase: Math.random() * 6.28,
     armL: armL, armR: armR, legL: legL, legR: legR,
     dead: false, deadT: 0
   };
+
+  /* ★ 联机：把 hp 唯一数据源放在 grp.userData.hp，
+     z.hp 通过 defineProperty 代理读写，与 zsync.js 自动同步 */
+  grp.userData.hp = 100;
+  grp.userData.isZombie = true;
+  grp.userData.__zRef = z;
+  Object.defineProperty(z, 'hp', {
+    get: function () { return grp.userData.hp; },
+    set: function (v) { grp.userData.hp = v; }
+  });
+
   scene.add(grp);
   return z;
 }
 
 function spawnZombie() {
+  /* ★ 联机：客户端不刷丧尸，由房主快照驱动（除非 __zombieSpawn 补怪） */
+  if (window.ZS && window.ZS.isClient() && !window.__zombieSpawnMode) return;
+
   for (var t = 0; t < 24; t++) {
     var x = COMPOUND.x0 + 6 + Math.random() * (COMPOUND.x1 - COMPOUND.x0 - 12);
     var z = COMPOUND.z0 + 6 + Math.random() * (COMPOUND.z1 - COMPOUND.z0 - 12);
@@ -1749,6 +1716,10 @@ function spawnZombie() {
     var zb = makeZombie();
     zb.grp.position.set(x, 0, z);
     zombies.push(zb);
+    /* ★ 联机：注册到全局数组，供 zsync 序列化广播 */
+    if (!window.__zombieSpawnMode) {
+      window.__zombies.push(zb.grp);
+    }
     return;
   }
 }
@@ -1842,10 +1813,21 @@ function weaponFire() {
   muzzle.material.opacity = 1;
   muzzle.rotation.z = Math.random() * Math.PI;
   muzzleLight.intensity = 24;
-  player.pitch = clamp(player.pitch + 0.012, -1.45, 1.45);   /* 后坐上跳 */
+  player.pitch = clamp(player.pitch + 0.012, -1.45, 1.45);
   var hit = fireRayHit();
   if (hit) {
-    damageZombie(hit.z, hit.hs ? 115 : 38);
+    var isClient = !!(window.ZS && window.ZS.isClient());
+    if (isClient && window.P2P) {
+      /* ★ 联机：客户端把命中上报房主，由房主结算伤害 */
+      var g = hit.z.grp;
+      var idx = (window.__zombies || []).indexOf(g);
+      if (idx >= 0) {
+        window.P2P.sendHitZombie(idx, hit.hs ? 999 : 38);
+      }
+    } else {
+      /* 房主 / 单机：本地结算 */
+      damageZombie(hit.z, hit.hs ? 115 : 38);
+    }
     game.hitmarkT = 0.14;
   }
 }
@@ -1866,46 +1848,95 @@ function updateWeapon(dt) {
   game.recoil = Math.max(0, game.recoil - dt * 7);
   muzzle.material.opacity *= Math.pow(0.0001, dt);
   muzzleLight.intensity *= Math.pow(0.00001, dt);
-  /* 枪械动画：后坐 + 换弹翻转 */
   var wantRot = game.reloading ? 0.55 : 0;
   gunGrp.rotation.x += (wantRot + game.recoil * 0.1 - gunGrp.rotation.x) * Math.min(1, dt * 10);
   gunGrp.position.z = -0.42 + game.recoil * 0.055;
 }
 
-/* ---------- 丧尸 AI ---------- */
+/* ---------- 丧尸 AI（★ 联机：客户端分支） ---------- */
 function updateZombies(dt) {
-  var target = Math.min(6 + Math.floor(game.elapsed / 22), 24);
-  game.wave = 1 + Math.floor(game.elapsed / 30);
-  game.spawnT -= dt;
-  var alive = 0;
-  for (var i = 0; i < zombies.length; i++) if (!zombies[i].dead) alive++;
-  if (game.spawnT <= 0 && alive < target && !game.dead) {
-    spawnZombie();
-    game.spawnT = 0.7;
+  var isClient = !!(window.ZS && window.ZS.isClient());
+
+  /* ★ 联机：房主 / 单机才推进波次和刷怪 */
+  if (!isClient) {
+    var target = Math.min(6 + Math.floor(game.elapsed / 22), 24);
+    game.wave = 1 + Math.floor(game.elapsed / 30);
+    game.spawnT -= dt;
+    var alive = 0;
+    for (var i = 0; i < zombies.length; i++) if (!zombies[i].dead) alive++;
+    if (game.spawnT <= 0 && alive < target && !game.dead) {
+      spawnZombie();
+      game.spawnT = 0.7;
+    }
   }
-  for (i = zombies.length - 1; i >= 0; i--) {
+
+  for (var i = zombies.length - 1; i >= 0; i--) {
     var z = zombies[i];
     var p = z.grp.position;
+
     if (z.dead) {
       z.deadT += dt;
-      z.grp.rotation.x = Math.min(1.5, z.deadT * 4.4);      /* 前扑倒地 */
-      if (z.deadT > 0.75) p.y -= dt * 1.1;                  /* 沉入地面 */
+      z.grp.rotation.x = Math.min(1.5, z.deadT * 4.4);
+      if (z.deadT > 0.75) p.y -= dt * 1.1;
       if (z.deadT > 1.7) {
-        scene.remove(z.grp);
+        /* ★ 联机：出队时同步从 __zombies 移除 */
+        if (z.grp.parent) z.grp.parent.remove(z.grp);
+        else scene.remove(z.grp);
+        var ix = (window.__zombies || []).indexOf(z.grp);
+        if (ix >= 0) window.__zombies.splice(ix, 1);
         zombies.splice(i, 1);
       }
       continue;
     }
+
+    /* ★ 联机：客户端僵尸位置由 zsync.js 的 rAF 插值控制；
+       本函数只做攻击判定 + 位置动画同步 */
+    if (isClient) {
+      /* zsync 已经 parent.remove() 隐藏的僵尸：同步移除 */
+      if (!z.grp.parent) {
+        var ix2 = (window.__zombies || []).indexOf(z.grp);
+        if (ix2 >= 0) window.__zombies.splice(ix2, 1);
+        zombies.splice(i, 1);
+        continue;
+      }
+      var dxC = player.pos.x - p.x, dzC = player.pos.z - p.z;
+      var distC = Math.hypot(dxC, dzC);
+      z.atkCd -= dt;
+      if (distC <= 1.35 && !game.dead) {
+        var swingC = Math.sin(Math.max(0, 0.55 - z.atkCd) * 9) * 0.5;
+        z.armL.rotation.x = -1.4 - swingC;
+        z.armR.rotation.x = -1.4 - swingC;
+        if (z.atkCd <= 0) {
+          z.atkCd = 0.95;
+          hurtPlayer(8 + Math.random() * 9);
+        }
+      } else {
+        /* 用位置变化速度驱动腿/手动画 */
+        var lx = z.__lx != null ? z.__lx : p.x;
+        var lz = z.__lz != null ? z.__lz : p.z;
+        var mv = Math.hypot(p.x - lx, p.z - lz);
+        z.__lx = p.x; z.__lz = p.z;
+        z.phase += dt * (2.6 + mv * 30);
+        var swC = Math.sin(z.phase) * 0.55;
+        z.legL.rotation.x = swC;
+        z.legR.rotation.x = -swC;
+        z.armL.rotation.x = -1.4 + Math.sin(z.phase + 3.14) * 0.16;
+        z.armR.rotation.x = -1.4 + Math.sin(z.phase) * 0.16;
+      }
+      /* 面向本地玩家（zsync 会覆盖 rotation.y，这里只在必要时补充） */
+      continue;
+    }
+
+    /* ============ 房主 / 单机：原逻辑 ============ */
     var dx = player.pos.x - p.x, dz = player.pos.z - p.z;
     var dist = Math.hypot(dx, dz);
     var dxn = 0, dzn = 0;
     if (dist > 0.001) { dxn = dx / dist; dzn = dz / dist; }
-    z.grp.rotation.y = Math.atan2(-dxn, -dzn);              /* 模型正面朝 -z */
+    z.grp.rotation.y = Math.atan2(-dxn, -dzn);
     if (dist > 1.15 && !game.dead) {
       var sp = z.speed * (1 + game.wave * 0.02);
       var nx = p.x + dxn * sp * dt;
       var nz = p.z + dzn * sp * dt;
-      /* 同类分离 */
       for (var j = 0; j < zombies.length; j++) {
         if (j === i || zombies[j].dead) continue;
         var q = zombies[j].grp.position;
@@ -1921,7 +1952,6 @@ function updateZombies(dt) {
       p.z = cr[1];
       z.phase += dt * (2.6 + z.speed * 1.6);
     } else if (dist <= 1.35) {
-      /* 攻击 */
       z.atkCd -= dt;
       var swing = Math.sin(Math.max(0, 0.55 - z.atkCd) * 9) * 0.5;
       z.armL.rotation.x = -1.4 - swing;
@@ -1931,7 +1961,6 @@ function updateZombies(dt) {
         hurtPlayer(8 + Math.random() * 9);
       }
     }
-    /* 行走摆动 */
     var sw = Math.sin(z.phase) * 0.55;
     z.legL.rotation.x = sw;
     z.legR.rotation.x = -sw;
@@ -1949,6 +1978,8 @@ function hurtPlayer(dmg) {
   game.hurtT = 1;
   game.noDmgT = 0;
   game.shake = 0.4;
+  /* ★ 联机：上报本地 HP，让队友血条实时更新 */
+  if (window.MP) window.MP.setHP(Math.max(0, game.hp));
   if (game.hp <= 0) {
     game.hp = 0;
     playerDie();
@@ -1968,6 +1999,9 @@ function playerDie() {
 function restartGame() {
   for (var i = 0; i < zombies.length; i++) scene.remove(zombies[i].grp);
   zombies.length = 0;
+  /* ★ 联机：清空全局数组 */
+  if (window.__zombies) window.__zombies.length = 0;
+
   game.hp = game.maxHp;
   game.stamina = 100;
   game.ammo = game.magSize;
@@ -2054,7 +2088,6 @@ var perfCheckT = 0, degraded = false;
 var loaderHidden = false;
 var loaderEl = document.getElementById('loader');
 
-/* 初始化时烘焙一次阴影贴图（场景为静态，之后复用） */
 invalidateShadows();
 
 function animate() {
@@ -2064,14 +2097,12 @@ function animate() {
   sharedU.uTime.value = perfT;
   skyUniforms.uTime.value = perfT;
 
-  /* 雨量渐变 */
   rain.anim += (rain.target - rain.anim) * Math.min(1, dt * 1.1);
   if (rain.anim < 0.005 && rain.target === 0) rain.anim = 0;
   sharedU.uRain.value = rain.anim;
   rain.mat.uniforms.uOpacity.value = rain.anim;
   rain.obj.visible = rain.anim > 0.004;
 
-  /* 下雨时的氛围：彩虹淡出、曝光微降、雾变浓 */
   if (rainbowMat) rainbowMat.opacity = 0.34 * (1.0 - rain.anim * 0.92);
   renderer.toneMappingExposure = 0.94 - rain.anim * 0.15;
   scene.fog.near = 120 - rain.anim * 50;
@@ -2084,7 +2115,6 @@ function animate() {
   updateZombies(dt);
   updateBlood(dt);
   updateHUD(dt);
-  /* 受击镜头震动（叠加在视角之上） */
   if (game.shake > 0) {
     camera.position.x += (Math.random() - 0.5) * game.shake * 0.2;
     camera.position.y += (Math.random() - 0.5) * game.shake * 0.15;
@@ -2098,13 +2128,11 @@ function animate() {
     setTimeout(function () { if (loaderEl) loaderEl.classList.add('hide'); }, 250);
   }
 
-  /* FPS 统计 */
   fpsFrames++; fpsAcc += dt;
   if (fpsAcc >= 0.6) {
     if (fpsEl) fpsEl.textContent = Math.round(fpsFrames / fpsAcc);
     fpsFrames = 0; fpsAcc = 0;
   }
-  /* 性能自适应降级（一次性） */
   if (!degraded) {
     perfCheckT += dt;
     if (perfCheckT > 7 && fpsFrames / Math.max(fpsAcc, 0.001) < 24) {
@@ -2127,7 +2155,59 @@ window.addEventListener('resize', function () {
 resizeReflection();
 animate();
 
-/* 调试接口（供自动化验证/排查） */
+/* ============================================================
+   ★ 联机桥接 API —— zsync.js 会调用
+   ============================================================ */
+
+/* 客户端补怪：让 zsync 在快照比本地多时调用 */
+window.__zombieSpawn = function (s) {
+  var lenBefore = zombies.length;
+  window.__zombieSpawnMode = true;
+  try { spawnZombie(); } finally { window.__zombieSpawnMode = false; }
+  if (zombies.length <= lenBefore) return null;   // 生成失败
+  var z = zombies[zombies.length - 1];
+  z.grp.position.set(s.x, s.y || 0, s.z);
+  z.hp = s.hp;
+  z.grp.userData.hp = s.hp;
+  z.grp.userData.__zRef = z;
+  return z.grp;   // zsync 会自己 push 到 window.__zombies
+};
+
+/* 房主：客户端命中上报后由 zsync 调用 → 走本地 damageZombie 结算 */
+window.__onZombieKilled = function (g) {
+  var z = g && g.userData && g.userData.__zRef;
+  if (z && !z.dead) {
+    z.dead = true;
+    z.deadT = 0;
+    game.kills++;
+  }
+};
+
+/* 客户端：HUD 数值从房主同步 */
+window.__waveSet = function (w) {
+  game.wave = w;
+  var el = document.getElementById('waveN'); if (el) el.textContent = w;
+};
+window.__killsSet = function (k) {
+  game.kills = k;
+  var el = document.getElementById('killN'); if (el) el.textContent = k;
+};
+
+/* ★ 覆盖 zsync.js 的 __hitZombie，走本地 damageZombie（血粒子/音效/击杀）
+   注意：app.js 在 zsync.js 之前加载，用 load 事件确保覆盖时机正确 */
+function installHitBridge() {
+  window.__hitZombie = function (d) {
+    if (!d || !window.__zombies) return;
+    var g = window.__zombies[d.i];
+    if (!g || !g.parent) return;
+    var z = g.userData.__zRef;
+    if (z && !z.dead) damageZombie(z, d.dmg || 0);
+  };
+}
+if (document.readyState === 'complete') installHitBridge();
+else window.addEventListener('load', installHitBridge);
+
+/* 调试接口 */
 window.__pg = {
   camera: camera,
   player: player,
