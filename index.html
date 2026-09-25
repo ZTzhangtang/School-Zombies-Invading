@@ -1,1076 +1,292 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>生化 · 校园突围 — 主菜单</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>生化 · 校园突围</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="p2p.js"></script>
 <style>
-@font-face{font-family:'Outfit';font-weight:400;src:url('_shared/fonts/Outfit-Regular.ttf') format('truetype');font-display:swap}
-@font-face{font-family:'Outfit';font-weight:700;src:url('_shared/fonts/Outfit-Bold.ttf') format('truetype');font-display:swap}
-
-:root{
-  --ink:#eef4fb;
-  --muted:#8fa4bb;
-  --rule:rgba(157,178,201,.16);
-  --accent:#6fb7ff;
-  --accent2:#9ee6c9;
-  --danger:#e2493b;
-  --panel:rgba(13,22,36,.66);
-}
-
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{
-  width:100%;height:100%;overflow:hidden;background:#070b12;color:var(--ink);
-  font-family:'Outfit','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans CJK SC',sans-serif;
-  -webkit-font-smoothing:antialiased;
-  user-select:none;-webkit-user-select:none;
-}
-
-/* ==================== 背景 ==================== */
-#bg{position:fixed;inset:0;z-index:0;overflow:hidden}
-#fx{display:block;width:100%;height:100%}
-#bg .vign{
-  position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse at 50% 42%, rgba(10,18,30,0) 28%, rgba(4,7,12,.88) 100%);
-}
-#bg .scan{
-  position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background:repeating-linear-gradient(0deg,
-    rgba(255,255,255,.028) 0 1px, transparent 1px 4px);
-}
-
-/* ==================== 屏幕容器 ==================== */
-#screens{position:fixed;inset:0;z-index:2}
-
-.screen{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  opacity:0;visibility:hidden;pointer-events:none;
-  transition:opacity .42s ease, transform .42s cubic-bezier(.2,.8,.2,1);
-  transform:translateY(18px) scale(.985);
-}
-.screen.active{
-  opacity:1;visibility:visible;pointer-events:auto;
-  transform:none;
-}
-
-/* ==================== 主菜单 ==================== */
-.brand{text-align:center;margin-bottom:40px;padding:0 20px}
-.brand .tag{
-  display:inline-block;font-size:10px;font-weight:700;letter-spacing:.28em;
-  color:var(--accent);border:1px solid rgba(111,183,255,.45);
-  border-radius:999px;padding:4px 13px 3px;margin-bottom:18px;
-}
-.brand h1{
-  font-size:clamp(30px,6.2vw,58px);font-weight:700;
-  letter-spacing:.08em;line-height:1.1;
-  text-shadow:0 0 44px rgba(111,183,255,.32), 0 4px 26px rgba(0,0,0,.85);
-  animation:glowPulse 4.5s ease-in-out infinite;
-}
-.brand h1 em{font-style:normal;color:var(--danger);margin:0 .1em}
-@keyframes glowPulse{
-  0%,100%{text-shadow:0 0 44px rgba(111,183,255,.28), 0 4px 26px rgba(0,0,0,.85)}
-  50%    {text-shadow:0 0 64px rgba(111,183,255,.5),  0 4px 26px rgba(0,0,0,.85)}
-}
-.brand .sub{
-  margin-top:14px;font-size:clamp(11px,1.7vw,13px);
-  letter-spacing:.18em;color:var(--muted);
-}
-
-.menu{display:flex;flex-direction:column;gap:10px;width:min(340px,86vw)}
-.mi{
-  position:relative;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:15px 22px;border-radius:12px;cursor:pointer;
-  background:var(--panel);
-  border:1px solid var(--rule);
-  color:var(--ink);font-family:inherit;font-size:16px;font-weight:700;letter-spacing:.1em;
-  text-align:left;overflow:hidden;
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  transition:background .18s, border-color .18s, transform .18s, box-shadow .18s;
-}
-.mi span{
-  font-size:10px;font-weight:400;letter-spacing:.22em;
-  color:var(--muted);transition:color .18s;
-}
-.mi::before{
-  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:var(--accent);
-  transform:scaleY(0);transform-origin:center;
-  transition:transform .24s cubic-bezier(.2,.8,.2,1);
-}
-.mi:hover,.mi:focus-visible{
-  background:rgba(111,183,255,.12);
-  border-color:rgba(111,183,255,.55);
-  transform:translateX(4px);
-  box-shadow:0 10px 32px rgba(6,12,22,.55);
-  outline:none;
-}
-.mi:hover::before,.mi:focus-visible::before{transform:scaleY(1)}
-.mi:hover span{color:var(--accent2)}
-.mi:active{transform:translateX(4px) scale(.985)}
-
-.mi.primary{
-  background:linear-gradient(100deg,rgba(226,73,59,.22),rgba(111,183,255,.13));
-  border-color:rgba(226,73,59,.48);
-}
-.mi.primary::before{background:var(--danger)}
-.mi.primary:hover{
-  background:linear-gradient(100deg,rgba(226,73,59,.34),rgba(111,183,255,.2));
-  border-color:rgba(226,73,59,.85);
-}
-
-.menu-foot{
-  position:absolute;left:0;right:0;bottom:22px;
-  text-align:center;padding:0 20px;
-  font-size:10.5px;letter-spacing:.18em;line-height:2;
-  color:rgba(143,164,187,.62);
-}
-.menu-foot #lastLine{color:rgba(158,230,201,.75)}
-
-/* ==================== 子页面标题栏 ==================== */
-.scr-head{
-  position:fixed;top:0;left:0;right:0;z-index:6;
-  display:flex;align-items:center;gap:16px;
-  padding:22px max(22px,4vw);
-  background:linear-gradient(to bottom, rgba(7,11,18,.94), rgba(7,11,18,0));
-  pointer-events:none;
-}
-.scr-head > *{pointer-events:auto}
-.back{
-  width:42px;height:42px;flex:none;
-  border-radius:11px;cursor:pointer;font-family:inherit;
-  display:grid;place-items:center;font-size:18px;
-  background:var(--panel);border:1px solid var(--rule);color:var(--ink);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  transition:background .18s,border-color .18s,transform .18s;
-}
-.back:hover{background:rgba(111,183,255,.16);border-color:var(--accent);transform:translateX(-2px)}
-.scr-head h2{font-size:20px;font-weight:700;letter-spacing:.16em;line-height:1.1}
-.scr-head p{font-size:9.5px;letter-spacing:.3em;color:var(--muted);margin-top:4px}
-
-/* ==================== 地图选择 ==================== */
-#scMaps{padding:0;justify-content:flex-start;overflow:hidden}
-
-.map-grid{
-  width:min(1120px,92vw);
-  margin:104px auto 128px;
-  max-height:calc(100vh - 232px);
-  overflow-y:auto;overflow-x:hidden;
-  padding:4px 4px 10px;
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(274px,1fr));
-  gap:16px;align-content:start;
-}
-.map-grid::-webkit-scrollbar{width:6px}
-.map-grid::-webkit-scrollbar-track{background:transparent}
-.map-grid::-webkit-scrollbar-thumb{
-  background:rgba(111,183,255,.3);border-radius:3px;
-}
-.map-grid::-webkit-scrollbar-thumb:hover{background:rgba(111,183,255,.5)}
-
-.card{
-  position:relative;border-radius:16px;overflow:hidden;cursor:pointer;
-  background:rgba(10,16,26,.72);
-  border:1px solid var(--rule);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  transition:transform .24s cubic-bezier(.2,.8,.2,1),
-             border-color .24s, box-shadow .24s;
-}
-.card:hover{
-  transform:translateY(-4px);
-  border-color:rgba(111,183,255,.55);
-  box-shadow:0 18px 44px rgba(4,10,20,.62);
-}
-.card.sel{
-  border-color:var(--accent);
-  box-shadow:0 0 0 1px var(--accent), 0 18px 48px rgba(111,183,255,.24);
-}
-.card.locked{opacity:.5;cursor:not-allowed}
-.card.locked:hover{transform:none;border-color:var(--rule);box-shadow:none}
-.card.shake{animation:shake .42s ease}
-@keyframes shake{
-  0%,100%{transform:translateX(0)}
-  18%{transform:translateX(-7px)}
-  38%{transform:translateX(6px)}
-  58%{transform:translateX(-3px)}
-  78%{transform:translateX(2px)}
-}
-
-.thumb{
-  position:relative;height:150px;overflow:hidden;
-  background:
-    radial-gradient(circle at 74% 16%, var(--c,rgba(111,183,255,.24)), transparent 58%),
-    linear-gradient(160deg,#14243a,#0a1220 65%,#0b1522);
-}
-.thumb svg{
-  position:absolute;inset:0;z-index:1;
-  width:100%;height:100%;display:block;
-}
-.thumb .fade{
-  position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:linear-gradient(to bottom, transparent 48%, rgba(10,16,26,.92) 100%);
-}
-.lock{
-  position:absolute;top:11px;right:11px;z-index:3;
-  font-size:10px;letter-spacing:.16em;padding:4px 11px;border-radius:999px;
-  background:rgba(226,73,59,.18);
-  border:1px solid rgba(226,73,59,.45);
-  color:#ff9b8a;
-}
-
-.card-bd{padding:13px 16px 16px}
-.card-bd h3{font-size:15.5px;font-weight:700;letter-spacing:.06em;line-height:1.3}
-.card-bd .en{
-  font-size:9px;letter-spacing:.22em;color:var(--muted);margin-top:6px;
-}
-.card-bd .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.tg{
-  font-size:10px;letter-spacing:.08em;
-  padding:3px 9px 2px;border-radius:999px;
-  border:1px solid rgba(158,230,201,.28);
-  color:var(--accent2);
-  background:rgba(158,230,201,.07);
-}
-.tg.dim{
-  border-color:rgba(157,178,201,.22);
-  color:var(--muted);background:rgba(157,178,201,.06);
-}
-.diff{display:flex;gap:4px;margin-top:13px;align-items:center}
-.diff i{width:16px;height:3px;border-radius:2px;background:rgba(157,178,201,.22)}
-.diff i.on{background:var(--danger);box-shadow:0 0 8px rgba(226,73,59,.55)}
-
-/* 底部操作条 */
-.map-bar{
-  position:fixed;left:0;right:0;bottom:0;z-index:6;
-  display:flex;align-items:center;justify-content:space-between;gap:20px;
-  padding:20px max(22px,4vw) 24px;
-  background:linear-gradient(to top, rgba(7,11,18,.97), rgba(7,11,18,0));
-  pointer-events:none;
-}
-.map-bar > *{pointer-events:auto}
-.bar-info{min-width:0}
-.bar-info .bn{
-  font-size:16px;font-weight:700;letter-spacing:.08em;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.bar-info .bd{
-  font-size:11.5px;color:var(--muted);letter-spacing:.04em;
-  margin-top:6px;line-height:1.6;max-width:600px;
-}
-
-.go{
-  flex:none;padding:14px 34px;border-radius:12px;cursor:pointer;
-  font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.14em;
-  color:var(--ink);
-  border:1px solid rgba(111,183,255,.6);
-  background:linear-gradient(100deg,rgba(111,183,255,.24),rgba(158,230,201,.13));
-  transition:background .18s, box-shadow .18s, transform .12s, opacity .18s;
-}
-.go:hover:not(:disabled){
-  background:linear-gradient(100deg,rgba(111,183,255,.42),rgba(158,230,201,.24));
-  box-shadow:0 12px 34px rgba(111,183,255,.3);
-}
-.go:active:not(:disabled){transform:scale(.97)}
-.go:disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
-
-/* ==================== 设置 ==================== */
-#scSettings{padding:0;justify-content:flex-start;overflow-y:auto}
-.panel{
-  width:min(560px,92vw);
-  margin:118px auto 60px;
-  padding:8px 22px;
-  background:var(--panel);
-  border:1px solid var(--rule);
-  border-radius:16px;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  box-shadow:0 18px 48px rgba(4,10,20,.5);
-}
-.row{
-  display:flex;align-items:center;justify-content:space-between;gap:20px;
-  padding:17px 0;
-  border-bottom:1px solid rgba(157,178,201,.1);
-}
-.row:last-of-type{border-bottom:none}
-.row > label{
-  font-size:13.5px;letter-spacing:.08em;color:var(--ink);
-  display:flex;align-items:center;gap:10px;flex:none;
-}
-.row > label b{color:var(--accent2);font-weight:700;font-size:12.5px;min-width:38px}
-
-.seg{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.seg button{
-  font-family:inherit;font-size:12.5px;letter-spacing:.06em;
-  padding:8px 15px;border-radius:9px;cursor:pointer;
-  background:rgba(255,255,255,.04);
-  border:1px solid var(--rule);
-  color:var(--muted);
-  transition:background .16s,border-color .16s,color .16s;
-}
-.seg button:hover{border-color:rgba(111,183,255,.5);color:var(--ink)}
-.seg button.on{
-  background:rgba(111,183,255,.16);
-  border-color:var(--accent);
-  color:var(--ink);
-}
-
-input[type=range]{
-  -webkit-appearance:none;appearance:none;
-  width:190px;height:4px;border-radius:2px;cursor:pointer;
-  background:rgba(157,178,201,.25);outline:none;
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;appearance:none;
-  width:16px;height:16px;border-radius:50%;
-  background:var(--accent);
-  border:2px solid #0a1220;
-  box-shadow:0 0 12px rgba(111,183,255,.65);
-  cursor:pointer;
-}
-input[type=range]::-moz-range-thumb{
-  width:14px;height:14px;border-radius:50%;
-  background:var(--accent);border:2px solid #0a1220;cursor:pointer;
-}
-
-.toggle{
-  position:relative;width:50px;height:27px;flex:none;
-  border-radius:999px;cursor:pointer;font-family:inherit;
-  background:rgba(157,178,201,.16);
-  border:1px solid var(--rule);
-  transition:background .2s,border-color .2s;
-}
-.toggle i{
-  position:absolute;top:2px;left:2px;
-  width:21px;height:21px;border-radius:50%;
-  background:var(--muted);
-  transition:transform .22s cubic-bezier(.2,.8,.2,1), background .2s;
-}
-.toggle.on{background:rgba(111,183,255,.24);border-color:rgba(111,183,255,.6)}
-.toggle.on i{transform:translateX(23px);background:var(--accent2);box-shadow:0 0 10px rgba(158,230,201,.7)}
-
-.hint{
-  margin:14px 0 16px;
-  font-size:11px;line-height:1.9;letter-spacing:.05em;
-  color:rgba(143,164,187,.7);
-}
-
-/* ==================== 制作人员 ==================== */
-#scCredits{padding:0;justify-content:flex-start;overflow-y:auto}
-.credits{
-  width:min(600px,92vw);
-  margin:118px auto 70px;
-  text-align:center;
-}
-.credits .cblock{
-  padding:20px 0;
-  border-bottom:1px solid rgba(157,178,201,.1);
-}
-.credits .cblock:last-child{border-bottom:none}
-.credits .clabel{
-  font-size:9.5px;letter-spacing:.3em;color:var(--accent);
-  margin-bottom:10px;
-}
-.credits .cname{
-  font-size:15px;font-weight:700;letter-spacing:.08em;line-height:1.9;
-}
-.credits .cdesc{
-  font-size:11.5px;color:var(--muted);letter-spacing:.05em;
-  line-height:1.9;margin-top:6px;
-}
-
-/* ==================== 转场 ==================== */
-#transition{
-  position:fixed;inset:0;z-index:50;
-  display:grid;place-items:center;gap:18px;
-  background:#05080d;
-  opacity:0;visibility:hidden;
-  transition:opacity .5s ease;
-}
-#transition.on{opacity:1;visibility:visible}
-#transition .inner{
-  display:flex;flex-direction:column;align-items:center;gap:18px;
-}
-.tr-ring{
-  width:44px;height:44px;border-radius:50%;
-  border:2px solid rgba(157,178,201,.2);
-  border-top-color:var(--accent);
-  animation:spin .9s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.tr-txt{
-  font-size:12.5px;letter-spacing:.28em;color:var(--muted);
-}
-
-/* ==================== 响应式 ==================== */
-@media (max-width:720px){
-  .brand{margin-bottom:30px}
-  .menu{width:min(300px,88vw)}
-  .mi{padding:14px 18px;font-size:15px}
-  .menu-foot{font-size:9.5px;letter-spacing:.12em}
-
-  .map-grid{
-    margin:96px auto 200px;
-    max-height:calc(100vh - 296px);
-    grid-template-columns:1fr;
-    gap:13px;
-  }
-  .thumb{height:132px}
-
-  .map-bar{
-    flex-direction:column;align-items:stretch;gap:12px;
-    padding:14px 18px 18px;
-  }
-  .bar-info .bd{display:none}
-  .bar-info .bn{font-size:14px;text-align:center}
-  .go{width:100%;text-align:center;padding:14px}
-
-  .panel,.credits{margin-top:104px}
-  .row{flex-direction:column;align-items:flex-start;gap:11px}
-  .seg{justify-content:flex-start;width:100%}
-  input[type=range]{width:100%}
-  .toggle{align-self:flex-end}
-}
-
-@media (max-height:560px){
-  .brand{margin-bottom:20px}
-  .brand .sub{display:none}
-  .menu-foot{display:none}
-}
+:root{--red:#e94560;--grn:#2ec27e;--tx:#e8ecf1;--mut:#8a93a3;--ln:#263650}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:radial-gradient(1100px 640px at 50% -8%,#17222f 0%,#0b0e13 62%);color:var(--tx);
+ font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+#app{height:100%;display:flex;align-items:center;justify-content:center;padding:12px}
+.screen{display:none;width:min(600px,96vw);max-height:94vh;overflow:auto;background:rgba(13,17,25,.9);
+ border:1px solid #1f2c40;border-radius:18px;padding:26px 28px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+.screen.show{display:block;animation:pop .22s ease}
+@keyframes pop{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.kicker{font-size:11px;letter-spacing:4px;color:var(--mut)}
+h1{font-size:32px;letter-spacing:3px;margin:6px 0 2px}
+h1 em{color:var(--red);font-style:normal}
+h2{font-size:20px;margin:2px 0 14px}
+h3{font-size:15px;margin:16px 0 8px;color:#cfd7e2}
+.sub{color:var(--mut);font-size:13px;line-height:1.8}
+.menu{display:flex;flex-direction:column;gap:11px;margin-top:22px}
+.mbtn{padding:14px 16px;font-size:16px;font-weight:700;text-align:left;color:var(--tx);
+ background:#161d2a;border:1px solid var(--ln);border-radius:12px}
+.mbtn:hover{transform:translateX(4px);border-color:var(--red)}
+.mbtn small{float:right;color:var(--mut);font-weight:500;font-size:12px;margin-top:3px}
+.mbtn.primary{background:linear-gradient(135deg,var(--red),#a12c46);border:none}
+.mbtn.primary:hover{filter:brightness(1.12)}
+.btn{padding:10px 18px;font-weight:700;background:#1a2334;color:var(--tx);border:1px solid var(--ln);border-radius:10px}
+.btn:hover{border-color:var(--grn)}
+.btn.go{background:var(--grn);color:#04120b;border:none}
+.btn.danger{background:#2a1520;color:#ff8095;border-color:#4a2030}
+.row{display:flex;gap:10px;align-items:center;margin:10px 0}
+input,select{flex:1;min-width:0;padding:11px 12px;border-radius:10px;border:1px solid var(--ln);
+ background:#0d1320;color:var(--tx);font:inherit}
+input:focus,select:focus{outline:none;border-color:var(--grn)}
+.back{margin-bottom:14px;background:transparent;border:1px solid var(--ln);color:var(--mut);
+ padding:7px 14px;border-radius:999px;font-size:13px}
+.back:hover{color:var(--tx);border-color:var(--red)}
+.mcards{display:grid;gap:12px}
+.mcard{border:1px solid var(--ln);background:#131a27;border-radius:14px;padding:14px 16px;cursor:pointer;transition:.15s}
+.mcard:hover{border-color:#3b5a86}
+.mcard.sel{border-color:var(--grn);box-shadow:0 0 0 1px var(--grn) inset}
+.mtag{font-size:11px;color:var(--grn);letter-spacing:2px}
+.mcard h3{margin:6px 0 4px;color:var(--tx)}
+.mcard p{font-size:12.5px;color:var(--mut);line-height:1.7}
+.code{font-size:34px;font-weight:900;letter-spacing:8px;color:var(--grn);text-align:center;user-select:all;
+ background:#0d1320;border:1px dashed #2a4d3a;border-radius:12px;padding:10px;margin:8px 0}
+#mp-players{display:flex;flex-direction:column;gap:6px;max-height:150px;overflow:auto;margin:8px 0}
+#mp-players div{background:#0f1520;border:1px solid #1d2839;border-radius:8px;padding:7px 10px;font-size:13.5px}
+.status{min-height:20px;font-size:12.5px;color:#7f8ea4;margin-top:10px}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 0;
+ border-bottom:1px solid #1a2434;font-size:14px}
+.setrow select,.setrow input[type=range]{max-width:190px}
+.cre{display:grid;gap:10px;margin-top:10px}
+.cre div{background:#0f1520;border:1px solid #1d2839;border-radius:10px;padding:10px 14px;font-size:13px;color:var(--mut)}
+.cre b{display:block;color:var(--tx);margin-bottom:2px;letter-spacing:1px}
 </style>
 </head>
 <body>
+<div id="app">
 
-<div id="bg">
-  <canvas id="fx"></canvas>
-  <div class="vign"></div>
-  <div class="scan"></div>
-</div>
-
-<main id="screens">
-
-  <!-- ==================== 主菜单 ==================== -->
-  <section class="screen active" id="scMenu">
-    <div class="brand">
-      <span class="tag">THREE.JS · WEBGL</span>
-      <h1>生化<em>·</em>校园突围</h1>
-      <div class="sub">丧尸围城 · 无尽波次 · 可进入教学楼</div>
+  <!-- ===== 主菜单 ===== -->
+  <section class="screen show" id="scr-home">
+    <div class="kicker">THREE.JS · WEBGL</div>
+    <h1>生化 <em>·</em> 校园突围</h1>
+    <div class="sub">丧尸围城 · 无尽波次 · 三张地图 · P2P 联机<br><span id="last-line"></span></div>
+    <div class="menu">
+      <button class="mbtn primary" id="b-quick">▶ 开始突围 <small id="quick-map"></small></button>
+      <button class="mbtn" id="b-mp">🌐 联机突围 <small>P2P · 好友同玩</small></button>
+      <button class="mbtn" id="b-maps">🗺 地图选择 <small>3 张</small></button>
+      <div class="row" style="gap:11px">
+        <button class="mbtn" style="flex:1" id="b-set">⚙ 设置</button>
+        <button class="mbtn" style="flex:1" id="b-cre">ℹ 制作人员</button>
+      </div>
     </div>
-
-    <nav class="menu">
-      <button class="mi primary" data-act="start"><b>开始游戏</b><span>START</span></button>
-      <button class="mi" data-go="maps"><b>地图选择</b><span>MAPS</span></button>
-      <button class="mi" data-go="settings"><b>设置</b><span>SETTINGS</span></button>
-      <button class="mi" data-go="credits"><b>制作人员</b><span>CREDITS</span></button>
-    </nav>
-
-    <div class="menu-foot">
-      <div id="lastLine">上次游玩 · 尚无记录</div>
-      <div>v1.0 · 纯 WebGL 实时渲染 · 无外部模型资源</div>
-    </div>
+    <div class="sub" style="margin-top:16px">v2.0 · 纯 WebGL 实时渲染 · 单文件可运行 · 支持键鼠与触屏</div>
   </section>
 
-  <!-- ==================== 地图选择 ==================== -->
-  <section class="screen" id="scMaps">
-    <header class="scr-head">
-      <button class="back" data-go="menu" aria-label="返回">←</button>
-      <div>
-        <h2>选择地图</h2>
-        <p>SELECT MAP</p>
+  <!-- ===== 联机（内嵌主菜单，不再是弹窗） ===== -->
+  <section class="screen" id="scr-mp">
+    <button class="back" data-back>← 返回</button>
+    <h2>联机突围 <span class="sub" style="font-size:12px">WebRTC P2P · 无需服务器</span></h2>
+    <div id="mp-setup">
+      <h3>昵称</h3>
+      <input id="mp-name" maxlength="8" placeholder="幸存者"/>
+      <h3>创建 / 加入</h3>
+      <div class="row"><button class="btn go" id="b-host" style="flex:1">🖥 创建房间</button></div>
+      <div class="row"><input id="mp-code" maxlength="6" placeholder="输入 6 位房间码"
+             style="text-transform:uppercase;letter-spacing:4px"/><button class="btn" id="b-join">加入</button></div>
+      <div class="status" id="mp-status"></div>
+    </div>
+    <div id="mp-lobby" hidden>
+      <div class="sub" style="text-align:center">房间码 · 发给好友</div>
+      <div class="code" id="mp-code-show">------</div>
+      <div id="mp-players"></div>
+      <h3>对局地图 <button class="btn" id="b-mp-pick" style="float:right;padding:5px 12px;font-size:12px">更换</button></h3>
+      <div class="mcard sel" style="cursor:default">
+        <div class="mtag" id="mp-map-tag">MAP</div>
+        <h3 id="mp-map-name">—</h3>
+        <p id="mp-map-desc"></p>
       </div>
-    </header>
-
-    <div class="map-grid" id="mapGrid"></div>
-
-    <footer class="map-bar">
-      <div class="bar-info">
-        <div class="bn" id="barName">请选择一张地图</div>
-        <div class="bd" id="barDesc">点击卡片查看详情，再点右下角进入</div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn go" id="b-mp-start" style="flex:1">▶ 开始突围</button>
+        <button class="btn danger" id="b-mp-quit">退出</button>
       </div>
-      <button class="go" id="btnGo" disabled>进入 →</button>
-    </footer>
-  </section>
-
-  <!-- ==================== 设置 ==================== -->
-  <section class="screen" id="scSettings">
-    <header class="scr-head">
-      <button class="back" data-go="menu" aria-label="返回">←</button>
-      <div>
-        <h2>设置</h2>
-        <p>SETTINGS</p>
-      </div>
-    </header>
-
-    <div class="panel">
-      <div class="row">
-        <label>画质</label>
-        <div class="seg" id="segQuality">
-          <button data-v="low">低</button>
-          <button data-v="mid">中</button>
-          <button data-v="high">高</button>
-          <button data-v="auto">自动</button>
-        </div>
-      </div>
-
-      <div class="row">
-        <label>鼠标灵敏度 <b id="vSens">1.0</b></label>
-        <input type="range" id="rSens" min="0.2" max="3" step="0.1">
-      </div>
-
-      <div class="row">
-        <label>音量 <b id="vVol">70%</b></label>
-        <input type="range" id="rVol" min="0" max="1" step="0.05">
-      </div>
-
-      <div class="row">
-        <label>实时反射</label>
-        <button class="toggle" id="tRefl" aria-label="实时反射开关"><i></i></button>
-      </div>
-
-      <div class="row">
-        <label>显示 FPS</label>
-        <button class="toggle" id="tFps" aria-label="FPS 开关"><i></i></button>
-      </div>
-
-      <p class="hint">
-        设置保存在本机浏览器中，进入游戏后自动生效。<br>
-        卡顿时可切换为「低」画质，或在游戏内用右上角按钮临时关闭反射。
-      </p>
+      <div class="sub" id="mp-wait" style="text-align:center" hidden>等待房主选择地图并开始…</div>
+      <div class="status" id="mp-status2"></div>
     </div>
   </section>
 
-  <!-- ==================== 制作人员 ==================== -->
-  <section class="screen" id="scCredits">
-    <header class="scr-head">
-      <button class="back" data-go="menu" aria-label="返回">←</button>
-      <div>
-        <h2>制作人员</h2>
-        <p>CREDITS</p>
-      </div>
-    </header>
-
-    <div class="credits">
-      <div class="cblock">
-        <div class="clabel">ENGINE</div>
-        <div class="cname">Three.js · WebGL</div>
-        <div class="cdesc">实时渲染 · 程序化几何 · 动态降质</div>
-      </div>
-      <div class="cblock">
-        <div class="clabel">ART</div>
-        <div class="cname">程序化生成</div>
-        <div class="cdesc">建筑、地形、植被、AK-47 与丧尸模型<br>全部在运行时由代码构建，无外部贴图与模型</div>
-      </div>
-      <div class="cblock">
-        <div class="clabel">AUDIO</div>
-        <div class="cname">Web Audio 合成</div>
-        <div class="cdesc">枪声、命中、丧尸低吼、雨声<br>均由振荡器与噪声实时合成</div>
-      </div>
-      <div class="cblock">
-        <div class="clabel">DESIGN</div>
-        <div class="cname">生化 · 校园突围</div>
-        <div class="cdesc">v1.0 · 单文件可运行 · 支持键鼠与触屏</div>
-      </div>
-    </div>
+  <!-- ===== 地图选择（含地图3） ===== -->
+  <section class="screen" id="scr-maps">
+    <button class="back" data-back>← 返回</button>
+    <h2>选择地图 <span class="sub" style="font-size:12px" id="maps-ctx"></span></h2>
+    <div class="mcards" id="map-cards"></div>
+    <div class="row" style="margin-top:16px"><button class="btn go" id="map-go" style="flex:1">进入所选地图 →</button></div>
   </section>
 
-</main>
+  <!-- ===== 设置 ===== -->
+  <section class="screen" id="scr-set">
+    <button class="back" data-back>← 返回</button>
+    <h2>设置</h2>
+    <div class="setrow"><span>画质</span>
+      <select id="s-quality"><option value="low">低</option><option value="mid">中</option>
+      <option value="high">高</option><option value="auto">自动</option></select></div>
+    <div class="setrow"><span>鼠标灵敏度 <b id="v-sens"></b></span><input type="range" id="s-sens" min="0.2" max="3" step="0.1"></div>
+    <div class="setrow"><span>音量 <b id="v-vol"></b></span><input type="range" id="s-vol" min="0" max="100" step="5"></div>
+    <div class="setrow"><span>湿地实时反射</span><input type="checkbox" id="s-refl"></div>
+    <div class="setrow"><span>显示 FPS</span><input type="checkbox" id="s-fps"></div>
+    <div class="sub" style="margin-top:12px">保存在本机浏览器，进入游戏自动生效。卡顿时切「低」或在局内右上角关闭反射。</div>
+  </section>
 
-<!-- ==================== 转场遮罩 ==================== -->
-<div id="transition">
-  <div class="inner">
-    <div class="tr-ring"></div>
-    <div class="tr-txt" id="trText">正在载入…</div>
-  </div>
+  <!-- ===== 制作人员 ===== -->
+  <section class="screen" id="scr-cre">
+    <button class="back" data-back>← 返回</button>
+    <h2>制作人员</h2>
+    <div class="cre">
+      <div><b>ENGINE</b>Three.js · WebGL · 实时渲染 · 程序化几何 · 动态降质</div>
+      <div><b>ART</b>建筑、地形、植被、武器与丧尸模型全部运行时代码构建，无外部资源</div>
+      <div><b>AUDIO</b>Web Audio 合成：枪声、命中、低吼、雨声</div>
+      <div><b>NET</b>PeerJS / WebRTC DataChannel · 房主权威 · 20Hz 星型同步</div>
+      <div><b>DESIGN</b>生化 · 校园突围 v2.0 · 支持键鼠与触屏</div>
+    </div>
+  </section>
 </div>
 
 <script>
-(function(){
 'use strict';
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-var $ = function(s){ return document.querySelector(s); };
-var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
-
-/* ============================================================
-   1. 背景粒子
-   ============================================================ */
-var fx = $('#fx'), fg = fx.getContext('2d');
-var W = 0, H = 0, DPR = 1, dust = [];
-
-function buildDust(){
-  var n = Math.round(Math.min(130, Math.max(40, W * H / 15000)));
-  dust = [];
-  for (var i = 0; i < n; i++){
-    dust.push({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 14,
-      vy: -(4 + Math.random() * 16),
-      r: 0.5 + Math.random() * 1.9,
-      a: 0.05 + Math.random() * 0.22,
-      p: Math.random() * 6.283
-    });
-  }
-}
-
-function resizeFX(){
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth;
-  H = window.innerHeight;
-  fx.width = Math.round(W * DPR);
-  fx.height = Math.round(H * DPR);
-  fx.style.width = W + 'px';
-  fx.style.height = H + 'px';
-  fg.setTransform(DPR, 0, 0, DPR, 0, 0);
-  buildDust();
-}
-
-function drawGlow(x, y, r, color){
-  var g = fg.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, color);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  fg.fillStyle = g;
-  fg.fillRect(x - r, y - r, r * 2, r * 2);
-}
-
-var lastT = performance.now();
-
-function tick(now){
-  requestAnimationFrame(tick);
-  var dt = Math.min(0.05, (now - lastT) / 1000);
-  lastT = now;
-
-  fg.clearRect(0, 0, W, H);
-  fg.globalCompositeOperation = 'lighter';
-
-  var t = now * 0.00006;
-  drawGlow(
-    W * (0.26 + 0.07 * Math.sin(t)),
-    H * (0.30 + 0.06 * Math.cos(t * 1.4)),
-    Math.max(W, H) * 0.55,
-    'rgba(38, 92, 150, 0.30)'
-  );
-  drawGlow(
-    W * (0.78 + 0.06 * Math.cos(t * 1.1)),
-    H * (0.74 + 0.05 * Math.sin(t * 1.7)),
-    Math.max(W, H) * 0.48,
-    'rgba(150, 40, 32, 0.16)'
-  );
-
-  for (var i = 0; i < dust.length; i++){
-    var d = dust[i];
-    d.x += d.vx * dt;
-    d.y += d.vy * dt;
-    d.p += dt * 2.2;
-
-    if (d.y < -30){ d.y = H + 30; d.x = Math.random() * W; }
-    if (d.x < -30) d.x = W + 30;
-    if (d.x > W + 30) d.x = -30;
-
-    fg.beginPath();
-    fg.arc(d.x, d.y, d.r, 0, 6.283);
-    fg.fillStyle = 'rgba(176,212,255,' + (d.a * (0.55 + 0.45 * Math.sin(d.p))).toFixed(3) + ')';
-    fg.fill();
-  }
-
-  fg.globalCompositeOperation = 'source-over';
-}
-
-window.addEventListener('resize', resizeFX);
-resizeFX();
-requestAnimationFrame(tick);
-
-/* ============================================================
-   2. 地图数据  —— 改 url 即可换跳转目标
-   ============================================================ */
-var MAPS = [
-  {
-    id: 'playground',
-    name: '雨后 · 校园操场',
-    en: 'RAINY SCHOOL PLAYGROUND',
-    short: '操场',
-    url: 'map2.html',
-    desc: '环形跑道与双庭院教学楼。地面水洼实时反射，教学楼与体育馆均可推门进入躲避丧尸。',
-    tags: ['无尽波次', '室内可进入', '实时反射'],
-    diff: 2,
-    accent: 'rgba(111,183,255,.26)',
-    art:
-      '<svg viewBox="0 0 320 170" preserveAspectRatio="xMidYMid slice">' +
-        '<rect x="26" y="14" width="196" height="22" rx="3" fill="rgba(154,99,58,.55)"/>' +
-        '<rect x="14" y="36" width="30" height="58" rx="3" fill="rgba(154,99,58,.42)"/>' +
-        '<rect x="110" y="36" width="32" height="52" rx="3" fill="rgba(154,99,58,.42)"/>' +
-        '<rect x="206" y="36" width="26" height="52" rx="3" fill="rgba(154,99,58,.42)"/>' +
-        '<ellipse cx="120" cy="112" rx="104" ry="48" fill="none" stroke="rgba(180,72,54,.62)" stroke-width="13"/>' +
-        '<ellipse cx="120" cy="112" rx="84" ry="32" fill="none" stroke="rgba(232,228,218,.28)" stroke-width="1.4"/>' +
-        '<ellipse cx="120" cy="112" rx="74" ry="24" fill="rgba(74,110,66,.42)"/>' +
-        '<rect x="262" y="30" width="44" height="112" rx="3" fill="rgba(150,160,170,.34)"/>' +
-      '</svg>'
-  },
-  {
-    id: 'campus',
-    name: '生化 · 校园突围(推荐)',
-    en: 'ZOMBIE CAMPUS BREAKOUT',
-    short: '全图',
-    url: 'map1.html',
-    desc: '整座校园开放：教学楼、体育馆、环形操场与两处内院，丧尸从四面八方涌入。',
-    tags: ['完整校园', '体育馆', '高阶难度'],
-    diff: 3,
-    accent: 'rgba(226,73,59,.22)',
-    art:
-      '<svg viewBox="0 0 320 170" preserveAspectRatio="xMidYMid slice">' +
-        '<rect x="24" y="12" width="238" height="24" rx="3" fill="rgba(154,99,58,.5)"/>' +
-        '<rect x="24" y="36" width="34" height="62" rx="3" fill="rgba(154,99,58,.42)"/>' +
-        '<rect x="104" y="36" width="34" height="56" rx="3" fill="rgba(154,99,58,.42)"/>' +
-        '<rect x="228" y="36" width="34" height="56" rx="3" fill="rgba(154,99,58,.42)"/>' +
-        '<rect x="62" y="44" width="38" height="48" rx="3" fill="rgba(74,110,66,.42)"/>' +
-        '<rect x="142" y="44" width="82" height="48" rx="3" fill="rgba(74,110,66,.42)"/>' +
-        '<rect x="274" y="30" width="34" height="108" rx="3" fill="rgba(150,160,170,.34)"/>' +
-        '<ellipse cx="56" cy="132" rx="44" ry="24" fill="none" stroke="rgba(180,72,54,.55)" stroke-width="7"/>' +
-      '</svg>'
-  },
-  {
-    id: 'night',
-    name: '夜幕 · 宿舍楼',
-    en: 'NIGHT DORMITORY',
-    short: '宿舍楼',
-    url: '',
-    desc: '手电筒照明，狭窄走廊，能见度极低。',
-    tags: ['开发中'],
-    diff: 3,
-    locked: true,
-    accent: 'rgba(255,214,130,.18)',
-    art:
-      '<svg viewBox="0 0 320 170" preserveAspectRatio="xMidYMid slice">' +
-        '<rect x="58" y="26" width="204" height="120" rx="4" fill="rgba(38,50,68,.85)"/>' +
-        '<g fill="rgba(255,214,130,.7)">' +
-          '<rect x="76" y="46" width="18" height="14" rx="2"/>' +
-          '<rect x="108" y="46" width="18" height="14" rx="2"/>' +
-          '<rect x="172" y="46" width="18" height="14" rx="2"/>' +
-          '<rect x="204" y="46" width="18" height="14" rx="2"/>' +
-          '<rect x="76" y="82" width="18" height="14" rx="2"/>' +
-          '<rect x="140" y="82" width="18" height="14" rx="2"/>' +
-          '<rect x="204" y="82" width="18" height="14" rx="2"/>' +
-          '<rect x="108" y="118" width="18" height="14" rx="2"/>' +
-          '<rect x="172" y="118" width="18" height="14" rx="2"/>' +
-        '</g>' +
-      '</svg>'
-  },
-  {
-    id: 'ruins',
-    name: '废墟 · 城市街区',
-    en: 'RUINED CITY BLOCK',
-    short: '街区',
-    url: '',
-    desc: '残垣断壁与废弃车辆构成的巷战地图。',
-    tags: ['开发中'],
-    diff: 3,
-    locked: true,
-    accent: 'rgba(150,160,170,.16)',
-    art:
-      '<svg viewBox="0 0 320 170" preserveAspectRatio="xMidYMid slice">' +
-        '<g fill="rgba(120,132,148,.42)">' +
-          '<rect x="20" y="60" width="44" height="96" rx="2"/>' +
-          '<rect x="72" y="34" width="38" height="122" rx="2"/>' +
-          '<rect x="118" y="74" width="52" height="82" rx="2"/>' +
-          '<rect x="178" y="46" width="40" height="110" rx="2"/>' +
-          '<rect x="226" y="66" width="34" height="90" rx="2"/>' +
-          '<rect x="268" y="52" width="34" height="104" rx="2"/>' +
-        '</g>' +
-        '<rect x="0" y="150" width="320" height="20" fill="rgba(90,100,112,.4)"/>' +
-      '</svg>'
-  }
+/* ---------- 地图注册表（地图3在此加入） ---------- */
+const MAPS = [
+  { key:'map1', file:'map1.html',               tag:'MAP 1 · 楼宇战', name:'双庭院教学楼',
+    desc:'双跑楼梯直上 3F · 楼上教室伏击 · 右键开镜 · AK-47 守住校园' },
+  { key:'map2', file:'map2.html',  tag:'MAP 2 · 湿地操场', name:'西门操场',
+    desc:'西门可出操场 · 教学楼内可躲避 · 湿地实时反射 · 走路与疾跑' },
+  { key:'map3', file:'map3.html',               tag:'MAP 3 · 南门操场', name:'南门操场',
+    desc:'南门可出操场 · 教学楼庭院内可躲避 · 湿地实时反射 · 血量与体力' }
 ];
 
-/* ============================================================
-   3. 屏幕切换
-   ============================================================ */
-var current = 'menu';
+/* ---------- 配置持久化 ---------- */
+const KEY = 'zs_cfg';
+let cfg = Object.assign({ map:'map1', quality:'auto', sens:1, vol:70, refl:true, fps:false },
+              JSON.parse(localStorage.getItem(KEY) || '{}'));
+const save = () => localStorage.setItem(KEY, JSON.stringify(cfg));
+const cur  = () => MAPS.find(m => m.key === cfg.map) || MAPS[0];
 
-function show(id){
-  current = id;
-  $$('.screen').forEach(function(s){
-    s.classList.toggle('active', s.id === 'sc' + id.charAt(0).toUpperCase() + id.slice(1));
+/* ---------- 屏幕切换 ---------- */
+let mpCtx = 'solo', lobbyMap = cur();
+function show(id){ $$('.screen').forEach(s => s.classList.toggle('show', s.id === id)); }
+$$('[data-back]').forEach(b => b.onclick = () => show('scr-home'));
+
+/* ---------- 主菜单 ---------- */
+function ago(t){ const s=(Date.now()-t)/1e3;
+  if(s<60)return'刚刚'; if(s<3600)return Math.floor(s/60)+' 分钟前';
+  if(s<86400)return Math.floor(s/3600)+' 小时前'; return Math.floor(s/86400)+' 天前'; }
+const lastName = f => { const m=MAPS.find(x=>x.file===f); return m?m.name:f; };
+const last = JSON.parse(localStorage.getItem('zs_last') || 'null');
+$('#last-line').textContent = last ? ('上次游玩 · ' + lastName(last.file) + ' · ' + ago(last.t)) : '上次游玩 · 尚无记录';
+$('#quick-map').textContent = cur().name;
+$('#b-quick').onclick = () => go(cur().file);
+$('#b-maps').onclick  = () => { mpCtx='solo'; openMaps(); };
+$('#b-mp').onclick    = () => show('scr-mp');
+$('#b-set').onclick   = () => show('scr-set');
+$('#b-cre').onclick   = () => show('scr-cre');
+
+function go(file){
+  localStorage.setItem('zs_last', JSON.stringify({ file, t: Date.now() }));
+  location.href = file;                      // 单机：直接进图（地图自带开始按钮）
+}
+
+/* ---------- 地图选择 ---------- */
+function openMaps(){
+  $('#maps-ctx').textContent = mpCtx==='mp' ? '（联机 · 为本局选用）' : '（单人模式）';
+  $('#map-go').textContent   = mpCtx==='mp' ? '✓ 选用此图' : '进入所选地图 →';
+  renderCards(); show('scr-maps');
+}
+function renderCards(){
+  const box = $('#map-cards'); box.innerHTML = '';
+  MAPS.forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'mcard' + (m.key === cfg.map ? ' sel' : '');
+    d.innerHTML = `<div class="mtag">${m.tag}</div><h3>${m.name}</h3><p>${m.desc}</p>`;
+    d.onclick = () => { cfg.map = m.key; save(); $('#quick-map').textContent = m.name; renderCards(); };
+    box.appendChild(d);
   });
 }
+$('#map-go').onclick = () => {
+  const m = cur();
+  if (mpCtx === 'mp'){ lobbyMap = m; fillLobbyMap(); show('scr-mp'); }
+  else go(m.file);
+};
 
-$$('[data-go]').forEach(function(el){
-  el.addEventListener('click', function(){
-    var g = el.getAttribute('data-go');
-    if (g === 'menu' || g === 'maps' || g === 'settings' || g === 'credits') show(g);
-  });
+/* ---------- 联机（主菜单内嵌大厅） ---------- */
+const nameI = $('#mp-name'); nameI.value = localStorage.getItem('p2p_name') || '';
+const mst  = t => $('#mp-status').textContent  = t;
+const mst2 = t => $('#mp-status2').textContent = t;
+
+$('#b-host').onclick = async () => {
+  const n = nameI.value.trim() || '房主'; localStorage.setItem('p2p_name', n);
+  mst('正在创建房间…');
+  try { const c = await P2P.hostLobby(n); enterLobby(c, true); mst2('把房间码发给好友，等 TA 加入'); }
+  catch(e){ mst('❌ 创建失败：' + (e.type || e.message || e)); }
+};
+$('#b-join').onclick = async () => {
+  const cd = $('#mp-code').value.trim().toUpperCase();
+  const n  = nameI.value.trim() || '玩家'; localStorage.setItem('p2p_name', n);
+  if (!/^[A-Z0-9]{6}$/.test(cd)) { mst('⚠ 请输入 6 位房间码'); return; }
+  mst('正在加入 ' + cd + ' …');
+  try { await P2P.joinLobby(cd, n); enterLobby(cd, false); mst2('已加入，等待房主开始'); }
+  catch(e){ mst('❌ 加入失败：' + (e.type || e.message || e)); }
+};
+
+function enterLobby(c, host){
+  $('#mp-setup').hidden = true; $('#mp-lobby').hidden = false;
+  $('#mp-code-show').textContent = c;
+  $('#b-mp-start').style.display = host ? '' : 'none';
+  $('#mp-wait').hidden = host;
+  fillLobbyMap();
+}
+function fillLobbyMap(){
+  $('#mp-map-tag').textContent  = lobbyMap.tag;
+  $('#mp-map-name').textContent = lobbyMap.name;
+  $('#mp-map-desc').textContent = lobbyMap.desc;
+}
+P2P.on('players', ps => {
+  const box = $('#mp-players'); if (!box) return;
+  box.innerHTML = ps.map(p => `<div>👤 ${esc(p.name || '玩家')}${p.isHost ? ' · 房主' : ''}</div>`).join('');
+});
+P2P.on('kicked', () => { resetMP(); mst('⚠ 与房主失去连接'); });
+$('#b-mp-pick').onclick = () => { mpCtx = 'mp'; openMaps(); };
+$('#b-mp-start').onclick = () => {
+  if (!P2P.info().isHost) return;
+  mst2('正在开局 → ' + lobbyMap.name);
+  P2P.startGame({ key: lobbyMap.key, file: lobbyMap.file });
+};
+$('#b-mp-quit').onclick = async () => { await P2P.leaveLobby(); resetMP(); };
+function resetMP(){ $('#mp-lobby').hidden = true; $('#mp-setup').hidden = false; mst(''); mst2(''); }
+
+/* 开局：双方各自带参跳转到所选地图（联机由 mp-bridge.js 接手） */
+P2P.on('start', d => {
+  const who = P2P.info().isHost ? 'host' : 'client';
+  localStorage.setItem('zs_last', JSON.stringify({ file: d.file, t: Date.now() }));
+  setTimeout(() => {
+    location.href = `${d.file}?mp=${who}&room=${d.code}&seed=${d.seed}&name=${encodeURIComponent(P2P.info().name)}`;
+  }, 380);
 });
 
-window.addEventListener('keydown', function(e){
-  if (e.key === 'Escape' && current !== 'menu') show('menu');
-});
-
-/* ============================================================
-   4. 地图渲染与选择
-   ============================================================ */
-var grid = $('#mapGrid');
-var selIdx = -1;
-
-function renderMaps(){
-  grid.innerHTML = '';
-  MAPS.forEach(function(m, i){
-    var card = document.createElement('article');
-    card.className = 'card' + (m.locked ? ' locked' : '') + (i === selIdx ? ' sel' : '');
-    if (m.accent) card.style.setProperty('--c', m.accent);
-
-    var tags = m.tags.map(function(t){
-      return '<span class="tg' + (m.locked ? ' dim' : '') + '">' + t + '</span>';
-    }).join('');
-
-    var dots = [1, 2, 3].map(function(n){
-      return '<i class="' + (n <= m.diff ? 'on' : '') + '"></i>';
-    }).join('');
-
-    card.innerHTML =
-      '<div class="thumb">' +
-        m.art +
-        '<div class="fade"></div>' +
-        (m.locked ? '<span class="lock">敬请期待</span>' : '') +
-      '</div>' +
-      '<div class="card-bd">' +
-        '<h3>' + m.name + '</h3>' +
-        '<div class="en">' + m.en + '</div>' +
-        '<div class="tags">' + tags + '</div>' +
-        '<div class="diff">' + dots + '</div>' +
-      '</div>';
-
-    card.addEventListener('click', function(){ pick(i); });
-    grid.appendChild(card);
-  });
-}
-
-function pick(i){
-  var m = MAPS[i];
-  if (!m) return;
-
-  if (m.locked){
-    var card = grid.children[i];
-    if (card){
-      card.classList.remove('shake');
-      void card.offsetWidth;
-      card.classList.add('shake');
-    }
-    return;
-  }
-
-  selIdx = i;
-  Array.prototype.forEach.call(grid.children, function(c, ci){
-    c.classList.toggle('sel', ci === i);
-  });
-
-  $('#barName').textContent = m.name;
-  $('#barDesc').textContent = m.desc;
-
-  var go = $('#btnGo');
-  go.disabled = false;
-  go.textContent = '进入 ' + m.short + ' →';
-}
-
-/* ============================================================
-   5. 启动跳转
-   ============================================================ */
-var trEl = $('#transition');
-var trTxt = $('#trText');
-
-function launch(m){
-  if (!m || !m.url) return;
-  try { localStorage.setItem('zcbw.map', m.id); } catch (e) {}
-
-  trTxt.textContent = '正在进入 · ' + m.name;
-  trEl.classList.add('on');
-
-  setTimeout(function(){
-    window.location.href = m.url;
-  }, 760);
-}
-
-$('#btnGo').addEventListener('click', function(){
-  if (selIdx >= 0) launch(MAPS[selIdx]);
-});
-
-// 默认选中第一张可用地图
-(function initSelect(){
-  for (var i = 0; i < MAPS.length; i++){
-    if (!MAPS[i].locked && MAPS[i].url){ pick(i); break; }
-  }
-})();
-
-/* ============================================================
-   6. 「开始游戏」快速进入上次地图
-   ============================================================ */
-function findMap(id){
-  for (var i = 0; i < MAPS.length; i++){
-    if (MAPS[i].id === id) return MAPS[i];
-  }
-  return null;
-}
-
-function defaultMap(){
-  var last = null;
-  try { last = localStorage.getItem('zcbw.map'); } catch (e) {}
-  var m = last ? findMap(last) : null;
-  if (m && !m.locked && m.url) return m;
-  for (var i = 0; i < MAPS.length; i++){
-    if (!MAPS[i].locked && MAPS[i].url) return MAPS[i];
-  }
-  return null;
-}
-
-$$('[data-act="start"]').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    var m = defaultMap();
-    if (m) launch(m);
-    else show('maps');
-  });
-});
-
-function refreshLast(){
-  var last = null;
-  try { last = localStorage.getItem('zcbw.map'); } catch (e) {}
-  var m = last ? findMap(last) : null;
-  $('#lastLine').textContent = m
-    ? ('上次游玩 · ' + m.name)
-    : '上次游玩 · 尚无记录';
-}
-
-/* ============================================================
-   7. 设置（localStorage 持久化）
-   ============================================================ */
-var SKEY = 'zcbw.settings';
-var st = { quality: 'mid', sens: 1.0, vol: 0.7, refl: true, fps: true };
-
-try {
-  var raw = localStorage.getItem(SKEY);
-  if (raw) {
-    var saved = JSON.parse(raw);
-    for (var k in saved){
-      if (Object.prototype.hasOwnProperty.call(st, k)) st[k] = saved[k];
-    }
-  }
-} catch (e) {}
-
-function saveSettings(){
-  try { localStorage.setItem(SKEY, JSON.stringify(st)); } catch (e) {}
-}
-
-/* 画质 */
-$$('#segQuality button').forEach(function(b){
-  if (b.getAttribute('data-v') === st.quality) b.classList.add('on');
-  b.addEventListener('click', function(){
-    st.quality = b.getAttribute('data-v');
-    $$('#segQuality button').forEach(function(x){
-      x.classList.toggle('on', x === b);
-    });
-    saveSettings();
-  });
-});
-
-/* 灵敏度 */
-var rSens = $('#rSens'), vSens = $('#vSens');
-rSens.value = st.sens;
-vSens.textContent = Number(st.sens).toFixed(1);
-rSens.addEventListener('input', function(){
-  st.sens = parseFloat(rSens.value);
-  vSens.textContent = st.sens.toFixed(1);
-  saveSettings();
-});
-
-/* 音量 */
-var rVol = $('#rVol'), vVol = $('#vVol');
-rVol.value = st.vol;
-vVol.textContent = Math.round(st.vol * 100) + '%';
-rVol.addEventListener('input', function(){
-  st.vol = parseFloat(rVol.value);
-  vVol.textContent = Math.round(st.vol * 100) + '%';
-  saveSettings();
-});
-
-/* 开关 */
-function bindToggle(el, key){
-  el.classList.toggle('on', !!st[key]);
-  el.addEventListener('click', function(){
-    st[key] = !st[key];
-    el.classList.toggle('on', st[key]);
-    saveSettings();
-  });
-}
-bindToggle($('#tRefl'), 'refl');
-bindToggle($('#tFps'), 'fps');
-
-/* ============================================================
-   8. 启动
-   ============================================================ */
-renderMaps();
-refreshLast();
-show('menu');
-
-})();
+/* ---------- 设置 ---------- */
+const sq=$('#s-quality'), ss=$('#s-sens'), sv=$('#s-vol'), sr=$('#s-refl'), sf=$('#s-fps');
+sq.value=cfg.quality; ss.value=cfg.sens; sv.value=cfg.vol; sr.checked=cfg.refl; sf.checked=cfg.fps;
+const syncL = () => { $('#v-sens').textContent = (+cfg.sens).toFixed(1); $('#v-vol').textContent = cfg.vol + '%'; };
+syncL();
+sq.onchange = () => { cfg.quality = sq.value; save(); };
+ss.oninput  = () => { cfg.sens = +ss.value; save(); syncL(); };
+sv.oninput  = () => { cfg.vol = +sv.value; save(); syncL(); };
+sr.onchange = () => { cfg.refl = sr.checked; save(); };
+sf.onchange = () => { cfg.fps = sf.checked; save(); };
 </script>
-<!-- P2P 联机 (必须放在你的游戏代码之后) -->
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="p2p.js"></script>
-
-<script>
-// ========== 游戏与 P2P 的对接层 ==========
-(function(){
-    let isMultiplayer = false;
-
-    // 监听游戏开始
-    P2P.on('gameStart', (settings) => {
-        isMultiplayer = true;
-        // ★ 调用你游戏里"开始一局"的函数, 例如:
-        // startGame(); resetGame(); startWave(settings.wave);
-        console.log('P2P 游戏开始, 种子:', settings.seed);
-    });
-
-    // 监听远程玩家状态, 渲染其他玩家
-    P2P.on('remoteState', ({id, s}) => {
-        // ★ 在你的渲染循环里根据 P2P.getRemotePlayers() 绘制
-        // 示例: updateRemotePlayerMesh(id, s.x, s.y, s.angle);
-    });
-
-    // 监听远程射击特效
-    P2P.on('remoteShot', (d) => {
-        // ★ 示例: spawnBullet(d.x, d.y, d.angle, d.weapon, true);
-    });
-
-    // 监听远程玩家受伤
-    P2P.on('remoteHit', (d) => {
-        // ★ 示例: damagePlayer(d.target, d.dmg);
-    });
-
-    // 监听玩家离开
-    P2P.on('playerLeft', (id) => {
-        // ★ 示例: removePlayerMesh(id);
-    });
-
-    // 每帧把本地玩家状态喂给 P2P (在你的游戏 update() 中调用)
-    window.__p2pTick = function(player) {
-        if (!isMultiplayer) return;
-        P2P.updateLocalPlayer({
-            x: player.x, y: player.y,
-            angle: player.angle,
-            hp: player.hp,
-            weapon: player.weapon,
-            frame: player.animationFrame
-        });
-    };
-
-    // 射击时同步 (在你的 shoot() 函数末尾调用)
-    window.__p2pShoot = function(x, y, angle, weapon) {
-        if (!isMultiplayer) return;
-        P2P.sendShot({x, y, angle, weapon});
-    };
-
-    // 命中时同步 (在你造成伤害的函数中调用)
-    window.__p2pHit = function(targetId, dmg) {
-        if (!isMultiplayer) return;
-        P2P.sendHit(targetId, dmg);
-    };
-})();
-</script>
+<script src="mp-bridge.js"></script>
 </body>
-</html>
+                         </html>
