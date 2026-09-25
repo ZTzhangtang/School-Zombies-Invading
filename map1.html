@@ -838,28 +838,40 @@ const zEyeGeo=new THREE.SphereGeometry(0.035,6,5);
 const zArmGeo=new THREE.BoxGeometry(0.13,0.62,0.13);zArmGeo.translate(0,-0.31,0);
 const zLegGeo=new THREE.BoxGeometry(0.16,0.62,0.16);zLegGeo.translate(0,-0.31,0);
 function spawnZombie(){
- let p=SPAWNS[(Math.random()*SPAWNS.length)|0];
- for(let i=0;i<6;i++){const c=SPAWNS[(Math.random()*SPAWNS.length)|0];
-  if(Math.hypot(c[0]-player.pos.x,c[1]-player.pos.z)>24){p=c;break;}}
- const pi=(Math.random()*5)|0;
- const z={pos:new V3(p[0]+rand(-2,2),0,p[1]+rand(-2,2)),vy:0,yaw:0,hp:55+wave*16,
-  speed:Math.min(1.5+Math.random()*0.6+wave*0.07,3.6),atkCd:0,dead:false,deadT:0,
-  growlT:rand(1,6),phase:Math.random()*10,runner:Math.random()<0.18,g:null,parts:null};
- if(z.runner)z.speed=Math.min(z.speed*1.7,4.4);
- const g=new THREE.Group(),skin=zSkinPool[pi],cloth=zClothPool[pi];
- const mk=(geo,mat,x,y2,z2)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y2,z2);g.add(m);return m;};
- const torso=mk(zTorsoGeo,cloth,0,1.12,0);torso.castShadow=true;
- const head=mk(zHeadGeo,skin,0,1.98,0);head.castShadow=true;head.userData.head=true;
- mk(zEyeGeo,zEyeMat,-0.08,2.02,0.17);
- mk(zEyeGeo,zEyeMat,0.08,2.02,0.17);
- const armL=mk(zArmGeo,skin,-0.36,1.62,0);armL.rotation.x=-1.15;
- const armR=mk(zArmGeo,skin,0.36,1.62,0);armR.rotation.x=-1.15;
- const legL=mk(zLegGeo,cloth,-0.13,0.62,0);
- const legR=mk(zLegGeo,cloth,0.13,0.62,0);
- g.traverse(o=>{if(o.isMesh)o.userData.z=z;});
- g.position.copy(z.pos);zombieRoot.add(g);
- z.g=g;z.parts={torso,head,armL,armR,legL,legR};
- zombies.push(z);}
+  // ★ 客户端不刷丧尸（等房主快照）
+  if (window.ZS && window.ZS.isClient() && !window.__zombieSpawnMode) return;
+
+  let p=SPAWNS[(Math.random()*SPAWNS.length)|0];
+  for(let i=0;i<6;i++){const c=SPAWNS[(Math.random()*SPAWNS.length)|0];
+   if(Math.hypot(c[0]-player.pos.x,c[1]-player.pos.z)>24){p=c;break;}}
+  const pi=(Math.random()*5)|0;
+  const z={pos:new V3(p[0]+rand(-2,2),0,p[1]+rand(-2,2)),vy:0,yaw:0,hp:55+wave*16,
+   speed:Math.min(1.5+Math.random()*0.6+wave*0.07,3.6),atkCd:0,dead:false,deadT:0,
+   growlT:rand(1,6),phase:Math.random()*10,runner:Math.random()<0.18,g:null,parts:null};
+  if(z.runner)z.speed=Math.min(z.speed*1.7,4.4);
+  const g=new THREE.Group(),skin=zSkinPool[pi],cloth=zClothPool[pi];
+  const mk=(geo,mat,x,y2,z2)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y2,z2);g.add(m);return m;};
+  const torso=mk(zTorsoGeo,cloth,0,1.12,0);torso.castShadow=true;
+  const head=mk(zHeadGeo,skin,0,1.98,0);head.castShadow=true;head.userData.head=true;
+  mk(zEyeGeo,zEyeMat,-0.08,2.02,0.17);
+  mk(zEyeGeo,zEyeMat,0.08,2.02,0.17);
+  const armL=mk(zArmGeo,skin,-0.36,1.62,0);armL.rotation.x=-1.15;
+  const armR=mk(zArmGeo,skin,0.36,1.62,0);armR.rotation.x=-1.15;
+  const legL=mk(zLegGeo,cloth,-0.13,0.62,0);
+  const legR=mk(zLegGeo,cloth,0.13,0.62,0);
+  g.traverse(o=>{if(o.isMesh)o.userData.z=z;});
+  g.position.copy(z.pos);zombieRoot.add(g);
+  z.g=g;z.parts={torso,head,armL,armR,legL,legR};
+  zombies.push(z);
+
+  // ★ 注册到联机层（zsync.js 读取 window.__zombies 序列化广播）
+  g.userData.isZombie = true;
+  g.userData.hp = z.hp;
+  g.userData.__zRef = z;
+  if (!window.__zombieSpawnMode){
+    (window.__zombies = window.__zombies || []).push(g);
+  }
+}
 function targetFor(z){
  const py=player.y;
  if(py>z.pos.y+2.2){ /* 需要上楼：找可达楼梯 */
@@ -890,62 +902,106 @@ function targetFor(z){
  if(best&&bd>1.2)return{x:best[0],z:best[1]};
  return player.pos;}
 function updateZombies(dt){
- for(let i=zombies.length-1;i>=0;i--){const z=zombies[i];
-  if(z.dead){z.deadT+=dt;
-   z.g.rotation.x=-Math.min(z.deadT*3,1)*1.35;
-   if(z.deadT>0.7)z.g.position.y=z.g.position.y-(z.deadT-0.7)*0.6;
-   if(z.deadT>1.6){zombieRoot.remove(z.g);zombies.splice(i,1);}
-   continue;}
-  z.growlT-=dt;if(z.growlT<=0){z.growlT=rand(3,9);sGrowl(z.pos.distanceTo(player.pos));}
-  const tgt=targetFor(z);
-  const dx=tgt.x-z.pos.x,dz=tgt.z-z.pos.z,dist=Math.hypot(dx,dz);
-  const ty=Math.atan2(dx,dz);let dy=ty-z.yaw;while(dy>Math.PI)dy-=6.283;while(dy<-Math.PI)dy+=6.283;
-  z.yaw+=dy*Math.min(1,dt*6);
-  z.atkCd-=dt;
-  const pdist=Math.hypot(player.pos.x-z.pos.x,player.pos.z-z.pos.z);
-  if(dist>1.5||pdist>2.2){
-   const sp=z.speed*dt,nx=dx/(dist||1)*sp,nz=dz/(dist||1)*sp;
-   const np=moveSlide(z.pos.x,z.pos.z,nx,nz,0.45,z.pos.y,1.9);
-   z.pos.x=np[0];z.pos.z=np[1];
-   if(dist<35){
-    z.phase+=dt*z.speed*2.6;
-    z.parts.legL.rotation.x=Math.sin(z.phase)*0.7;
-    z.parts.legR.rotation.x=-Math.sin(z.phase)*0.7;
-    z.parts.torso.position.y=1.12+Math.abs(Math.sin(z.phase))*0.04;}
+  const isClient = !!(window.ZS && window.ZS.isClient());
+  for(let i=zombies.length-1;i>=0;i--){const z=zombies[i];
+    if(z.dead){z.deadT+=dt;
+     z.g.rotation.x=-Math.min(z.deadT*3,1)*1.35;
+     if(z.deadT>0.7)z.g.position.y=z.g.position.y-(z.deadT-0.7)*0.6;
+     if(z.deadT>1.6){zombieRoot.remove(z.g);zombies.splice(i,1);}
+     continue;}
+
+    // ============ 客户端分支：位置/朝向由 zsync 控制 ============
+    if (isClient){
+      if (!z.g.parent){ zombies.splice(i,1); continue; }        // 已被 zsync 隐藏
+      // 把 Group 位置同步回 z.pos（只读，供攻击/音效判定用）
+      z.pos.set(z.g.position.x, z.g.position.y, z.g.position.z);
+
+      const pdist = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
+      z.atkCd -= dt;
+      if (pdist <= 2.2 && Math.abs(player.y - z.pos.y) < 1.6 && z.atkCd <= 0 && state === 'play'){
+        z.atkCd = 1.05;
+        damagePlayer(9 + wave * 1.5);
+        z.parts.armL.rotation.x = -2.2;
+        z.parts.armR.rotation.x = -2.2;
+      }
+      // 手臂归位
+      z.parts.armL.rotation.x += (-1.15 - z.parts.armL.rotation.x) * dt * 4;
+      z.parts.armR.rotation.x += (-1.15 - z.parts.armR.rotation.x) * dt * 4;
+      // 腿部动画：用位置变化速度近似
+      const mvx = z.g.position.x - (z.__lx != null ? z.__lx : z.g.position.x);
+      const mvz = z.g.position.z - (z.__lz != null ? z.__lz : z.g.position.z);
+      const mv = Math.hypot(mvx, mvz);
+      z.__lx = z.g.position.x; z.__lz = z.g.position.z;
+      z.phase += dt * (1 + mv * 26);
+      z.parts.legL.rotation.x = Math.sin(z.phase) * 0.7;
+      z.parts.legR.rotation.x = -Math.sin(z.phase) * 0.7;
+      z.parts.torso.position.y = 1.12 + Math.abs(Math.sin(z.phase)) * 0.04;
+      continue;
+    }
+
+    // ============ 房主 / 单机分支：原逻辑 ============
+    z.growlT-=dt;if(z.growlT<=0){z.growlT=rand(3,9);sGrowl(z.pos.distanceTo(player.pos));}
+    const tgt=targetFor(z);
+    const dx=tgt.x-z.pos.x,dz=tgt.z-z.pos.z,dist=Math.hypot(dx,dz);
+    const ty=Math.atan2(dx,dz);let dy=ty-z.yaw;while(dy>Math.PI)dy-=6.283;while(dy<-Math.PI)dy+=6.283;
+    z.yaw+=dy*Math.min(1,dt*6);
+    z.atkCd-=dt;
+    const pdist=Math.hypot(player.pos.x-z.pos.x,player.pos.z-z.pos.z);
+    if(dist>1.5||pdist>2.2){
+     const sp=z.speed*dt,nx=dx/(dist||1)*sp,nz=dz/(dist||1)*sp;
+     const np=moveSlide(z.pos.x,z.pos.z,nx,nz,0.45,z.pos.y,1.9);
+     z.pos.x=np[0];z.pos.z=np[1];
+     if(dist<35){
+      z.phase+=dt*z.speed*2.6;
+      z.parts.legL.rotation.x=Math.sin(z.phase)*0.7;
+      z.parts.legR.rotation.x=-Math.sin(z.phase)*0.7;
+      z.parts.torso.position.y=1.12+Math.abs(Math.sin(z.phase))*0.04;}
+    }
+    if(pdist<=2.2&&Math.abs(player.y-z.pos.y)<1.6&&z.atkCd<=0&&state==='play'){
+     z.atkCd=1.05;damagePlayer(9+wave*1.5);
+     z.parts.armL.rotation.x=-2.2;z.parts.armR.rotation.x=-2.2;}
+    if(dist<35){
+     z.parts.armL.rotation.x+=(-1.15-z.parts.armL.rotation.x)*dt*4;
+     z.parts.armR.rotation.x+=(-1.15-z.parts.armR.rotation.x)*dt*4;}
+    const gh=groundAt(z.pos.x,z.pos.z,z.pos.y);
+    const dgh=gh-z.pos.y;
+    if(dgh>=-0.55&&dgh<=0.65){z.pos.y=gh;z.vy=0;}
+    else if(dgh<-0.55){z.vy-=22*dt;z.pos.y+=z.vy*dt;if(z.pos.y<=gh){z.pos.y=gh;z.vy=0;}}
+    else{z.pos.y=gh;z.vy=0;}
+    for(let j=i-1;j>=0;j--){const o=zombies[j];if(o.dead)continue;
+     if(Math.abs(o.pos.y-z.pos.y)>1.5)continue;
+     const ox=z.pos.x-o.pos.x,oz=z.pos.z-o.pos.z,od=Math.hypot(ox,oz);
+     if(od<0.85&&od>0.001){const push=(0.85-od)*0.5/od;
+      z.pos.x+=ox*push;z.pos.z+=oz*push;o.pos.x-=ox*push;o.pos.z-=oz*push;}}
+    z.g.position.set(z.pos.x,z.pos.y,z.pos.z);
+    z.g.rotation.y=z.yaw;
   }
-  if(pdist<=2.2&&Math.abs(player.y-z.pos.y)<1.6&&z.atkCd<=0&&state==='play'){
-   z.atkCd=1.05;damagePlayer(9+wave*1.5);
-   z.parts.armL.rotation.x=-2.2;z.parts.armR.rotation.x=-2.2;}
-  if(dist<35){
-   z.parts.armL.rotation.x+=(-1.15-z.parts.armL.rotation.x)*dt*4;
-   z.parts.armR.rotation.x+=(-1.15-z.parts.armR.rotation.x)*dt*4;}
-  /* 竖直 */
-  const gh=groundAt(z.pos.x,z.pos.z,z.pos.y);
-  const dgh=gh-z.pos.y;
-  if(dgh>=-0.55&&dgh<=0.65){z.pos.y=gh;z.vy=0;}
-  else if(dgh<-0.55){z.vy-=22*dt;z.pos.y+=z.vy*dt;if(z.pos.y<=gh){z.pos.y=gh;z.vy=0;}}
-  else{z.pos.y=gh;z.vy=0;}
-  for(let j=i-1;j>=0;j--){const o=zombies[j];if(o.dead)continue;
-   if(Math.abs(o.pos.y-z.pos.y)>1.5)continue;
-   const ox=z.pos.x-o.pos.x,oz=z.pos.z-o.pos.z,od=Math.hypot(ox,oz);
-   if(od<0.85&&od>0.001){const push=(0.85-od)*0.5/od;
-    z.pos.x+=ox*push;z.pos.z+=oz*push;o.pos.x-=ox*push;o.pos.z-=oz*push;}}
-  z.g.position.set(z.pos.x,z.pos.y,z.pos.z);
-  z.g.rotation.y=z.yaw;
- }}
-function killZombie(z,pt){if(z.dead)return;z.dead=true;z.deadT=0;kills++;
- burst(pt||z.pos.clone().setY(z.pos.y+1.2),0x7a1f14,14,2.2);sHit(true);}
+}
+function killZombie(z,pt){
+  if(z.dead)return;
+  z.dead=true;z.deadT=0;kills++;
+  burst(pt||z.pos.clone().setY(z.pos.y+1.2),0x7a1f14,14,2.2);
+  sHit(true);
+  // ★ 从联机数组出队（房主快照随即会少一只）
+  if (z.g && window.__zombies){
+    const idx = window.__zombies.indexOf(z.g);
+    if (idx >= 0) window.__zombies.splice(idx, 1);
+  }
+}
 
 /* ---------- 波次 ---------- */
 let state='menu',wave=1,kills=0,spawnQueue=0,spawnT=0,interT=5,timeS=0;
 function startWave(){spawnQueue=4+wave*3;spawnT=0.5;banner('第 '+wave+' 波');}
 function aliveCount(){let n=0;for(const z of zombies)if(!z.dead)n++;return n;}
 function updateWaves(dt){
- if(spawnQueue>0){spawnT-=dt;
-  if(spawnT<=0&&aliveCount()<ZMAX){spawnZombie();spawnQueue--;spawnT=Math.max(0.5,1.3-0.06*wave);}}
- else if(aliveCount()===0&&zombies.length===0){interT-=dt;
-  if(interT<=0){wave++;player.hp=Math.min(100,player.hp+18);startWave();interT=5;}}}
+  // ★ 客户端不推进波次（房主权威）
+  if (window.ZS && window.ZS.isClient()) return;
 
+  if(spawnQueue>0){spawnT-=dt;
+   if(spawnT<=0&&aliveCount()<ZMAX){spawnZombie();spawnQueue--;spawnT=Math.max(0.5,1.3-0.06*wave);}}
+  else if(aliveCount()===0&&zombies.length===0){interT-=dt;
+   if(interT<=0){wave++;player.hp=Math.min(100,player.hp+18);startWave();interT=5;}}}
+   
 /* ---------- 射击（含开镜散布） ---------- */
 const GUN_MAG=30;
 const gun={ammo:GUN_MAG,cd:0,reloading:0,recoil:0,flashT:0};
@@ -961,19 +1017,34 @@ function tryFire(){
  const mp=muzzleWorld();
  burst(mp,0xffc27a,3,1.2);
  raycaster.setFromCamera(_v2,camera);raycaster.far=140;
- const sp=0.002+0.011*(1-aimBlend);          // 开镜收束散布
+ const sp=0.002+0.011*(1-aimBlend);
  if(sp>0.0021){const dir=raycaster.ray.direction;
   dir.x+=(Math.random()-0.5)*sp*2;dir.y+=(Math.random()-0.5)*sp*2;dir.z+=(Math.random()-0.5)*sp*2;
   dir.normalize();}
+
+ const isClient = !!(window.ZS && window.ZS.isClient());
  const zHits=raycaster.intersectObjects(zombieRoot.children,true);
  const sHits=raycaster.intersectObjects(raySolids,false);
  const zh=zHits.length?zHits[0]:null,sh=sHits.length?sHits[0]:null;
  let end;
  if(zh&&(!sh||zh.distance<sh.distance)){
   end=zh.point;const z=zh.object.userData.z;
-  if(z&&!z.dead){burst(end,0x7a1f14,8,1.8);
-   if(zh.object.userData.head)killZombie(z,end);
-   else{z.hp-=42;sHit(false);if(z.hp<=0)killZombie(z,end);}}
+  if(z&&!z.dead){
+    burst(end,0x7a1f14,8,1.8);
+    if (isClient){
+      // ★ 客户端：把命中上报房主，由房主结算
+      const idx = (window.__zombies || []).indexOf(z.g);
+      if (idx >= 0 && window.P2P){
+        const isHead = !!zh.object.userData.head;
+        P2P.sendHitZombie(idx, isHead ? 999 : 42);
+        sHit(isHead);
+      }
+    } else {
+      // 房主 / 单机：本地结算
+      if(zh.object.userData.head)killZombie(z,end);
+      else{z.hp-=42;sHit(false);if(z.hp<=0)killZombie(z,end);}
+    }
+  }
  }else if(sh){end=sh.point;burst(end,0x9a9a90,5,1.2);}
  else{end=camera.getWorldPosition(new V3()).add(raycaster.ray.direction.clone().multiplyScalar(120));}
  tracer(mp,end);}
@@ -1060,6 +1131,7 @@ function updateHUD(dt){
  $('dmgFx').style.opacity=dmgA;}
 function damagePlayer(d){if(state!=='play')return;
  player.hp-=d;player.lastHurt=timeS;dmgA=0.85;shakeT=0.35;sBite();
+ if (window.MP) MP.setHP(Math.max(0, player.hp));   // ★ 上报血量给队友血条
  if(player.hp<=0){player.hp=0;state='dead';
   $('deathStats').textContent='击杀 '+kills+' · 抵达第 '+wave+' 波';
   $('death').style.display='flex';
@@ -1129,6 +1201,7 @@ $('bStart').addEventListener('click',()=>{audio();state='play';startWave();
  if(!isTouch&&canvas.requestPointerLock){try{canvas.requestPointerLock();}catch(err){}}});
 $('bRe').addEventListener('click',()=>{
  for(const z of zombies)zombieRoot.remove(z.g);zombies.length=0;
+ if (window.__zombies) window.__zombies.length = 0;   // ★ 清空联机数组
  wave=1;kills=0;player.hp=100;player.stamina=100;
  player.pos.set(-18.5,0,25);player.y=0;player.vy=0;
  yaw=0;pitch=0;gun.ammo=GUN_MAG;gun.reloading=0;$('ammo').textContent='弹药 30';
@@ -1143,6 +1216,7 @@ let lastT=performance.now(),frameTick=0;
 let fpsAcc=0,fpsFrames=0,lastFps=60,qCheck=0;
 function frame(now){
  requestAnimationFrame(frame);
+ 
  const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;timeS+=dt;
  frameTick++;
  if(state==='play'){updatePlayer(dt);updateZombies(dt);updateWaves(dt);}
@@ -1162,12 +1236,37 @@ function frame(now){
    else if(lastFps>56&&qLevel>0){qLevel--;applyQuality();}}}
  if(frameTick%30===0)$('footer').textContent='-- '+Math.round(lastFps)+' FPS · 画质 '+qLevel+' · AK-47 · 实时反射 --';}
 requestAnimationFrame(frame);
+/* ============================================================
+   ★ 联机桥接 API —— zsync.js 会调用
+   ============================================================ */
+window.__zombieSpawn = function(s){
+  const lenBefore = zombies.length;
+  window.__zombieSpawnMode = true;
+  try { spawnZombie(); } finally { window.__zombieSpawnMode = false; }
+  if (zombies.length <= lenBefore) return null;   // ★ 生成失败 → 让 zsync 走下一只
+  const z = zombies[zombies.length - 1];
+  z.pos.set(s.x, s.y || 0, s.z);
+  z.g.position.set(s.x, s.y || 0, s.z);
+  z.hp = s.hp;
+  z.g.userData.hp = s.hp;
+  z.g.userData.__zRef = z;
+  return z.g;
+};
+
+window.__onZombieKilled = function(g){
+  const z = g && g.userData && g.userData.__zRef;
+  if (z && !z.dead) killZombie(z, z.pos.clone().setY(z.pos.y + 1.2));
+};
+
+window.__waveSet  = function(w){ wave = w;  document.getElementById('uiWave').textContent  = w; };
+window.__killsSet = function(k){ kills = k; document.getElementById('uiKills').textContent = k; };
 camRig.position.set(-18.5,0,25);
 setTimeout(()=>{$('bStart').textContent='点击进入操场';},700);
 })();
 </script>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="p2p.js"></script>
 <script src="mp-bridge.js"></script>
+<script src="zsync.js"></script>  <!-- ✨ 新增这一行 -->
 </body>
 </html>

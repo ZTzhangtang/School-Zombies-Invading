@@ -404,10 +404,15 @@
 
 <div id="fail">当前浏览器不支持 WebGL<br>请更换 Chrome / Edge / Firefox 等现代浏览器后重试</div>
 
+<!-- ============================================================
+     脚本加载顺序（★ 关键）
+     three → 游戏主体(app.js) → peerjs → p2p → mp-bridge → zsync
+     ============================================================ -->
 <script src="./_shared/js/three.min.js"></script>
 <script src="assets/app.js?v=12"></script>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="p2p.js"></script>
 <script src="mp-bridge.js"></script>
+<script src="zsync.js"></script>
 </body>
 </html>
