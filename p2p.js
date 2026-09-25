@@ -1,352 +1,238 @@
 /* ============================================================
- * P2P 联机系统 (基于 PeerJS / WebRTC DataChannel)
- * 文件: p2p.js
- * 功能: 房主/客户机 架构, 状态同步, 输入同步, 大厅UI
- * 依赖: 在 index.html 中先引入 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+ * p2p.js v2 — 生化·校园突围 联机核心（无 UI，UI 在主菜单）
+ * 依赖: peerjs 1.5.x（必须先于本文件引入）
+ * 房间码: 6位大写 CODE
+ *   大厅 peer id = zv{CODE}L    对局 peer id = zv{CODE}G
+ *   （对局阶段重建连接，规避旧ID未释放的竞态——修复旧版连不上的bug）
+ * 拓扑: 星型（客户端只连房主，房主转发，NAT 环境更稳）
  * ============================================================ */
-
 const P2P = (() => {
-    'use strict';
+  'use strict';
+  const OPTS = { host: '0.peerjs.com', port: 443, secure: true, debug: 1 };
+  const TICK_MS = 1000 / 20;                 // 20Hz
+  const CODE_RE = /^[A-Z0-9]{6}$/;
 
-    // ---------- 常量配置 ----------
-    const TICK_RATE = 20;              // 同步频率 (每秒20次)
-    const TICK_INTERVAL = 1000 / TICK_RATE;
-    const PEER_OPTS = {
-        host: '0.peerjs.com',
-        port: 443,
-        secure: true,
-        debug: 1 // 0=静默 1=仅错误 2=警告 3=全部
-    };
+  let phase = 'off';                         // off | lobby | game
+  let peer = null, hostConn = null;
+  let isHost = false, code = '', myName = '玩家', myId = null;
+  const conns = new Map();                   // 房主: peerId → {conn,name,hp}
+  const remotes = new Map();                 // peerId → 快照(渲染用)
+  let local = null, timer = null, zbGet = null;
+  const handlers = {};
 
-    // ---------- 状态 ----------
-    let peer = null;               // PeerJS 实例
-    let isHost = false;
-    let myId = null;
-    let connections = new Map();   // connId -> {conn, name, lastState}
-    let gameStarted = false;
-    let syncTimer = null;
-    let localPlayerState = null;   // 本地玩家最新状态
-    let remotePlayers = new Map(); // playerId -> 最新状态(渲染用)
-    let eventHandlers = {};        // 事件回调
-    let inputQueue = [];           // 待发送输入
+  const on = (e, f) => (handlers[e] = handlers[e] || []).push(f);
+  const emit = (e, d) => (handlers[e] || []).forEach(f => { try { f(d); } catch (_) {} });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    // ---------- 大厅UI ----------
-    function injectUI() {
-        const css = `
-        #p2p-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;
-          display:flex;align-items:center;justify-content:center;font-family:system-ui;color:#fff}
-        #p2p-panel{background:#1a1a2e;border:2px solid #e94560;border-radius:16px;
-          padding:32px;min-width:340px;text-align:center;box-shadow:0 0 40px rgba(233,69,96,.4)}
-        #p2p-panel h2{margin:0 0 8px;color:#e94560;font-size:22px}
-        #p2p-panel input{padding:10px;font-size:16px;border-radius:8px;border:none;
-          width:220px;margin:8px 0;background:#0f3460;color:#fff;text-align:center}
-        #p2p-panel button{padding:10px 24px;font-size:15px;margin:6px;border:none;
-          border-radius:8px;cursor:pointer;font-weight:600;transition:.2s}
-        .p2p-btn-host{background:#e94560;color:#fff}
-        .p2p-btn-join{background:#0f3460;color:#fff}
-        .p2p-btn-start{background:#16c79a;color:#000}
-        .p2p-btn-cancel{background:#444;color:#fff}
-        #p2p-status{margin-top:12px;font-size:13px;color:#aaa;min-height:18px}
-        #p2p-roomcode{font-size:28px;font-weight:800;letter-spacing:4px;
-          color:#16c79a;margin:8px 0;user-select:all}
-        #p2p-players{margin:10px 0;font-size:14px;text-align:left;max-height:150px;overflow:auto}
-        #p2p-players div{padding:4px 8px;background:#0f3460;border-radius:6px;margin:3px 0}
-        `;
-        const style = document.createElement('style');
-        style.textContent = css;
-        document.head.appendChild(style);
+  function randCode() {
+    const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // 去掉易混淆字符
+    let s = ''; for (let i = 0; i < 6; i++) s += A[(Math.random() * A.length) | 0];
+    return s;
+  }
+  function makePeer(id) {
+    if (typeof Peer === 'undefined') throw { type: 'peerjs-missing' };
+    return new Promise((res, rej) => {
+      const p = id ? new Peer(id, OPTS) : new Peer(OPTS);
+      const to = setTimeout(() => rej({ type: 'timeout' }), 15000);
+      p.on('open', i => { clearTimeout(to); myId = i; res(p); });
+      p.on('error', e => { if (!p.open) { clearTimeout(to); rej(e); } });
+    });
+  }
+  function waitOpen(conn, timeout = 12000) {
+    return new Promise((res, rej) => {
+      if (conn.open) return res();
+      const to = setTimeout(() => rej({ type: 'conn-timeout' }), timeout);
+      conn.on('open', () => { clearTimeout(to); res(); });
+      conn.on('error', e => { clearTimeout(to); rej(e); });
+    });
+  }
+  const bcast = (m, except) => conns.forEach((c, id) => {
+    if (id !== except && c.conn.open) try { c.conn.send(m); } catch (_) {}
+  });
+  const toHost = m => { if (hostConn && hostConn.open) try { hostConn.send(m); } catch (_) {} };
 
-        const overlay = document.createElement('div');
-        overlay.id = 'p2p-overlay';
-        overlay.innerHTML = `
-          <div id="p2p-panel">
-            <h2>🧟 僵尸入侵 · P2P联机</h2>
-            <div id="p2p-menu">
-              <button class="p2p-btn-host" onclick="P2P.host()">🖥️ 创建房间</button>
-              <br>
-              <input id="p2p-join-code" placeholder="输入房间码" maxlength="8">
-              <br>
-              <button class="p2p-btn-join" onclick="P2P.join()">🔗 加入房间</button>
-            </div>
-            <div id="p2p-lobby" style="display:none">
-              <div style="font-size:13px;color:#aaa">房间码 (发给好友)</div>
-              <div id="p2p-roomcode">--------</div>
-              <div id="p2p-players"></div>
-              <button class="p2p-btn-start" id="p2p-start-btn" onclick="P2P.startGame()" style="display:none">▶ 开始游戏</button>
-              <button class="p2p-btn-cancel" onclick="P2P.leave()">退出</button>
-            </div>
-            <div id="p2p-status"></div>
-          </div>`;
-        document.body.appendChild(overlay);
-    }
+  /* ---------------- 大厅（主菜单内） ---------------- */
+  const lobbyRoster = () => {
+    const r = [{ id: myId, name: myName, isHost }];
+    conns.forEach(c => r.push({ id: c.id, name: c.name || '…', isHost: false }));
+    return r;
+  };
 
-    function status(msg) {
-        const el = document.getElementById('p2p-status');
-        if (el) el.textContent = msg;
-        console.log('[P2P]', msg);
-    }
-
-    function showLobby(roomCode) {
-        document.getElementById('p2p-menu').style.display = 'none';
-        document.getElementById('p2p-lobby').style.display = 'block';
-        document.getElementById('p2p-roomcode').textContent = roomCode;
-        if (isHost) {
-            document.getElementById('p2p-start-btn').style.display = 'inline-block';
+  async function hostLobby(name) {
+    if (phase !== 'off') await shutdown();
+    myName = (name || '房主').slice(0, 8);
+    isHost = true; phase = 'lobby'; code = randCode();
+    peer = await makePeer('zv' + code + 'L');
+    peer.on('connection', conn => {
+      conn.on('open', () => {
+        conns.set(conn.peer, { conn, id: conn.peer, name: null, hp: 100 });
+        conn.send({ t: 'lobby', code, players: lobbyRoster() });
+        bcast({ t: 'lobby', code, players: lobbyRoster() }, conn.peer);
+        emit('players', lobbyRoster());
+      });
+      conn.on('data', d => {
+        if (d && d.t === 'hi') {
+          const c = conns.get(conn.peer);
+          if (c) c.name = (d.name || '玩家').slice(0, 8);
+          bcast({ t: 'lobby', code, players: lobbyRoster() });
+          emit('players', lobbyRoster());
         }
-        refreshPlayerList();
-    }
+      });
+      conn.on('close', () => {
+        conns.delete(conn.peer);
+        bcast({ t: 'lobby', code, players: lobbyRoster() });
+        emit('players', lobbyRoster()); emit('left', conn.peer);
+      });
+    });
+    emit('players', lobbyRoster());
+    return code;
+  }
 
-    function refreshPlayerList() {
-        const box = document.getElementById('p2p-players');
-        if (!box) return;
-        let html = '';
-        connections.forEach(c => { html += `<div>👤 ${c.name || '玩家'}</div>`; });
-        html += `<div>👤 ${localStorage.getItem('p2p_name') || '我'} ${isHost ? '(房主)' : ''}</div>`;
-        box.innerHTML = html;
-    }
+  async function joinLobby(codeIn, name) {
+    const cd = (codeIn || '').trim().toUpperCase();
+    if (!CODE_RE.test(cd)) throw { type: 'bad-code' };
+    if (phase !== 'off') await shutdown();
+    myName = (name || '玩家').slice(0, 8);
+    isHost = false; phase = 'lobby'; code = cd;
+    peer = await makePeer();
+    hostConn = peer.connect('zv' + cd + 'L', { reliable: true });
+    await waitOpen(hostConn);
+    hostConn.send({ t: 'hi', name: myName });
+    hostConn.on('data', d => {
+      if (!d) return;
+      if (d.t === 'lobby') emit('players', d.players);
+      else if (d.t === 'start') emit('start', d);
+    });
+    hostConn.on('close', () => { if (phase === 'lobby') emit('kicked'); });
+  }
 
-    // ---------- 事件系统 ----------
-    function on(evt, fn) { (eventHandlers[evt] = eventHandlers[evt] || []).push(fn); }
-    function emit(evt, data) {
-        (eventHandlers[evt] || []).forEach(fn => {
-            try { fn(data); } catch (e) { console.error(e); }
+  /* 房主点击开始 → 广播开局（含地图文件），双方各自跳转 */
+  function startGame(map) {                    // map = {key, file}
+    if (phase !== 'lobby' || !isHost) return;
+    const seed = (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
+    const msg = { t: 'start', code, seed, map: map.key, file: map.file };
+    bcast(msg);
+    setTimeout(() => emit('start', msg), 120); // 给广播留出发送时间
+  }
+
+  /* ---------------- 对局（地图页内） ---------------- */
+  function gameRoster() {
+    const r = [{ id: myId, name: myName, isHost: true, hp: local ? local.hp : 100 }];
+    conns.forEach(c => r.push({ id: c.id, name: c.name || '…', isHost: false, hp: c.hp == null ? 100 : c.hp }));
+    return r;
+  }
+
+  async function enterGame(o) {
+    if (phase !== 'off') await shutdown();
+    phase = 'game'; isHost = !!o.isHost;
+    code = (o.code || '').toUpperCase();
+    myName = (o.name || '玩家').slice(0, 8);
+
+    if (isHost) {
+      let ok = false;
+      for (let i = 0; i < 6 && !ok; i++) {     // 对局ID带重试
+        try { peer = await makePeer('zv' + code + 'G'); ok = true; }
+        catch (e) { if (i === 5) throw e; await sleep(900); }
+      }
+      peer.on('connection', conn => {
+        conn.on('open', () => {
+          conns.set(conn.peer, { conn, id: conn.peer, name: '…', hp: 100 });
+          conn.send({ t: 'you', id: conn.peer });
+          emit('players', gameRoster());
         });
-    }
-
-    // ---------- 创建 Peer ----------
-    function createPeer(myId = undefined) {
-        return new Promise((resolve, reject) => {
-            const p = new Peer(myId, PEER_OPTS);
-            p.on('open', id => resolve(p));
-            p.on('error', err => reject(err));
+        conn.on('data', d => hostRecv(conn, d));
+        conn.on('close', () => {
+          conns.delete(conn.peer); remotes.delete(conn.peer);
+          bcast({ t: 'left', id: conn.peer });
+          emit('players', gameRoster());
         });
-    }
-
-    // ---------- 房主逻辑 ----------
-    async function host() {
-        status('正在创建房间...');
-        try {
-            peer = await createPeer();
-            myId = peer.id;
-            isHost = true;
-            const roomCode = peer.id.slice(0, 8).toUpperCase();
-            showLobby(roomCode);
-            status('✅ 房间已创建, 等待玩家加入...');
-
-            peer.on('connection', conn => {
-                console.log('[P2P] 新玩家连接:', conn.peer);
-                conn.on('open', () => {
-                    connections.set(conn.peer, { conn, name: null });
-                    refreshPlayerList();
-                    // 房主把当前玩家列表广播给新玩家
-                    broadcast({ t: 'playerList', players: getPlayerList() });
-                    conn.send({ t: 'welcome', yourId: conn.peer, hostId: myId });
-                });
-                conn.on('data', d => handleData(conn, d));
-                conn.on('close', () => {
-                    connections.delete(conn.peer);
-                    remotePlayers.delete(conn.peer);
-                    refreshPlayerList();
-                    broadcast({ t: 'playerLeft', id: conn.peer });
-                    emit('playerLeft', conn.peer);
-                    status(`玩家 ${conn.peer} 已离开`);
-                });
-            });
-        } catch (err) {
-            status('❌ 创建失败: ' + err.type);
-            console.error(err);
-        }
-    }
-
-    function getPlayerList() {
-        const list = [{ id: myId, name: localStorage.getItem('p2p_name') || '房主', isHost: true }];
-        connections.forEach((c, id) => list.push({ id, name: c.name, isHost: false }));
-        return list;
-    }
-
-    // ---------- 客户端逻辑 ----------
-    async function join() {
-        const code = (document.getElementById('p2p-join-code').value || '').trim().toUpperCase();
-        if (!code) { status('⚠️ 请输入房间码'); return; }
-        status('正在连接...');
-        try {
-            peer = await createPeer();
-            myId = peer.id;
-            isHost = false;
-            const conn = peer.connect(code.toLowerCase(), { reliable: true });
-            conn.on('open', () => {
-                connections.set(code.toLowerCase(), { conn, name: '房主' });
-                showLobby(code);
-                status('✅ 已加入房间, 等待房主开始...');
-            });
-            conn.on('data', d => handleData(conn, d));
-            conn.on('close', () => { status('❌ 与房主断开连接'); cleanup(); });
-            peer.on('error', err => status('❌ ' + err.type));
-        } catch (err) {
-            status('❌ 连接失败: ' + err.type);
-        }
-    }
-
-    // ---------- 消息处理 ----------
-    function handleData(conn, data) {
-        switch (data.t) {
-            case 'welcome':
-                refreshPlayerList();
-                break;
-            case 'playerList':
-                if (!isHost) {
-                    // 客户端根据列表补全连接 (Mesh / 星型由房主转发)
-                    data.players.forEach(p => {
-                        if (p.id !== myId && !connections.has(p.id)) {
-                            const c = peer.connect(p.id, { reliable: true });
-                            c.on('open', () => connections.set(p.id, { conn: c, name: p.name }));
-                        } else if (connections.has(p.id)) {
-                            connections.get(p.id).name = p.name;
-                        }
-                    });
-                    refreshPlayerList();
-                }
-                break;
-            case 'start':
-                if (!isHost) beginGame(data.settings);
-                break;
-            case 'state':
-                // 收到远程玩家状态 -> 更新远程玩家渲染数据
-                remotePlayers.set(data.id, data.s);
-                emit('remoteState', { id: data.id, s: data.s });
-                break;
-            case 'zombie':
-                // 僵尸由房主权威同步
-                if (!isHost) emit('remoteZombie', data.d);
-                break;
-            case 'hit':
-                emit('remoteHit', data.d);
-                break;
-            case 'shot':
-                emit('remoteShot', data.d);
-                break;
-            case 'playerLeft':
-                remotePlayers.delete(data.id);
-                emit('playerLeft', data.id);
-                break;
-            case 'chat':
-                emit('chat', data.d);
-                break;
-        }
-    }
-
-    // ---------- 广播 / 发送 ----------
-    function broadcast(data) {
-        connections.forEach(c => {
-            if (c.conn.open) { try { c.conn.send(data); } catch (e) {} }
-        });
-    }
-
-    function sendToHost(data) {
-        connections.forEach(c => {
-            if (c.conn.open) { try { c.conn.send(data); } catch (e) {} }
-        });
-    }
-
-    // ---------- 同步循环 ----------
-    function beginSyncLoop() {
-        if (syncTimer) return;
-        syncTimer = setInterval(() => {
-            if (!gameStarted) return;
-            if (localPlayerState) {
-                const msg = { t: 'state', id: myId, s: localPlayerState };
-                isHost ? broadcast(msg) : sendToHost(msg);
-                // 房主还需要广播僵尸状态 (权威同步)
-                if (isHost && eventHandlers.hostZombies) {
-                    const zd = eventHandlers.hostZombies();
-                    if (zd) broadcast({ t: 'zombie', d: zd });
-                }
-            }
-        }, TICK_INTERVAL);
-    }
-
-    // ---------- 开始游戏 ----------
-    function startGame() {
-        if (!isHost) return;
-        const settings = { seed: Date.now(), wave: 1 };
-        broadcast({ t: 'start', settings });
-        beginGame(settings);
-    }
-
-    function beginGame(settings) {
-        gameStarted = true;
-        document.getElementById('p2p-overlay').style.display = 'none';
-        beginSyncLoop();
-        emit('gameStart', settings);
-        status('🎮 游戏开始! (P2P模式)');
-    }
-
-    // ---------- 公开API: 游戏主循环调用 ----------
-    function updateLocalPlayer(state) {
-        // state 格式: {x, y, angle, hp, weapon, frame}
-        localPlayerState = state;
-    }
-
-    function getRemotePlayers() {
-        return remotePlayers; // 游戏渲染层遍历此 Map 绘制其他玩家
-    }
-
-    function sendShot(data) {
-        const msg = { t: 'shot', d: { shooter: myId, ...data } };
-        isHost ? broadcast(msg) : sendToHost(msg);
-    }
-
-    function sendHit(targetId, dmg) {
-        const msg = { t: 'hit', d: { target: targetId, dmg, from: myId } };
-        isHost ? broadcast(msg) : sendToHost(msg);
-    }
-
-    function hostSyncZombies(getter) {
-        // 游戏注册一个函数, 返回所有僵尸的序列化状态
-        eventHandlers.hostZombies = getter;
-    }
-
-    function sendChat(text) {
-        const msg = { t: 'chat', d: { from: myId, text } };
-        broadcast(msg);
-    }
-
-    // ---------- 退出 ----------
-    function leave() {
-        broadcast({ t: 'playerLeft', id: myId });
-        cleanup();
-    }
-
-    function cleanup() {
-        gameStarted = false;
-        if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
-        connections.forEach(c => { try { c.conn.close(); } catch (e) {} });
-        connections.clear();
-        remotePlayers.clear();
-        if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
-        const ov = document.getElementById('p2p-overlay');
-        if (ov) ov.style.display = 'flex';
-        document.getElementById('p2p-menu').style.display = 'block';
-        document.getElementById('p2p-lobby').style.display = 'none';
-    }
-
-    // ---------- 初始化 ----------
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectUI);
+      });
     } else {
-        injectUI();
+      peer = await makePeer();
+      hostConn = await connectRetry('zv' + code + 'G');
+      hostConn.on('data', clientRecv);
+      hostConn.on('close', () => emit('host-lost'));
+      hostConn.send({ t: 'hi', name: myName });
     }
+    timer = setInterval(netTick, TICK_MS);
+    emit('game-enter', { code, isHost });
+  }
 
-    return {
-        on, emit, host, join, leave,
-        startGame, updateLocalPlayer,
-        getRemotePlayers, sendShot, sendHit,
-        hostSyncZombies, sendChat,
-        isHost: () => isHost,
-        myId: () => myId,
-        connected: () => connections.size > 0
-    };
+  async function connectRetry(id, tries = 25) {   // 客户端可能比房主先进图，重试等待
+    for (let i = 0; i < tries; i++) {
+      try {
+        const c = peer.connect(id, { reliable: true });
+        await waitOpen(c, 4000);
+        return c;
+      } catch (_) { await sleep(1000); }
+    }
+    throw { type: 'host-not-found' };
+  }
+
+  function hostRecv(conn, d) {
+    if (!d) return;
+    switch (d.t) {
+      case 'hi': {
+        const c = conns.get(conn.peer);
+        if (c) { c.name = (d.name || '玩家').slice(0, 8); emit('players', gameRoster()); }
+        break;
+      }
+      case 'ps': {
+        remotes.set(conn.peer, Object.assign({}, d.s, { id: conn.peer, t: performance.now() }));
+        const c = conns.get(conn.peer); if (c && d.s) c.hp = d.s.hp;
+        bcast({ t: 'ps', id: conn.peer, s: d.s }, conn.peer);   // 星型转发给其他客户端
+        break;
+      }
+      case 'shot':
+        bcast({ t: 'shot', id: conn.peer, s: d.s }, conn.peer);
+        emit('shot', { id: conn.peer, s: d.s });
+        break;
+      case 'hs': emit('hit-zombie', d); break;   // 客户端击中僵尸 → 房主侧结算
+    }
+  }
+  function clientRecv(d) {
+    if (!d) return;
+    switch (d.t) {
+      case 'you': myId = d.id; break;
+      case 'ps': remotes.set(d.id, Object.assign({}, d.s, { id: d.id, t: performance.now() })); break;
+      case 'left': remotes.delete(d.id); break;
+      case 'shot': emit('shot', d); break;
+      case 'zb': emit('zombies', d.z); break;    // 房主僵尸快照（预留）
+    }
+  }
+  function netTick() {
+    if (phase !== 'game') return;
+    if (isHost) {
+      if (local) bcast({ t: 'ps', id: myId, s: local });
+      if (zbGet) { const z = zbGet(); if (z) bcast({ t: 'zb', z }); }
+    } else if (local) {
+      toHost({ t: 'ps', s: local });
+    }
+  }
+
+  async function shutdown() {
+    phase = 'off';
+    if (timer) { clearInterval(timer); timer = null; }
+    conns.forEach(c => { try { c.conn.close(); } catch (_) {} });
+    conns.clear();
+    try { hostConn && hostConn.close(); } catch (_) {} hostConn = null;
+    remotes.clear(); local = null; zbGet = null;
+    try { peer && peer.destroy(); } catch (_) {} peer = null;
+  }
+  window.addEventListener('beforeunload', () => { try { shutdown(); } catch (_) {} });
+
+  return {
+    on, hostLobby, joinLobby, startGame, enterGame,
+    leaveLobby: shutdown, shutdown,
+    setLocal: s => { local = s; },
+    eachRemote: fn => remotes.forEach(fn),
+    remoteCount: () => remotes.size,
+    sendShot: s => { isHost ? bcast({ t: 'shot', s, id: myId }) : toHost({ t: 'shot', s }); },
+    sendHitZombie: (i, dmg) => { if (!isHost) toHost({ t: 'hs', i, dmg }); },
+    hostZombies: fn => { zbGet = fn; },        // 预留：僵尸快照提供器
+    isHost: () => isHost,
+    inGame: () => phase === 'game',
+    info: () => ({ phase, isHost, code, name: myName, id: myId })
+  };
 })();
-
-// 暴露到全局 (供按钮 onclick 调用)
 window.P2P = P2P;
