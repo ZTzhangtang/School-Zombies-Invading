@@ -273,35 +273,32 @@
   #ammo-box span { font-size: 14px; opacity: 0.75; margin-left: 5px; }
   body.has-touch #ammo-box { right: auto; left: 50%; transform: translateX(-50%); bottom: 14px; }
   body.has-touch #ammo-box b { font-size: 26px; }
+  #nade-box { display:inline-flex; align-items:center; gap:3px; margin-left:12px; font-size:13px; opacity:.85; vertical-align:middle; }
+  #nade-box b { font-size:15px !important; }
 
-  /* ---------- 移动端战斗按钮 ---------- */
+  /* ---------- 移动端战斗按钮（统一布局，位置由 touch-ui.js 注入） ---------- */
   .tbtn {
     position: fixed; z-index: 30;
-    width: 64px; height: 44px;
-    border-radius: 12px;
+    display: flex; justify-content: center; align-items: center;
+    border-radius: 50%;
     border: 1.5px solid rgba(180, 200, 220, 0.4);
     background: rgba(13, 22, 36, 0.5);
     color: #dfe8f2; font-size: 13px; letter-spacing: 0.08em;
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    touch-action: none;
+    transition: transform .08s, background .12s;
   }
   .tbtn.on {
     background: rgba(210, 120, 40, 0.4);
     border-color: rgba(255, 190, 110, 0.7);
   }
-  #btnSprint { left: 178px; bottom: 118px; }
-  #btnReload { left: 178px; bottom: 172px; }
-  #btnFire {
-    position: fixed; z-index: 30;
-    right: 30px; bottom: 34px;
-    width: 88px; height: 88px;
-    border-radius: 50%;
+  .tbtn:active { transform: translate(-50%,-50%) scale(0.92) !important; }
+  .tbtn.fire {
     border: 2px solid rgba(255, 130, 110, 0.75);
     background: radial-gradient(circle at 35% 30%, rgba(214, 69, 51, 0.75), rgba(140, 26, 20, 0.8));
     color: #fff; font-size: 15px; font-weight: 800; letter-spacing: 0.14em;
     box-shadow: 0 6px 22px rgba(4, 10, 20, 0.55);
-    touch-action: none;
   }
-  #btnFire:active { transform: scale(0.94); }
 
   /* ---------- 死亡界面 ---------- */
   #deathScreen {
@@ -364,9 +361,9 @@
   <div class="bar-row"><span class="bar-label">体力</span>
     <div class="bar st"><i id="stFill"></i></div></div>
 </div>
-<div id="ammo-box"><b id="ammoNum">30</b><span>/ ∞</span></div>
+<div id="ammo-box"><b id="ammoNum">30</b><span>/ ∞</span><span id="nade-box">💣 <b id="nadeN">8</b></span></div>
 
-<div class="hud hud-hint">
+<!--div class="hud hud-hint">
   <div class="hint-title">生 化 突 围 · 操 作</div>
   <table>
     <tr><td class="k"><b>点击画面</b></td><td>锁定鼠标环视</td></tr>
@@ -377,15 +374,19 @@
   </table>
   <div class="touch">触屏：左摇杆移动 · 滑动环视 · 右侧开火<br>西门可出操场 · 教学楼内可躲避</div>
   <div class="stat"><span><b id="fps">--</b> FPS</span><span>实时反射 <b id="refl">--</b></span></div>
-</div>
+</div-->
 
 <div id="touch-ui">
   <div id="joy-move">
     <div class="joy-thumb" id="joyMoveThumb"></div>
   </div>
-  <button id="btnSprint" class="tbtn">疾跑</button>
-  <button id="btnReload" class="tbtn">换弹</button>
-  <button id="btnFire"><span>FIRE</span></button>
+  <!-- ★ 统一触屏按钮（与 map1/map3 一致）：位置由 touch-ui.js 注入 -->
+  <div class="tbtn fire" id="tbtn-fire"   data-tbtn="fire">FIRE</div>
+  <div class="tbtn" id="tbtn-aim"    data-tbtn="aim">瞄准</div>
+  <div class="tbtn" id="tbtn-reload" data-tbtn="reload">换弹</div>
+  <div class="tbtn" id="tbtn-nade"   data-tbtn="nade">手雷</div>
+  <div class="tbtn" id="tbtn-swap"   data-tbtn="swap">换枪</div>
+  <div class="tbtn" id="tbtn-sprint" data-tbtn="sprint">疾跑</div>
 </div>
 
 <div id="deathScreen">
@@ -404,15 +405,4128 @@
 
 <div id="fail">当前浏览器不支持 WebGL<br>请更换 Chrome / Edge / Firefox 等现代浏览器后重试</div>
 
+<!-- ★ 全局启动兜底：任何脚本错误都要可见，绝不静默卡在"正在构建" -->
+<script>
+(function () {
+  window.__bootOk = false;
+  window.__bootErrors = [];
+  window.addEventListener('error', function (e) {
+    try {
+      window.__bootErrors.push({
+        msg: (e && e.message) || '未知错误',
+        where: (e && e.filename ? String(e.filename).split('/').pop() : '') + (e && e.lineno ? ':' + e.lineno : ''),
+        stack: e && e.error && e.error.stack ? String(e.error.stack).split('\n').slice(0, 4).join('\n') : ''
+      });
+      if (window.__bootOk) return;   /* 已成功启动后再出的错不抢屏 */
+      var l = document.getElementById('loader'); if (l) l.style.display = 'none';
+      var f = document.getElementById('fail');
+      if (f) {
+        f.style.display = 'flex'; f.style.textAlign = 'left';
+        f.innerHTML = '<div style="max-width:560px">' +
+          '<h2 style="color:#ff8a8a;margin:0 0 10px;letter-spacing:.08em">启动失败 · 脚本错误</h2>' +
+          '<pre style="font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap;color:#ffd9d2;' +
+          'background:rgba(255,80,60,.08);border:1px solid rgba(255,90,70,.3);border-radius:8px;padding:12px;' +
+          'max-height:40vh;overflow:auto">' +
+          (e && e.message ? e.message : '') + '\n' +
+          ((e && e.filename) ? String(e.filename).split('/').pop() + ':' + (e.lineno || '') : '') +
+          ((e && e.error && e.error.stack) ? '\n\n' + String(e.error.stack).split('\n').slice(0, 4).join('\n') : '') +
+          '</pre>' +
+          '<p style="opacity:.7;font-size:12px;line-height:1.8">' +
+          '可检查：① _shared/js/three.min.js 是否存在；② 浏览器是否支持 WebGL；③ 控制台 window.__bootErrors。</p></div>';
+      }
+    } catch (_) {}
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) {
+    try { window.__bootErrors.push({ msg: 'Promise: ' + (e && e.reason && e.reason.message || e.reason), where: '' }); } catch (_) {}
+  });
+})();
+</script>
+
 <!-- ============================================================
      脚本加载顺序（★ 关键）
-     three → 游戏主体(app.js) → peerjs → p2p → mp-bridge → zsync
+     three → keys → settings → touch-ui → 游戏主体(app.js,已内联) → peerjs → p2p → mp-bridge → zsync
+     注：keys/settings/touch-ui/p2p/mp-bridge/zsync 与 app.js 已全部内联，
+         页面不再依赖这些外部文件，杜绝加载时序类故障。
      ============================================================ -->
 <script src="./_shared/js/three.min.js"></script>
-<script src="assets/app.js?v=12"></script>
+<!-- ★ 修复：与 map1 一致的 three.js CDN 兜底。
+     此前 map2 没有兜底，本地 _shared/js/three.min.js 缺失/损坏时会直接卡在加载遮罩。 -->
+<script>if(!window.THREE){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');}</script>
+<script>if(!window.THREE){document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');}</script>
+<script>if(!window.THREE){document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');}</script>
+<script>
+/* 内联自 keys.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * keys.js — 生化·校园突围 统一键位系统
+ *
+ * 三张地图共用同一套键位表（默认照搬 map1 风格）：
+ *   W/A/S/D  移动        Shift  疾跑
+ *   F        开火        右键   开镜
+ *   R        换弹        1 / 2  切换武器
+ *   G        手雷
+ *
+ * 用法：
+ *   Keys.actionOf(e.code)   → 动作名 或 null
+ *   Keys.isDown(action)     → 该动作当前是否按下
+ *   Keys.set(action, code)  / Keys.resetAll()  / Keys.on(cb)
+ *   Keys.bindInput()        → 地图页调用一次，自动维护按下状态并派发事件
+ *
+ * 配置存 localStorage.zs_keys
+ * ============================================================ */
+window.Keys = (function () {
+  'use strict';
+
+  /* 动作定义：顺序即设置页展示顺序 */
+  const ACTIONS = [
+    { key: 'forward', label: '前进',      def: 'KeyW',          group: '移动' },
+    { key: 'back',    label: '后退',      def: 'KeyS',          group: '移动' },
+    { key: 'left',    label: '左移',      def: 'KeyA',          group: '移动' },
+    { key: 'right',   label: '右移',      def: 'KeyD',          group: '移动' },
+    { key: 'sprint',  label: '疾跑',      def: 'ShiftLeft',     group: '移动' },
+    { key: 'fire',    label: '开火',      def: 'KeyF',          group: '战斗' },
+    { key: 'reload',  label: '换弹',      def: 'KeyR',          group: '战斗' },
+    { key: 'w1',      label: '主武器',    def: 'Digit1',        group: '战斗' },
+    { key: 'w2',      label: '副武器',    def: 'Digit2',        group: '战斗' },
+    { key: 'nade',    label: '手雷',      def: 'KeyG',          group: '战斗' }
+  ];
+
+  /* 疾跑额外允许 ShiftRight，两键同义 */
+  const ALIAS = { sprint: ['ShiftLeft', 'ShiftRight'] };
+
+  const LS = 'zs_keys';
+  let map = {};                                  // action → code
+  const down = {};                               // action → bool
+
+  /* ---------- 读取 / 保存 ---------- */
+  function defaults() {
+    const m = {};
+    ACTIONS.forEach(a => { m[a.key] = a.def; });
+    return m;
+  }
+  function load() {
+    map = defaults();
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS) || '{}');
+      for (const k in raw) if (k in map && typeof raw[k] === 'string') map[k] = raw[k];
+    } catch (_) {}
+  }
+  function save() { try { localStorage.setItem(LS, JSON.stringify(map)); } catch (_) {} }
+
+  /* code → 该 code 对应的所有动作（含别名） */
+  function actionsOfCode(code) {
+    const out = [];
+    for (const a of ACTIONS) {
+      const codes = ALIAS[a.key] || [map[a.key]];
+      if (codes.indexOf(code) >= 0) out.push(a.key);
+    }
+    return out;
+  }
+
+  /* ---------- 事件派发 ---------- */
+  const handlers = [];                            // { action, type:'down'|'up', fn }
+  function on(action, type, fn) { handlers.push({ action, type, fn }); }
+  function fire(action, type, code) {
+    for (let i = 0; i < handlers.length; i++) {
+      const h = handlers[i];
+      if (h.action === action && h.type === type) {
+        try { h.fn(code); } catch (_) {}
+      }
+    }
+  }
+
+  function setDown(action, v, code) {
+    if (down[action] === v) return;
+    down[action] = v;
+    fire(action, v ? 'down' : 'up', code);
+  }
+
+  /* 同一动作可能有多个 code（如 Shift 左右）；用引用计数避免松开一个就误判为抬起 */
+  const held = Object.create(null);               // code → count
+  const holdCount = Object.create(null);          // action → count
+
+  /* ---------- 对外：按下状态 ---------- */
+  function isDown(action) { return !!down[action]; }
+  function anyDown() {
+    for (const k in down) if (down[k]) return true;
+    return false;
+  }
+
+  /* ---------- 对外：键位读写 ---------- */
+  function code(action) { return map[action]; }
+  function actionOf(c) { const a = actionsOfCode(c); return a.length ? a[0] : null; }
+  function set(action, c) {
+    if (!(action in map) || !c) return;
+    map[action] = c; save();
+  }
+  function resetAll() { map = defaults(); save(); }
+  function resetOne(action) { map[action] = defaults()[action]; save(); }
+
+  /* 键名 → 展示文案（给设置页用） */
+  function pretty(c) {
+    if (!c) return '—';
+    if (/^Key([A-Z])$/.test(c)) return c.slice(3);
+    if (/^Digit(\d)$/.test(c)) return c.slice(5);
+    if (/^Numpad(\d)$/.test(c)) return '小键盘' + c.slice(6);
+    if (c === 'ShiftLeft') return '左 Shift';
+    if (c === 'ShiftRight') return '右 Shift';
+    if (c === 'Space') return '空格';
+    if (c === 'ControlLeft') return '左 Ctrl';
+    if (c === 'AltLeft') return '左 Alt';
+    if (c === 'ArrowUp') return '↑';
+    if (c === 'ArrowDown') return '↓';
+    if (c === 'ArrowLeft') return '←';
+    if (c === 'ArrowRight') return '→';
+    return c;
+  }
+
+  /* 冲突检测：返回与该 code 冲突的其它动作 label 数组 */
+  function conflicts(action, c) {
+    const out = [];
+    for (const a of ACTIONS) {
+      if (a.key === action) continue;
+      const codes = ALIAS[a.key] || [map[a.key]];
+      if (codes.indexOf(c) >= 0) out.push(a.label);
+    }
+    return out;
+  }
+
+  /* ---------- 自动接线：地图页调用一次 ---------- */
+  let inputBound = false;
+  function bindInput(opts) {
+    if (inputBound) return;
+    inputBound = true;
+    opts = opts || {};
+    /* 忽略在输入框里的按键 */
+    const typing = e => {
+      const t = e.target;
+      return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    };
+
+    window.addEventListener('keydown', function (e) {
+      if (typing(e)) return;
+      const acts = actionsOfCode(e.code);
+      if (!acts.length) return;
+      held[e.code] = (held[e.code] || 0) + 1;
+      acts.forEach(a => {
+        holdCount[a] = (holdCount[a] || 0) + 1;
+        setDown(a, true, e.code);
+      });
+      /* 阻止 1/2 换枪时的浏览器默认（部分环境会切标签）与空格滚动 */
+      if (acts.indexOf('w1') >= 0 || acts.indexOf('w2') >= 0) e.preventDefault();
+    });
+
+    window.addEventListener('keyup', function (e) {
+      const acts = actionsOfCode(e.code);
+      if (!acts.length) return;
+      acts.forEach(a => {
+        holdCount[a] = Math.max(0, (holdCount[a] || 1) - 1);
+        if (holdCount[a] === 0) setDown(a, false, e.code);
+      });
+      held[e.code] = Math.max(0, (held[e.code] || 1) - 1);
+    });
+
+    /* 失焦时清空全部按下状态，避免"卡住" */
+    window.addEventListener('blur', function () {
+      for (const a in down) if (down[a]) setDown(a, false, null);
+      for (const k in holdCount) holdCount[k] = 0;
+    });
+  }
+
+  load();
+
+  return {
+    ACTIONS, defaults, load, save,
+    code, actionOf, actionsOfCode, set, resetAll, resetOne,
+    isDown, anyDown, pretty, conflicts,
+    on, bindInput,
+    /* 便捷：注册某动作按下时的回调 */
+    onDown: (action, fn) => on(action, 'down', fn),
+    onUp:   (action, fn) => on(action, 'up',   fn)
+  };
+})();
+
+</script>
+<script>
+/* 内联自 settings.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * settings.js — 生化·校园突围 跨地图统一设置
+ *
+ * index.html 写入的设置此前只有主菜单自己用，进图后全部失效。
+ * 本模块让每张地图启动时调用 Settings.apply(gameCtx) 真正生效。
+ *
+ * 存储在 localStorage.zs_cfg（与 index.html 同一份）：
+ *   { quality:'auto|low|mid|high', sens:1, vol:70, refl:true, fps:false }
+ *
+ * 地图页模板：
+ *   Settings.apply({
+ *     applyQuality:(level)=>{...},   // 可选：自定义画质应用
+ *     getSens:()=>baseSens,          // 可选：返回基准灵敏度系数
+ *     setSens:(v)=>{...},            // 可选：写回灵敏度
+ *     getAudio:()=>AudioCtx,         // 可选：返回 AudioContext（用于音量）
+ *     setRefl:(on)=>{...},           // 可选：开关湿地反射
+ *     setFps:(on)=>{...}             // 可选：开关 FPS 显示
+ *   });
+ * ============================================================ */
+window.Settings = (function () {
+  'use strict';
+
+  const LS = 'zs_cfg';
+  const DEF = { map: 'map1', quality: 'auto', sens: 1, vol: 70, refl: true, fps: false };
+
+  let cfg = Object.assign({}, DEF);
+
+  function load() {
+    try { cfg = Object.assign({}, DEF, JSON.parse(localStorage.getItem(LS) || '{}')); }
+    catch (_) { cfg = Object.assign({}, DEF); }
+    return cfg;
+  }
+  function save() { try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch (_) {} }
+  function get() { return cfg; }
+  function set(k, v) { cfg[k] = v; save(); }
+
+  /* 画质档 → 数值等级（低=0 中=1 高=2）；auto 交给地图自身的动态降质 */
+  function qualityLevel() {
+    switch (cfg.quality) {
+      case 'low':  return 0;
+      case 'mid':  return 1;
+      case 'high': return 2;
+      default:     return -1;            // auto
+    }
+  }
+
+  /* 音量：0~100 → 0~1 */
+  function volume() { return Math.max(0, Math.min(1, (+cfg.vol || 0) / 100)); }
+
+  /* 灵敏度：设置值直接作为倍率 */
+  function sens() { return Math.max(0.1, +cfg.sens || 1); }
+
+  /* 把设置应用到当前地图。ctx 为可选回调集合 */
+  function apply(ctx) {
+    ctx = ctx || {};
+    load();
+
+    /* ① 画质 */
+    const lv = qualityLevel();
+    if (typeof ctx.applyQuality === 'function') {
+      try { ctx.applyQuality(lv, cfg.quality); } catch (_) {}
+    } else if (lv >= 0 && typeof window.applyQuality === 'function') {
+      try { window.applyQuality(lv); } catch (_) {}
+    }
+    if (lv >= 0) window.__cfgQuality = lv; else window.__cfgQuality = null;
+
+    /* ② 鼠标灵敏度 */
+    window.__cfgSens = sens();
+    if (typeof ctx.setSens === 'function') { try { ctx.setSens(sens()); } catch (_) {} }
+
+    /* ③ 音量 */
+    if (typeof ctx.getAudio === 'function') {
+      try {
+        const ac = ctx.getAudio();
+        if (ac) window.__cfgGain = installGain(ac);
+      } catch (_) {}
+    }
+
+    /* ④ 湿地反射 */
+    if (typeof ctx.setRefl === 'function') { try { ctx.setRefl(!!cfg.refl); } catch (_) {} }
+    window.__cfgRefl = !!cfg.refl;
+
+    /* ⑤ FPS 显示 */
+    if (typeof ctx.setFps === 'function') { try { ctx.setFps(!!cfg.fps); } catch (_) {} }
+    window.__cfgFps = !!cfg.fps;
+    applyFpsVisibility(!!cfg.fps);
+
+    return cfg;
+  }
+
+  /* ---------- 音量：在 AudioContext 上装一个 master gain ---------- */
+  function installGain(ac) {
+    if (!ac || ac.__cfgGain) return ac && ac.__cfgGain;
+    try {
+      const g = ac.createGain();
+      g.gain.value = volume();
+      g.connect(ac.destination);
+      /* 之后所有 source 都改接 g（地图代码里多为 source.connect(AC.destination)），
+         这里无法拦截既有连接，故同时暴露 gain，由地图侧在创建时使用 */
+      ac.__cfgGain = g;
+    } catch (_) {}
+    return ac && ac.__cfgGain;
+  }
+
+  /* ---------- FPS 显示 ---------- */
+  function applyFpsVisibility(on) {
+    const ids = ['fps', 'footer', 'fpsBox'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = on ? '' : 'none';
+    });
+  }
+
+  /* 监听 index 设置页变更（同源同窗口不会触发，跨窗口会） */
+  window.addEventListener('storage', e => {
+    if (e.key === LS) { load(); if (window.__cfgLiveApply) try { window.__cfgLiveApply(cfg); } catch (_) {} }
+  });
+
+  load();
+
+  return {
+    DEF, load, save, get, set, apply,
+    qualityLevel, volume, sens,
+    applyFpsVisibility, installGain,
+    refresh: load
+  };
+})();
+
+</script>
+<script>
+/* 内联自 touch-ui.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * touch-ui.js —— 触屏按钮「统一布局 + 自定义位置」模块
+ *
+ * 解决的问题：
+ *   1. 三张地图的触屏按钮各不相同（map1 有 6 个，map2/map3 只有 3 个）
+ *   2. 按钮位置写死在 CSS 里，手机上够不到 / 挡视野，玩家无法自行调整
+ *
+ * 本模块提供：
+ *   · 一套统一的 6 个按钮定义（开火/疾跑/换弹/瞄准/手雷/换枪）
+ *   · 位置以【视口百分比】存储，跨手机尺寸一致
+ *   · localStorage 持久化（键名 zs_ui），三张地图 + index 设置页共用
+ *   · index 设置页可拖拽调整；地图内直接读取生效
+ *
+ * 坐标约定：
+ *   pos = { x: 0..100, y: 0..100 }  表示按钮【中心】在视口中的百分比位置
+ *   x=92 → 靠右, y=88 → 靠下
+ *
+ * 对外 API：
+ *   TouchUI.ACTIONS            按钮定义数组
+ *   TouchUI.baseSize()         当前屏幕下按钮基准像素（随屏宽自适应）
+ *   TouchUI.get(action)        取某动作的位置（含默认回退）
+ *   TouchUI.set(action, x, y)  写位置并保存
+ *   TouchUI.resetAll()         恢复全部默认
+ *   TouchUI.apply(scopeEl)     把位置套用到已存在的 [data-tbtn] 元素上
+ *   TouchUI.watch(scopeEl)     监听窗口尺寸变化自动重算
+ * ============================================================ */
+window.TouchUI = (function () {
+  'use strict';
+
+  var LS = 'zs_ui';
+
+  /* ---------- 统一按钮定义 ----------
+   * action  : 逻辑动作名（与 keys.js 一致，便于语义对齐）
+   * id      : 地图页里按钮的 DOM id
+   * label   : 按钮显示文字
+   * kind    : fire=大圆键 / normal=普通圆键
+   * def     : 默认中心位置（视口百分比）；按右手拇指可及的右下弧线排布
+   */
+  var ACTIONS = [
+    { action: 'fire',   id: 'tbtn-fire',   label: 'FIRE', kind: 'fire',   def: { x: 88, y: 84 } },
+    { action: 'aim',    id: 'tbtn-aim',    label: '瞄准', kind: 'normal', def: { x: 88, y: 62 } },
+    { action: 'reload', id: 'tbtn-reload', label: '换弹', kind: 'normal', def: { x: 70, y: 78 } },
+    { action: 'nade',   id: 'tbtn-nade',   label: '手雷', kind: 'normal', def: { x: 62, y: 92 } },
+    { action: 'swap',   id: 'tbtn-swap',   label: '换枪', kind: 'normal', def: { x: 74, y: 92 } },
+    { action: 'sprint', id: 'tbtn-sprint', label: '疾跑', kind: 'normal', def: { x: 58, y: 64 } }
+  ];
+
+  var byAction = {};
+  ACTIONS.forEach(function (a) { byAction[a.action] = a; });
+
+  /* ---------- 读取 / 保存 ---------- */
+  var map = {};                                   // action -> {x,y}
+  function load() {
+    map = {};
+    ACTIONS.forEach(function (a) { map[a.action] = { x: a.def.x, y: a.def.y }; });
+    try {
+      var raw = JSON.parse(localStorage.getItem(LS) || '{}');
+      for (var k in raw) {
+        if (!byAction[k]) continue;
+        var v = raw[k];
+        if (v && typeof v.x === 'number' && typeof v.y === 'number') {
+          map[k] = { x: clamp(v.x, 0, 100), y: clamp(v.y, 0, 100) };
+        }
+      }
+    } catch (_) {}
+  }
+  function save() { try { localStorage.setItem(LS, JSON.stringify(map)); } catch (_) {} }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  function get(action) {
+    var d = byAction[action];
+    if (!d) return null;
+    var p = map[action];
+    return p ? { x: p.x, y: p.y } : { x: d.def.x, y: d.def.y };
+  }
+  function set(action, x, y) {
+    if (!byAction[action]) return;
+    map[action] = { x: clamp(x, 0, 100), y: clamp(y, 0, 100) };
+    save();
+  }
+  function resetOne(action) {
+    var d = byAction[action];
+    if (d) { map[action] = { x: d.def.x, y: d.def.y }; save(); }
+  }
+  function resetAll() {
+    ACTIONS.forEach(function (a) { map[a.action] = { x: a.def.x, y: a.def.y }; });
+    save();
+  }
+
+  /* ---------- 尺寸：基准像素随屏宽自适应（和旧 CSS 变量保持一致的量级） ---------- */
+  function baseSize() {
+    var w = (window.innerWidth || 375);
+    if (w < 380) return { normal: 50, fire: 72 };
+    if (w < 520) return { normal: 54, fire: 78 };
+    if (w < 820) return { normal: 58, fire: 84 };
+    return { normal: 60, fire: 86 };
+  }
+
+  /* ---------- 把位置套用到元素 ---------- */
+  function applyEl(el, action) {
+    if (!el) return;
+    var p = get(action);
+    if (!p) return;
+    var d = byAction[action];
+    var sz = baseSize();
+    var px = (d.kind === 'fire') ? sz.fire : sz.normal;
+    el.style.left = p.x + '%';
+    el.style.top = p.y + '%';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.width = px + 'px';
+    el.style.height = px + 'px';
+    el.style.transform = 'translate(-50%, -50%)';
+  }
+
+  /* scopeEl 可为 document 或某个容器 */
+  function apply(scopeEl) {
+    load();
+    var root = scopeEl || document;
+    ACTIONS.forEach(function (a) {
+      var el = root.querySelector('[data-tbtn="' + a.action + '"]') || document.getElementById(a.id);
+      if (el) {
+        el.setAttribute('data-tbtn', a.action);
+        applyEl(el, a.action);
+      }
+    });
+  }
+
+  var watching = false;
+  function watch(scopeEl) {
+    if (watching) return;
+    watching = true;
+    var t = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(t); t = setTimeout(function () { apply(scopeEl); }, 120);
+    });
+    window.addEventListener('orientationchange', function () {
+      clearTimeout(t); t = setTimeout(function () { apply(scopeEl); }, 200);
+    });
+  }
+
+  load();
+
+  return {
+    ACTIONS: ACTIONS,
+    byAction: byAction,
+    baseSize: baseSize,
+    get: get, set: set, resetOne: resetOne, resetAll: resetAll,
+    load: load, save: save,
+    apply: apply, applyEl: applyEl, watch: watch
+  };
+})();
+
+</script>
+<script>
+/* 内联自 app.js · 自动生成，勿手工编辑 */
+/* =========================================================================
+ * 雨后 · 校园操场 —— Three.js 实时渲染
+ * 400m 塑胶跑道 / 足球场 / 篮球场 / 看台 / 教学楼
+ * 核心：自研「湿地平面反射」着色器（投影纹理采样 + 程序化水洼 + 涟漪）
+ * ★ 联机版：接入 zsync.js / mp-bridge.js / p2p.js
+ * ========================================================================= */
+(function () {
+'use strict';
+
+/* ★ 诊断探针：记录 app.js 执行进度，卡死时可在控制台看 window.__map2Trace */
+window.__map2Trace = window.__map2Trace || [];
+window.__map2Mark = function (s) { try { window.__map2Trace.push(s); } catch (_) {} };
+window.__map2Mark('app.js 开始执行');
+
+/* ★ 全局兜底：任何阶段抛错都要收起加载层并留下痕迹，绝不让页面永久停在"正在构建" */
+window.__map2Fail = function (where, err) {
+  try {
+    window.__map2Mark('FAIL@' + where + ': ' + (err && err.message));
+    console.error('[map2] 初始化失败 @' + where + ':', err);
+    var l = document.getElementById('loader'); if (l) l.style.display = 'none';
+    var f = document.getElementById('fail');
+    if (f) { f.style.display = 'flex'; f.innerHTML = '初始化失败（' + where + '）<br><small style="opacity:.7">' + (err && err.message || err) + '</small>'; }
+  } catch (_) {}
+};
+
+if (!window.THREE) {
+  document.getElementById('fail').style.display = 'flex';
+  document.getElementById('loader').style.display = 'none';
+  return;
+}
+
+/* ★ three.js 版本兼容垫片（r128 ↔ r152+）
+ * r128：用 outputEncoding / sRGBEncoding；无 SRGBColorSpace 常量
+ * r152+：用 outputColorSpace / SRGBColorSpace；outputEncoding 已移除
+ * 本补丁让同一份 app.js 在任意版本上都能工作，彻底消除"版本不兼容"这一类故障。 */
+(function () {
+  var T = window.THREE;
+  var rev = 0;
+  try { rev = parseInt(T.REVISION, 10) || 0; } catch (_) {}
+  window.__map2Mark('three:r' + rev);
+
+  /* 1) 颜色空间常量：哪个版本缺就补哪个 */
+  if (T.SRGBColorSpace === undefined) T.SRGBColorSpace = 'srgb';
+  if (T.LinearSRGBColorSpace === undefined) T.LinearSRGBColorSpace = 'srgb-linear';
+  if (T.NoColorSpace === undefined) T.NoColorSpace = '';
+  if (T.sRGBEncoding === undefined) T.sRGBEncoding = 3001;
+
+  /* 2) 渲染器输出颜色空间：按版本选择正确的属性名 */
+  var _isLegacy = (rev > 0 && rev < 152);
+  window.__map2Compat = function (renderer) {
+    try {
+      if (_isLegacy) {
+        /* r128 及以前 */
+        if (renderer.outputEncoding === undefined && renderer.outputColorSpace !== undefined) {
+          /* 极少数混版本情况 */
+        }
+        renderer.outputEncoding = T.sRGBEncoding;
+      } else {
+        /* r152+ */
+        renderer.outputColorSpace = T.SRGBColorSpace;
+      }
+    } catch (_) {}
+    return renderer;
+  };
+})();
+
+/* ★ 供贴图/材质统一设置颜色空间的辅助（跨版本安全） */
+window.__map2SetColorSpace = function (obj) {
+  try {
+    var T = window.THREE;
+    if (obj && 'colorSpace' in obj && T.SRGBColorSpace !== undefined) {
+      obj.colorSpace = T.SRGBColorSpace;
+    } else if (obj && 'encoding' in obj && T.sRGBEncoding !== undefined) {
+      obj.encoding = T.sRGBEncoding;
+    }
+  } catch (_) {}
+  return obj;
+};
+
+/* ★ 联机：全局丧尸数组（zsync.js 读这个做序列化广播/快照对齐） */
+window.__zombies = window.__zombies || [];
+
+/* ================= 基础常量 ================= */
+var TRACK_L = 84.39;          // 直道长度 (m)
+var TRACK_R = 36.5;           // 第 1 道内沿半径
+var LANE_W = 1.22;            // 分道宽
+var LANES = 8;
+var TRACK_OUT = TRACK_R + LANES * LANE_W;   // 46.26
+var COMPOUND = { x0: -102, x1: 144, z0: -78, z1: 68 };   // 围栏范围
+var SUN_DIR = new THREE.Vector3(-0.52, 0.40, 0.34).normalize();
+
+/* ================= 碰撞体系统（AABB，供玩家/丧尸共用） ================= */
+var COLLIDERS = [];
+function addCollider(x0, x1, z0, z1) {
+  COLLIDERS.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) });
+}
+/* 圆(r) vs AABB 推出：返回修正后的 [x, z] */
+function collideXZ(px, pz, r) {
+  for (var i = 0; i < COLLIDERS.length; i++) {
+    var c = COLLIDERS[i];
+    var nx = Math.max(c.x0, Math.min(px, c.x1));
+    var nz = Math.max(c.z0, Math.min(pz, c.z1));
+    var dx = px - nx, dz = pz - nz;
+    var d2 = dx * dx + dz * dz;
+    if (d2 < r * r) {
+      if (d2 > 1e-6) {
+        var d = Math.sqrt(d2);
+        px = nx + dx / d * r;
+        pz = nz + dz / d * r;
+      } else {
+        var lx = Math.min(px - c.x0, c.x1 - px);
+        var lz = Math.min(pz - c.z0, c.z1 - pz);
+        if (lx < lz) px = (px - c.x0 < c.x1 - px) ? c.x0 - r : c.x1 + r;
+        else pz = (pz - c.z0 < c.z1 - pz) ? c.z0 - r : c.z1 + r;
+      }
+    }
+  }
+  return [px, pz];
+}
+function insideAnyCollider(px, pz, pad) {
+  for (var i = 0; i < COLLIDERS.length; i++) {
+    var c = COLLIDERS[i];
+    if (px > c.x0 - pad && px < c.x1 + pad && pz > c.z0 - pad && pz < c.z1 + pad) return true;
+  }
+  return false;
+}
+
+var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/* ================= 确定性随机 ================= */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+var rng = mulberry32(20260823);
+
+/* ================= 渲染器 ================= */
+window.__map2Mark('renderer:start');
+var container = document.getElementById('app');
+if (!container) { window.__map2Fail('找不到 #app 容器', new Error("#app missing")); return; }
+var renderer = null;
+/* ★ 移动端兼容：分档尝试创建 WebGL 上下文。
+   移动 GPU 对 antialias / powerPreference / alpha 很敏感，'high-performance' 在部分
+   机型上会导致上下文创建失败或挂起。逐档降级，务必拿到一个可用 renderer。 */
+var _rendererAttempts = [
+  { antialias: true,  powerPreference: 'high-performance' },   // 首选（桌面）
+  { antialias: true },                                          // 移动端常用
+  { antialias: false },                                         // 弱机降级
+  { antialias: false, alpha: false, stencil: false, depth: true, failIfMajorPerformanceCaveat: false }
+];
+for (var _ai = 0; _ai < _rendererAttempts.length; _ai++) {
+  try {
+    var _r = new THREE.WebGLRenderer(_rendererAttempts[_ai]);
+    if (_r && _r.getContext && _r.getContext()) {
+      renderer = _r;
+      window.__map2Mark('renderer:第 ' + (_ai + 1) + ' 档成功 ' + JSON.stringify(_rendererAttempts[_ai]));
+      break;
+    } else {
+      window.__map2Mark('renderer:第 ' + (_ai + 1) + ' 档无上下文');
+      try { _r && _r.dispose && _r.dispose(); } catch (_) {}
+    }
+  } catch (e) {
+    window.__map2Mark('renderer:第 ' + (_ai + 1) + ' 档抛错 ' + e.message);
+  }
+}
+if (!renderer) {
+  window.__map2Mark('renderer:全部档位失败，走 #fail');
+  document.getElementById('fail').style.display = 'flex';
+  document.getElementById('loader').style.display = 'none';
+  return;
+}
+window.__map2Mark('renderer:创建成功');
+var MAX_PR = Math.min(window.devicePixelRatio || 1, isMobile ? 1.6 : 2);
+try {
+  renderer.setPixelRatio(MAX_PR);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  /* ★ 跨版本：r128 用 outputEncoding，r152+ 用 outputColorSpace，垫片自动选择 */
+  window.__map2Compat(renderer);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.94;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
+} catch (e2) {
+  /* r159 与 r128 在 outputColorSpace/toneMapping 上语义不同，任一失败都不应中断 */
+  window.__map2Mark('renderer:属性设置异常(已忽略) ' + e2.message);
+}
+
+function invalidateShadows() {
+  renderer.shadowMap.needsUpdate = true;
+}
+
+try {
+  container.appendChild(renderer.domElement);
+} catch (e3) {
+  window.__map2Fail('挂载 canvas 失败', e3); return;
+}
+window.__map2Mark('canvas:已挂载');
+var MAX_ANISO = 8;
+try { MAX_ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy()); } catch (_) {}
+
+/* ★ 从这里到 IIFE 结尾的全部场景构建，统一兜底：
+   任何未预期异常都会被捕获 → 隐藏加载层 + 显示可读错误，而不是永久卡"正在构建"。 */
+try {
+window.__map2Mark('scene:构建开始');
+/* ================= 场景 / 相机 / 灯光 ================= */
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa7b5a9);
+scene.fog = new THREE.Fog(0xa7b5a9, 120, 640);
+
+var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2600);
+camera.position.set(120, 40, 150);
+
+var sun = new THREE.DirectionalLight(0xffe3ba, 2.3);
+sun.position.copy(SUN_DIR).multiplyScalar(240);
+sun.castShadow = true;
+var SHADOW_RES = isMobile ? 1024 : 4096;
+sun.shadow.mapSize.set(SHADOW_RES, SHADOW_RES);
+sun.shadow.camera.left = -170; sun.shadow.camera.right = 170;
+sun.shadow.camera.top = 170; sun.shadow.camera.bottom = -170;
+sun.shadow.camera.near = 40; sun.shadow.camera.far = 560;
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.7;
+scene.add(sun);
+scene.add(sun.target);
+
+scene.add(new THREE.HemisphereLight(0xbdd3ec, 0x46524a, 0.62));
+scene.add(new THREE.AmbientLight(0x5a6b60, 0.38));
+
+/* ================= 程序化纹理 ================= */
+function makeCanvas(w, h) {
+  var c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+function toTexture(canvas, srgb) {
+  var t = new THREE.CanvasTexture(canvas);
+  if (srgb !== false) window.__map2SetColorSpace(t);   /* ★ 跨版本颜色空间 */
+  t.anisotropy = MAX_ANISO;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/* --- 沥青地面 --- */
+function texAsphalt() {
+  var c = makeCanvas(512, 512), x = c.getContext('2d');
+  x.fillStyle = '#3c4147'; x.fillRect(0, 0, 512, 512);
+  var i, px, py, v;
+  for (i = 0; i < 260; i++) {
+    px = rng() * 512; py = rng() * 512;
+    var r = 20 + rng() * 60;
+    var g = x.createRadialGradient(px, py, 0, px, py, r);
+    var d = rng() * 0.09;
+    g.addColorStop(0, 'rgba(20,22,26,' + d + ')');
+    g.addColorStop(1, 'rgba(20,22,26,0)');
+    x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2);
+  }
+  for (i = 0; i < 14000; i++) {
+    px = rng() * 512; py = rng() * 512;
+    v = 52 + rng() * 66;
+    x.fillStyle = 'rgba(' + (v | 0) + ',' + ((v + 3) | 0) + ',' + ((v + 8) | 0) + ',' + (0.16 + rng() * 0.3) + ')';
+    x.fillRect(px, py, 1 + rng() * 1.6, 1 + rng() * 1.6);
+  }
+  for (i = 0; i < 60; i++) {
+    px = rng() * 512; py = rng() * 512;
+    x.strokeStyle = 'rgba(16,18,21,' + (0.1 + rng() * 0.12) + ')';
+    x.lineWidth = 0.7;
+    x.beginPath(); x.moveTo(px, py);
+    for (var j = 0; j < 5; j++) { px += (rng() - 0.5) * 26; py += (rng() - 0.5) * 26; x.lineTo(px, py); }
+    x.stroke();
+  }
+  return toTexture(c);
+}
+
+/* --- 草皮（含修剪条纹） --- */
+function texGrass() {
+  var c = makeCanvas(512, 512), x = c.getContext('2d');
+  x.fillStyle = '#3a7440'; x.fillRect(0, 0, 512, 512);
+  x.fillStyle = 'rgba(255,255,255,0.055)'; x.fillRect(0, 0, 256, 512);
+  x.fillStyle = 'rgba(0,0,0,0.06)'; x.fillRect(256, 0, 256, 512);
+  var i, px, py;
+  for (i = 0; i < 16000; i++) {
+    px = rng() * 512; py = rng() * 512;
+    var g = 88 + rng() * 52;
+    x.fillStyle = 'rgba(' + ((g * 0.55) | 0) + ',' + (g | 0) + ',' + ((g * 0.5) | 0) + ',' + (0.1 + rng() * 0.25) + ')';
+    x.fillRect(px, py, 1 + rng() * 2, 1 + rng() * 2.5);
+  }
+  for (i = 0; i < 40; i++) {
+    px = rng() * 512; py = rng() * 512;
+    x.fillStyle = 'rgba(18,42,22,' + (0.08 + rng() * 0.1) + ')';
+    x.beginPath(); x.ellipse(px, py, 4 + rng() * 10, 3 + rng() * 6, rng() * 3, 0, 6.29); x.fill();
+  }
+  return toTexture(c);
+}
+
+/* --- 塑胶跑道面层 --- */
+function texTrack() {
+  var c = makeCanvas(256, 256), x = c.getContext('2d');
+  x.fillStyle = '#ad434c'; x.fillRect(0, 0, 256, 256);
+  var i, px, py;
+  for (i = 0; i < 5200; i++) {
+    px = rng() * 256; py = rng() * 256;
+    var v = rng();
+    if (v < 0.5) x.fillStyle = 'rgba(196,92,100,' + (0.12 + rng() * 0.2) + ')';
+    else if (v < 0.85) x.fillStyle = 'rgba(130,42,50,' + (0.12 + rng() * 0.2) + ')';
+    else x.fillStyle = 'rgba(235,190,190,' + (0.06 + rng() * 0.1) + ')';
+    x.fillRect(px, py, 1 + rng() * 1.5, 1 + rng() * 1.5);
+  }
+  for (i = 0; i < 26; i++) {
+    py = rng() * 256;
+    x.strokeStyle = 'rgba(120,36,44,' + (0.05 + rng() * 0.07) + ')';
+    x.lineWidth = 1 + rng() * 3;
+    x.beginPath(); x.moveTo(0, py); x.lineTo(256, py + (rng() - 0.5) * 8); x.stroke();
+  }
+  return toTexture(c);
+}
+
+/* --- 篮球场丙烯酸面层 --- */
+function texCourt() {
+  var c = makeCanvas(256, 256), x = c.getContext('2d');
+  x.fillStyle = '#2f6fb4'; x.fillRect(0, 0, 256, 256);
+  var i, px, py;
+  for (i = 0; i < 3600; i++) {
+    px = rng() * 256; py = rng() * 256;
+    x.fillStyle = rng() < 0.5 ? 'rgba(255,255,255,' + (0.02 + rng() * 0.05) + ')' : 'rgba(10,30,60,' + (0.03 + rng() * 0.06) + ')';
+    x.fillRect(px, py, 1 + rng() * 2, 1 + rng() * 2);
+  }
+  return toTexture(c);
+}
+
+/* --- 篮球场看台混凝土 --- */
+function texConcrete() {
+  var c = makeCanvas(256, 256), x = c.getContext('2d');
+  x.fillStyle = '#a9adb4'; x.fillRect(0, 0, 256, 256);
+  var i, px, py;
+  for (i = 0; i < 4000; i++) {
+    px = rng() * 256; py = rng() * 256;
+    var v = 150 + rng() * 50;
+    x.fillStyle = 'rgba(' + (v | 0) + ',' + (v | 0) + ',' + ((v + 4) | 0) + ',' + (0.1 + rng() * 0.2) + ')';
+    x.fillRect(px, py, 1 + rng() * 1.5, 1 + rng() * 1.5);
+  }
+  x.strokeStyle = 'rgba(90,94,100,0.25)'; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(0, 128); x.lineTo(256, 128); x.moveTo(128, 0); x.lineTo(128, 256); x.stroke();
+  return toTexture(c);
+}
+
+/* --- 铁丝网 --- */
+function texChainlink() {
+  var c = makeCanvas(128, 128), x = c.getContext('2d');
+  x.clearRect(0, 0, 128, 128);
+  x.strokeStyle = 'rgba(168,178,190,0.95)';
+  x.lineWidth = 2.2;
+  var s = 16, i;
+  for (i = -128; i <= 256; i += s) {
+    x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 128, 128); x.stroke();
+    x.beginPath(); x.moveTo(i + 128, 0); x.lineTo(i, 128); x.stroke();
+  }
+  var t = toTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/* --- 球门网 --- */
+function texNet() {
+  var c = makeCanvas(64, 64), x = c.getContext('2d');
+  x.clearRect(0, 0, 64, 64);
+  x.strokeStyle = 'rgba(240,244,248,0.85)';
+  x.lineWidth = 1.6;
+  var s = 8, i;
+  for (i = 0; i <= 64; i += s) {
+    x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 64); x.stroke();
+    x.beginPath(); x.moveTo(0, i); x.lineTo(64, i); x.stroke();
+  }
+  return toTexture(c);
+}
+
+/* --- 楼房立面（玻璃幕墙网格） --- */
+function texFacade(baseColor, glassA, glassB, litChance) {
+  var c = makeCanvas(256, 256), x = c.getContext('2d');
+  x.fillStyle = baseColor; x.fillRect(0, 0, 256, 256);
+  var cols = 4, rows = 3;
+  var mw = 256 / cols, mh = 256 / rows;
+  var cw = mw * 0.68, ch = mh * 0.62;
+  for (var r = 0; r < rows; r++) {
+    for (var q = 0; q < cols; q++) {
+      var px = q * mw + (mw - cw) / 2;
+      var py = r * mh + (mh - ch) / 2;
+      if (rng() < litChance) x.fillStyle = '#f4d9a4';
+      else if (rng() < 0.5) x.fillStyle = glassA;
+      else x.fillStyle = glassB;
+      x.fillRect(px, py, cw, ch);
+      x.fillStyle = 'rgba(255,255,255,0.16)';
+      x.fillRect(px, py, cw, ch * 0.32);
+      x.fillStyle = 'rgba(8,12,18,0.35)';
+      x.fillRect(px, py + ch - 3, cw, 3);
+    }
+  }
+  x.fillStyle = 'rgba(0,0,0,0.14)';
+  for (r = 0; r <= rows; r++) x.fillRect(0, r * mh - 2, 256, 3);
+  return toTexture(c);
+}
+
+/* --- 篮板 --- */
+function texBackboard() {
+  var c = makeCanvas(256, 160), x = c.getContext('2d');
+  x.fillStyle = '#eef3f8'; x.fillRect(0, 0, 256, 160);
+  x.strokeStyle = '#d8402e'; x.lineWidth = 10;
+  x.strokeRect(6, 6, 244, 148);
+  x.lineWidth = 6;
+  x.strokeRect(103, 88, 50, 62);
+  var t = toTexture(c);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+
+/* --- 道次号码 --- */
+function texLaneNumber(n) {
+  var c = makeCanvas(128, 128), x = c.getContext('2d');
+  x.clearRect(0, 0, 128, 128);
+  x.font = '900 92px Outfit, Arial, sans-serif';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = 'rgba(245,248,250,0.96)';
+  x.fillText(String(n), 64, 70);
+  var t = toTexture(c);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+
+/* --- 彩虹渐变 --- */
+function texRainbow() {
+  var c = makeCanvas(256, 8), x = c.getContext('2d');
+  var bands = ['#ff5a4d', '#ffa24d', '#ffe066', '#7ddb6f', '#5bc8e8', '#7a8de8', '#b57ee8'];
+  for (var i = 0; i < 256; i++) {
+    var f = i / 255;
+    var idx = Math.min(bands.length - 1, Math.floor(f * bands.length));
+    var alpha = Math.pow(Math.sin(f * Math.PI), 0.8) * 0.85;
+    x.fillStyle = bands[idx];
+    x.globalAlpha = alpha;
+    x.fillRect(i, 0, 1, 8);
+  }
+  var t = toTexture(c);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+
+/* ================= 天空（雨后渐变 + 碎积云 + 日晕） ================= */
+var skyUniforms = {
+  uSunDir: { value: SUN_DIR.clone() },
+  uTime: { value: 0 }
+};
+var sky = new THREE.Mesh(
+  new THREE.SphereGeometry(1100, 40, 24),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: skyUniforms,
+    vertexShader: [
+      'varying vec3 vWorld;',
+      'void main() {',
+      '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+      '  vWorld = wp.xyz;',
+      '  gl_Position = projectionMatrix * viewMatrix * wp;',
+      '}'
+    ].join('\n'),
+    fragmentShader: [
+      'varying vec3 vWorld;',
+      'uniform vec3 uSunDir;',
+      'uniform float uTime;',
+      'float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+      'float vnoise21(vec2 p) {',
+      '  vec2 i = floor(p); vec2 f = fract(p);',
+      '  vec2 u = f * f * (3.0 - 2.0 * f);',
+      '  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),',
+      '             mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);',
+      '}',
+      'float fbm4(vec2 p) {',
+      '  float v = 0.0; float a = 0.5;',
+      '  for (int i = 0; i < 4; i++) { v += a * vnoise21(p); p = p * 2.03 + 17.7; a *= 0.5; }',
+      '  return v;',
+      '}',
+      'void main() {',
+      '  vec3 d = normalize(vWorld - cameraPosition);',
+      '  float h = d.y;',
+      '  vec3 zen = vec3(0.34, 0.49, 0.67);',
+      '  vec3 hor = vec3(0.80, 0.85, 0.89);',
+      '  vec3 col = mix(hor, zen, smoothstep(0.0, 0.52, h));',
+      '  col = mix(vec3(0.78, 0.82, 0.86), col, smoothstep(-0.10, 0.02, h));',
+      '  float sd = max(dot(d, uSunDir), 0.0);',
+      '  vec3 sunCol = vec3(1.0, 0.87, 0.65);',
+      '  col += sunCol * pow(sd, 900.0) * 4.0;',
+      '  col += sunCol * pow(sd, 14.0) * 0.20;',
+      '  col += vec3(1.0, 0.78, 0.55) * pow(sd, 3.5) * 0.08;',
+      '  if (h > 0.005) {',
+      '    vec2 cuv = d.xz / (h + 0.14);',
+      '    float cl = fbm4(cuv * 0.85 + vec2(uTime * 0.005, uTime * 0.0018));',
+      '    float cov = smoothstep(0.48, 0.80, cl) * smoothstep(0.015, 0.16, h);',
+      '    vec3 cloud = mix(vec3(0.70, 0.75, 0.81), vec3(0.96, 0.96, 0.98), smoothstep(0.5, 0.92, cl));',
+      '    cloud += sunCol * pow(sd, 6.0) * 0.35;',
+      '    col = mix(col, cloud, cov * 0.82);',
+      '  }',
+      '  gl_FragColor = vec4(col, 1.0);',
+      '}'
+    ].join('\n')
+  })
+);
+sky.frustumCulled = false;
+scene.add(sky);
+
+/* ================= 湿地平面反射系统 ================= */
+var REFL_SCALE = isMobile ? 0.4 : 0.5;
+var reflectionFailed = false;
+var reflectionRT = null;
+/* ★ 移动端兼容：half-float 反射缓冲在部分机型/上下文上不可用（缺 OES_texture_half_float）。
+   逐级降级：HalfFloat → HalfFloat+线性 → UnsignedByte，实在不行就整块反射降级关闭。 */
+(function initReflectionRT() {
+  var tries = [
+    { type: THREE.HalfFloatType },
+    { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter },
+    { type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter },
+    {}   /* 全部默认 */
+  ];
+  for (var i = 0; i < tries.length; i++) {
+    try {
+      reflectionRT = new THREE.WebGLRenderTarget(2, 2, tries[i]);
+      window.__map2Mark('反射RT:第 ' + (i + 1) + ' 档创建成功');
+      return;
+    } catch (e) {
+      window.__map2Mark('反射RT:第 ' + (i + 1) + ' 档失败 ' + e.message);
+    }
+  }
+  reflectionRT = null;
+  reflectionFailed = true;
+  window.__map2Mark('反射RT:全部失败，反射功能降级关闭');
+})();
+var reflCam = new THREE.PerspectiveCamera();
+
+var sharedU = {
+  uReflTex: { value: reflectionRT ? reflectionRT.texture : null },
+  uTexMatrix: { value: new THREE.Matrix4() },
+  uTime: { value: 0 },
+  uSunDir: { value: SUN_DIR.clone() },
+  uSunColor: { value: new THREE.Color(1.0, 0.87, 0.65) },
+  uRain: { value: 0 }
+};
+
+var GLSL_NOISE = [
+  'float wHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+  'float wNoise(vec2 p) {',
+  '  vec2 i = floor(p); vec2 f = fract(p);',
+  '  vec2 u = f * f * (3.0 - 2.0 * f);',
+  '  return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), u.x),',
+  '             mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), u.x), u.y);',
+  '}',
+  'float wFbm(vec2 p) {',
+  '  float v = 0.0; float a = 0.5;',
+  '  for (int i = 0; i < 4; i++) { v += a * wNoise(p); p = p * 2.07 + 11.3; a *= 0.5; }',
+  '  return v;',
+  '}'
+].join('\n');
+
+var WET_FRAG = [
+  '#include <opaque_fragment>',
+  '{',
+  '  vec2 wxz = vWP.xz;',
+  '  float pn = wFbm(wxz * 0.052);',
+  '  float pud = smoothstep(0.42, 0.62, pn) * uPuddle;',
+  '  float wet = clamp(uWet + pud + uRain * 0.45, 0.0, 1.0);',
+  '  float reflMask = clamp(pud * 1.9 + uWet * 0.18 + uRain * 0.30, 0.0, 1.0);',
+  '  gl_FragColor.rgb *= mix(1.0, 0.68, wet);',
+  '  vec2 ripple = vec2(wNoise(wxz * 2.7 + uTime * 0.42) - 0.5,',
+  '                 wNoise(wxz * 2.7 + 7.7 - uTime * 0.36) - 0.5);',
+  '  vec2 rippleHF = vec2(wNoise(wxz * 13.0 + uTime * 0.85) - 0.5,',
+  '                   wNoise(wxz * 13.0 + 5.1 - uTime * 0.70) - 0.5);',
+  '  float amp = pud * 0.85 + wet * 0.05 + uRain * pud * 0.3;',
+  '  vec3 V = normalize(cameraPosition - vWP);',
+  '  vec4 prj = uTexMatrix * vec4(vWP, 1.0);',
+  '  float rk = step(0.0001, prj.w);',
+  '  vec2 suv = prj.xy / max(prj.w, 0.0001);',
+  '  suv.x = 1.0 - suv.x;',
+  '  vec2 roff = ripple * (pud * 0.030 + uRain * pud * 0.03)',
+  '            + rippleHF * (pud * 0.015 + uRain * 0.008);',
+  '  roff.x = -roff.x;',
+  '  vec3 refl = texture2D(uReflTex, suv + roff).rgb;',
+  '  float fres = pow(1.0 - clamp(V.y, 0.12, 1.0), 3.0);',
+  '  float k = reflMask * (uReflMin + (1.0 - uReflMin) * fres) * 0.55 * rk;',
+  '  gl_FragColor.rgb = mix(gl_FragColor.rgb, refl, clamp(k, 0.0, 0.65));',
+  '  vec3 N = normalize(vec3(ripple.x * amp * 1.7, 1.0, ripple.y * amp * 1.7));',
+  '  vec3 H = normalize(uSunDir + V);',
+  '  float spec = pow(max(dot(N, H), 0.0), 130.0);',
+  '  gl_FragColor.rgb += uSunColor * spec * (pud * 0.7 + wet * 0.06);',
+  '}'
+].join('\n');
+
+function wetMaterial(opts) {
+  opts = opts || {};
+  var m = new THREE.MeshStandardMaterial({
+    map: opts.map || null,
+    color: opts.color !== undefined ? opts.color : 0xffffff,
+    roughness: opts.roughness !== undefined ? opts.roughness : 0.92,
+    metalness: 0.0,
+    side: opts.side || THREE.FrontSide
+  });
+  var wet = opts.wetness !== undefined ? opts.wetness : 0.45;
+  var pud = opts.puddle !== undefined ? opts.puddle : 0.45;
+  var rmin = opts.reflMin !== undefined ? opts.reflMin : 0.3;
+  m.onBeforeCompile = function (shader) {
+    shader.uniforms.uReflTex = sharedU.uReflTex;
+    shader.uniforms.uTexMatrix = sharedU.uTexMatrix;
+    shader.uniforms.uTime = sharedU.uTime;
+    shader.uniforms.uSunDir = sharedU.uSunDir;
+    shader.uniforms.uSunColor = sharedU.uSunColor;
+    shader.uniforms.uRain = sharedU.uRain;
+    shader.uniforms.uWet = { value: wet };
+    shader.uniforms.uPuddle = { value: pud };
+    shader.uniforms.uReflMin = { value: rmin };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
+      .replace('#include <project_vertex>',
+        '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vWP;\n' +
+        'uniform sampler2D uReflTex;\nuniform mat4 uTexMatrix;\nuniform float uTime;\n' +
+        'uniform float uWet;\nuniform float uPuddle;\nuniform float uReflMin;\nuniform float uRain;\n' +
+        'uniform vec3 uSunDir;\nuniform vec3 uSunColor;\n' + GLSL_NOISE)
+      .replace('#include <opaque_fragment>', WET_FRAG);
+  };
+  m.customProgramCacheKey = function () { return 'wetmat'; };
+  return m;
+}
+
+var groundGroup = new THREE.Group();
+scene.add(groundGroup);
+
+var _vTmp1 = new THREE.Vector3();
+var _vTmp2 = new THREE.Vector3();
+var _vTmp3 = new THREE.Vector3();
+var _mRot = new THREE.Matrix4();
+var _texBias = new THREE.Matrix4().set(
+  0.5, 0, 0, 0.5,
+  0, 0.5, 0, 0.5,
+  0, 0, 0.5, 0.5,
+  0, 0, 0, 1
+);
+function renderReflection() {
+  if (reflectionFailed || !reflectionRT) return;   /* 曾失败/无 RT 则跳过，避免每帧抛错刷屏 */
+  try {
+  camera.updateMatrixWorld();
+  if (camera.position.y <= 0.05) return;
+  groundGroup.visible = false;
+  if (typeof gunGrp !== 'undefined') gunGrp.visible = false;
+  reflCam.position.set(camera.position.x, -camera.position.y, camera.position.z);
+  _mRot.extractRotation(camera.matrixWorld);
+  _vTmp2.set(0, 0, -1).applyMatrix4(_mRot).add(camera.position);
+  _vTmp3.copy(_vTmp2);
+  _vTmp3.y = -_vTmp3.y;
+  reflCam.up.set(0, 1, 0).applyMatrix4(_mRot);
+  reflCam.up.y = -reflCam.up.y;
+  reflCam.lookAt(_vTmp3);
+  reflCam.near = camera.near;
+  reflCam.far = camera.far;
+  reflCam.fov = camera.fov;
+  reflCam.aspect = camera.aspect;
+  reflCam.updateProjectionMatrix();
+  reflCam.updateMatrixWorld();
+  sharedU.uTexMatrix.value
+    .copy(reflCam.projectionMatrix)
+    .multiply(reflCam.matrixWorldInverse)
+    .premultiply(_texBias);
+  renderer.setRenderTarget(reflectionRT);
+  renderer.render(scene, reflCam);
+  renderer.setRenderTarget(null);
+  groundGroup.visible = true;
+  if (typeof gunGrp !== 'undefined') gunGrp.visible = true;
+  } catch (e) {
+    /* 半浮点 RT / shader 编译失败：降级为无反射，保证主循环不中断 */
+    reflectionFailed = true;
+    try { renderer.setRenderTarget(null); } catch (_) {}
+    groundGroup.visible = true;
+    if (typeof gunGrp !== 'undefined') gunGrp.visible = true;
+    console.warn('[map2] 湿地反射不可用，已降级关闭:', e && e.message);
+    var _reflEl = document.getElementById('refl');
+    if (_reflEl) _reflEl.textContent = 'off';
+  }
+}
+
+function resizeReflection() {
+  if (!reflectionRT) return;
+  var w = Math.max(2, Math.floor(window.innerWidth * MAX_PR * REFL_SCALE));
+  var h = Math.max(2, Math.floor(window.innerHeight * MAX_PR * REFL_SCALE));
+  reflectionRT.setSize(w, h);
+  var el = document.getElementById('refl');
+  if (el) el.textContent = w + 'px';
+}
+
+/* ================= 几何批量构建工具 ================= */
+function GeoBatch() {
+  this.pos = []; this.nor = []; this.uv = []; this.idx = []; this.vc = 0;
+}
+GeoBatch.prototype.quad = function (p0, p1, p2, p3, n, uvs) {
+  var b = this;
+  b.pos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2]);
+  for (var i = 0; i < 4; i++) b.nor.push(n[0], n[1], n[2]);
+  if (uvs) b.uv.push(uvs[0], uvs[1], uvs[2], uvs[3], uvs[4], uvs[5], uvs[6], uvs[7]);
+  else b.uv.push(0, 0, 1, 0, 1, 1, 0, 1);
+  b.idx.push(b.vc, b.vc + 1, b.vc + 2, b.vc, b.vc + 2, b.vc + 3);
+  b.vc += 4;
+};
+GeoBatch.prototype.mesh = function (material) {
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
+  g.setIndex(this.idx);
+  return new THREE.Mesh(g, material);
+};
+
+function batchLine(b, x0, z0, x1, z1, w, y) {
+  var dx = x1 - x0, dz = z1 - z0;
+  var len = Math.hypot(dx, dz) || 1;
+  var px = -dz / len * w / 2, pz = dx / len * w / 2;
+  b.quad(
+    [x0 + px, y, z0 + pz], [x1 + px, y, z1 + pz],
+    [x1 - px, y, z1 - pz], [x0 - px, y, z0 - pz],
+    [0, 1, 0]
+  );
+}
+
+function batchArc(b, cx, cz, r, a0, a1, w, y, nseg) {
+  nseg = nseg || 24;
+  for (var i = 0; i < nseg; i++) {
+    var t0 = a0 + (a1 - a0) * i / nseg;
+    var t1 = a0 + (a1 - a0) * (i + 1) / nseg;
+    var ri = r - w / 2, ro = r + w / 2;
+    var c0 = Math.cos(t0), s0 = Math.sin(t0), c1 = Math.cos(t1), s1 = Math.sin(t1);
+    b.quad(
+      [cx + ri * c0, y, cz + ri * s0], [cx + ro * c0, y, cz + ro * s0],
+      [cx + ro * c1, y, cz + ro * s1], [cx + ri * c1, y, cz + ri * s1],
+      [0, 1, 0],
+      [0, i / nseg, 1, i / nseg, 1, (i + 1) / nseg, 0, (i + 1) / nseg]
+    );
+  }
+}
+
+function stadiumSegPoint(L, r, seg, u) {
+  if (seg === 0) {
+    var a = -Math.PI / 2 - Math.PI * u;
+    return { x: -L / 2 + r * Math.cos(a), z: r * Math.sin(a), nx: Math.cos(a), nz: Math.sin(a) };
+  } else if (seg === 1) {
+    return { x: -L / 2 + u * L, z: r, nx: 0, nz: 1 };
+  } else if (seg === 2) {
+    var a2 = Math.PI / 2 - Math.PI * u;
+    return { x: L / 2 + r * Math.cos(a2), z: r * Math.sin(a2), nx: Math.cos(a2), nz: Math.sin(a2) };
+  }
+  return { x: L / 2 - u * L, z: -r, nx: 0, nz: -1 };
+}
+
+function batchStadiumStrip(b, L, rIn, rOut, y, uM, vM) {
+  var counts = [44, 36, 44, 36];
+  var samples = [];
+  for (var sg = 0; sg < 4; sg++)
+    for (var i = 0; i < counts[sg]; i++) samples.push({ sg: sg, u: i / counts[sg] });
+  var total = samples.length;
+  var width = rOut - rIn;
+  var sAcc = 0;
+  for (var k = 0; k < total; k++) {
+    var s0 = samples[k], s1 = samples[(k + 1) % total];
+    var pA0 = stadiumSegPoint(L, rIn, s0.sg, s0.u);
+    var pB0 = stadiumSegPoint(L, rOut, s0.sg, s0.u);
+    var pA1 = stadiumSegPoint(L, rIn, s1.sg, s1.u);
+    var pB1 = stadiumSegPoint(L, rOut, s1.sg, s1.u);
+    var u0 = sAcc / uM, u1 = (sAcc + Math.hypot(pA1.x - pA0.x, pA1.z - pA0.z)) / uM;
+    var v1 = vM > 0 ? width / vM : 1;
+    b.quad(
+      [pA0.x, y, pA0.z], [pB0.x, y, pB0.z],
+      [pB1.x, y, pB1.z], [pA1.x, y, pA1.z],
+      [0, 1, 0],
+      [u0, 0, u1, 0, u1, v1, u0, v1]
+    );
+    sAcc += Math.hypot(pA1.x - pA0.x, pA1.z - pA0.z);
+  }
+}
+
+function batchStadiumBand(b, L, r, y0, y1, uM) {
+  var counts = [44, 36, 44, 36];
+  var samples = [];
+  for (var sg = 0; sg < 4; sg++)
+    for (var i = 0; i < counts[sg]; i++) samples.push({ sg: sg, u: i / counts[sg] });
+  var total = samples.length;
+  var sAcc = 0;
+  for (var k = 0; k < total; k++) {
+    var s0 = samples[k], s1 = samples[(k + 1) % total];
+    var p0 = stadiumSegPoint(L, r, s0.sg, s0.u);
+    var p1 = stadiumSegPoint(L, r, s1.sg, s1.u);
+    var u0 = sAcc / uM, u1 = (sAcc + Math.hypot(p1.x - p0.x, p1.z - p0.z)) / uM;
+    var n = [p0.nx, 0, p0.nz];
+    b.quad(
+      [p0.x, y0, p0.z], [p0.x, y1, p0.z],
+      [p1.x, y1, p1.z], [p1.x, y0, p1.z],
+      n, [u0, 0, u0, 1, u1, 1, u1, 0]
+    );
+    sAcc += Math.hypot(p1.x - p0.x, p1.z - p0.z);
+  }
+}
+
+function cylinderBetween(p0, p1, r, mat) {
+  var d = new THREE.Vector3().subVectors(p1, p0);
+  var len = d.length();
+  var m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), mat);
+  m.position.copy(p0).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  return m;
+}
+
+/* ================= 纹理实例 ================= */
+var asphaltTex = texAsphalt();
+asphaltTex.repeat.set(560 / 6, 440 / 6);
+var grassTex = texGrass();
+grassTex.repeat.set(1 / 8, 1 / 8);
+var trackTex = texTrack();
+var courtTex = texCourt();
+courtTex.repeat.set(17 / 4, 31 / 4);
+var concreteTex = texConcrete();
+concreteTex.repeat.set(6, 1);
+var chainTex = texChainlink();
+var netTex = texNet();
+var facadeA = texFacade('#5c6774', '#8fa6ba', '#7492ac', 0.10);
+var facadeB = texFacade('#6a7076', '#9db4c6', '#7fa0b6', 0.06);
+var facadeC = texFacade('#7d7469', '#a8bcc8', '#8ea9ba', 0.03);
+var backboardTex = texBackboard();
+var rainbowTex = texRainbow();
+
+/* ================= 1. 沥青地坪 ================= */
+(function buildAsphalt() {
+  var mat = wetMaterial({ map: asphaltTex, roughness: 0.94, wetness: 0.62, puddle: 0.9, reflMin: 0.3 });
+  var g = new THREE.PlaneGeometry(560, 440);
+  g.rotateX(-Math.PI / 2);
+  var m = new THREE.Mesh(g, mat);
+  m.position.set(21, 0, -5);
+  m.receiveShadow = true;
+  groundGroup.add(m);
+})();
+
+/* ================= 2. 塑胶跑道 ================= */
+(function buildTrack() {
+  var mat = wetMaterial({ map: trackTex, roughness: 0.88, wetness: 0.5, puddle: 0.85, reflMin: 0.3, side: THREE.DoubleSide });
+  var b = new GeoBatch();
+  batchStadiumStrip(b, TRACK_L, TRACK_R - 0.15, TRACK_OUT + 0.55, 0.012, 2, 2);
+  var mesh = b.mesh(mat);
+  mesh.receiveShadow = true;
+  groundGroup.add(mesh);
+
+  var lb = new GeoBatch();
+  for (var i = 0; i <= LANES; i++) {
+    var r = TRACK_R + i * LANE_W;
+    batchStadiumStrip(lb, TRACK_L, r - 0.03, r + 0.03, 0.024, 4, 0);
+  }
+  var lineMat = wetMaterial({ color: 0xf2f5f8, roughness: 0.7, wetness: 0.42, puddle: 0.12, reflMin: 0.22, side: THREE.DoubleSide });
+  var lm = lb.mesh(lineMat);
+  lm.receiveShadow = true;
+  groundGroup.add(lm);
+
+  var kb = new GeoBatch();
+  batchStadiumBand(kb, TRACK_L, TRACK_R - 0.15, 0, 0.09, 3);
+  var kerbMat = wetMaterial({ color: 0xe8edf2, roughness: 0.55, wetness: 0.5, puddle: 0.05, reflMin: 0.25, side: THREE.DoubleSide });
+  var km = kb.mesh(kerbMat);
+  km.receiveShadow = true; km.castShadow = true;
+  groundGroup.add(km);
+  var kt = new GeoBatch();
+  batchStadiumStrip(kt, TRACK_L, TRACK_R - 0.55, TRACK_R - 0.15, 0.09, 3, 0);
+  var ktm = kt.mesh(kerbMat);
+  ktm.receiveShadow = true;
+  groundGroup.add(ktm);
+
+  var sb = new GeoBatch();
+  batchLine(sb, 10, -(TRACK_R - 0.35), 10, -(TRACK_OUT + 0.35), 0.1, 0.026);
+  batchLine(sb, 9.6, -(TRACK_R - 0.35), 9.6, -(TRACK_OUT + 0.35), 0.05, 0.026);
+  var sm = sb.mesh(lineMat);
+  groundGroup.add(sm);
+  for (i = 1; i <= LANES; i++) {
+    var numTex = texLaneNumber(i);
+    var pg = new THREE.PlaneGeometry(1.15, 1.0);
+    pg.rotateX(-Math.PI / 2);
+    pg.rotateY(Math.PI / 2);
+    var pm = new THREE.Mesh(pg, new THREE.MeshStandardMaterial({
+      map: numTex, transparent: true, roughness: 0.75,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1
+    }));
+    pm.position.set(7.6, 0.026, -(TRACK_R + (i - 0.5) * LANE_W));
+    groundGroup.add(pm);
+  }
+})();
+
+/* ================= 3. 草皮 infield + 足球标线 ================= */
+(function buildTurf() {
+  var pts = [];
+  var counts = [60, 40, 60, 40], N = 200;
+  var idx = 0;
+  for (var sg = 0; sg < 4; sg++) {
+    for (var i = 0; i < counts[sg]; i++) {
+      var u = i / counts[sg];
+      var p = stadiumSegPoint(TRACK_L, TRACK_R - 0.55, sg, u);
+      pts.push(new THREE.Vector2(p.x, -p.z));
+    }
+    idx += counts[sg];
+  }
+  var shape = new THREE.Shape(pts);
+  var g = new THREE.ShapeGeometry(shape);
+  g.rotateX(-Math.PI / 2);
+  var mat = wetMaterial({ map: grassTex, roughness: 0.96, wetness: 0.28, puddle: 0.1, reflMin: 0.16, side: THREE.DoubleSide });
+  var m = new THREE.Mesh(g, mat);
+  m.position.y = 0.006;
+  m.receiveShadow = true;
+  groundGroup.add(m);
+
+  var fb = new GeoBatch();
+  var W = 52.5, H = 34, y = 0.03, lw = 0.12;
+  batchLine(fb, -W, -H, W, -H, lw, y); batchLine(fb, -W, H, W, H, lw, y);
+  batchLine(fb, -W, -H, -W, H, lw, y); batchLine(fb, W, -H, W, H, lw, y);
+  batchLine(fb, 0, -H, 0, H, lw, y);
+  batchArc(fb, 0, 0, 9.15, 0, Math.PI * 2, lw, y, 48);
+  batchArc(fb, 0, 0, 0.28, 0, Math.PI * 2, 0.56, y, 12);
+  [-1, 1].forEach(function (s) {
+    var gx = s * W;
+    batchLine(fb, gx, -20.16, gx - s * 16.5, -20.16, lw, y);
+    batchLine(fb, gx, 20.16, gx - s * 16.5, 20.16, lw, y);
+    batchLine(fb, gx - s * 16.5, -20.16, gx - s * 16.5, 20.16, lw, y);
+    batchLine(fb, gx, -9.16, gx - s * 5.5, -9.16, lw, y);
+    batchLine(fb, gx, 9.16, gx - s * 5.5, 9.16, lw, y);
+    batchLine(fb, gx - s * 5.5, -9.16, gx - s * 5.5, 9.16, lw, y);
+    batchArc(fb, s * 41.5, 0, 0.22, 0, Math.PI * 2, 0.44, y, 10);
+    var a = Math.acos(5.5 / 9.15);
+    if (s < 0) batchArc(fb, -41.5, 0, 9.15, -a, a, lw, y, 28);
+    else batchArc(fb, 41.5, 0, 9.15, Math.PI - a, Math.PI + a, lw, y, 28);
+  });
+  batchArc(fb, -W, H, 1, -Math.PI / 2, 0, lw, y, 8);
+  batchArc(fb, W, H, 1, Math.PI, Math.PI * 1.5, lw, y, 8);
+  batchArc(fb, W, -H, 1, Math.PI / 2, Math.PI, lw, y, 8);
+  batchArc(fb, -W, -H, 1, 0, Math.PI / 2, lw, y, 8);
+  var fbMat = wetMaterial({ color: 0xf4f7fa, roughness: 0.72, wetness: 0.4, puddle: 0.08, reflMin: 0.2, side: THREE.DoubleSide });
+  var fm = fb.mesh(fbMat);
+  fm.receiveShadow = true;
+  groundGroup.add(fm);
+})();
+
+/* ================= 4. 篮球场 ×2 ================= */
+(function buildCourts() {
+  var baseMat = wetMaterial({ map: courtTex, roughness: 0.82, wetness: 0.6, puddle: 0.5, reflMin: 0.3, side: THREE.DoubleSide });
+  var lineMat = wetMaterial({ color: 0xf2f5f8, roughness: 0.7, wetness: 0.42, puddle: 0.15, reflMin: 0.22, side: THREE.DoubleSide });
+  var lb = new GeoBatch();
+  [-16, 16].forEach(function (cz) {
+    var g = new THREE.PlaneGeometry(17, 31);
+    g.rotateX(-Math.PI / 2);
+    var m = new THREE.Mesh(g, baseMat);
+    m.position.set(110, 0.008, cz);
+    m.receiveShadow = true;
+    groundGroup.add(m);
+
+    var y = 0.028, lw = 0.09, cx = 110, hw = 7.5, hl = 14;
+    batchLine(lb, cx - hw, cz - hl, cx + hw, cz - hl, lw, y);
+    batchLine(lb, cx - hw, cz + hl, cx + hw, cz + hl, lw, y);
+    batchLine(lb, cx - hw, cz - hl, cx - hw, cz + hl, lw, y);
+    batchLine(lb, cx + hw, cz - hl, cx + hw, cz + hl, lw, y);
+    batchLine(lb, cx - hw, cz, cx + hw, cz, lw, y);
+    batchArc(lb, cx, cz, 1.8, 0, Math.PI * 2, lw, y, 24);
+    [-1, 1].forEach(function (s) {
+      var rz = cz + s * hl;
+      batchLine(lb, cx - 2.45, rz, cx - 2.45, rz - s * 5.8, lw, y);
+      batchLine(lb, cx + 2.45, rz, cx + 2.45, rz - s * 5.8, lw, y);
+      batchLine(lb, cx - 2.45, rz - s * 5.8, cx + 2.45, rz - s * 5.8, lw, y);
+      batchArc(lb, cx, rz - s * 5.8, 1.8, 0, Math.PI * 2, lw, y, 24);
+      var rimZ = cz + s * 15.2;
+      var a = Math.asin(6.6 / 6.75);
+      var base = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+      batchArc(lb, cx, rimZ, 6.75, base - a, base + a, lw, y, 30);
+      var zMeet = s * (Math.abs(rimZ - cz) - Math.sqrt(6.75 * 6.75 - 6.6 * 6.6)) + cz;
+      batchLine(lb, cx - 6.6, rz, cx - 6.6, zMeet, lw, y);
+      batchLine(lb, cx + 6.6, rz, cx + 6.6, zMeet, lw, y);
+    });
+  });
+  var lm = lb.mesh(lineMat);
+  lm.receiveShadow = true;
+  groundGroup.add(lm);
+
+  var poleMat = new THREE.MeshStandardMaterial({ color: 0x4a5259, roughness: 0.5, metalness: 0.6 });
+  var boardMat = new THREE.MeshStandardMaterial({ map: backboardTex, roughness: 0.35, metalness: 0.05 });
+  var rimMat = new THREE.MeshStandardMaterial({ color: 0xe8622c, roughness: 0.4, metalness: 0.5 });
+  var netMat = new THREE.MeshStandardMaterial({
+    map: netTex, transparent: true, alphaTest: 0.25, side: THREE.DoubleSide,
+    color: 0xffffff, roughness: 0.9
+  });
+  [-16, 16].forEach(function (cz) {
+    [-1, 1].forEach(function (s) {
+      var grp = new THREE.Group();
+      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 3.9, 12), poleMat);
+      pole.position.set(0, 1.95, s * 16.6);
+      pole.castShadow = true;
+      grp.add(pole);
+      var arm = cylinderBetween(
+        new THREE.Vector3(0, 3.45, s * 16.6),
+        new THREE.Vector3(0, 3.45, s * 15.65), 0.05, poleMat);
+      grp.add(arm);
+      var board = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.05, 0.05), boardMat);
+      board.position.set(0, 3.35, s * 15.62);
+      board.castShadow = true;
+      grp.add(board);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.228, 0.018, 10, 24), rimMat);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(0, 3.05, s * 15.2);
+      grp.add(rim);
+      var net = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.1, 0.42, 12, 1, true), netMat);
+      net.position.set(0, 2.84, s * 15.2);
+      grp.add(net);
+      grp.position.x = 110;
+      scene.add(grp);
+    });
+  });
+})();
+
+/* ================= 5. 足球门 ×2 ================= */
+(function buildGoals() {
+  var postMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.35, metalness: 0.25 });
+  var netMat = new THREE.MeshStandardMaterial({
+    map: netTex, transparent: true, alphaTest: 0.25, side: THREE.DoubleSide,
+    color: 0xeef2f6, roughness: 0.9
+  });
+  [-1, 1].forEach(function (s) {
+    var gx = s * 52.5;
+    var grp = new THREE.Group();
+    [-3.66, 3.66].forEach(function (z) {
+      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.44, 10), postMat);
+      post.position.set(gx, 1.22, z);
+      post.castShadow = true;
+      grp.add(post);
+      grp.add(cylinderBetween(
+        new THREE.Vector3(gx, 2.44, z),
+        new THREE.Vector3(gx + s * 1.7, 0, z), 0.04, postMat));
+    });
+    var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 7.44, 10), postMat);
+    bar.rotation.x = Math.PI / 2;
+    bar.position.set(gx, 2.44, 0);
+    bar.castShadow = true;
+    grp.add(bar);
+    var nb = new THREE.Mesh(new THREE.PlaneGeometry(7.44, 2.1), netMat);
+    nb.position.set(gx + s * 1.7, 1.05, 0);
+    nb.rotation.y = Math.PI / 2;
+    grp.add(nb);
+    var nt = new THREE.Mesh(new THREE.PlaneGeometry(7.44, 1.75), netMat);
+    nt.position.set(gx + s * 0.85, 1.6, 0);
+    nt.rotation.y = Math.PI / 2;
+    nt.rotation.x = s * 0.65;
+    grp.add(nt);
+    [-3.66, 3.66].forEach(function (z) {
+      var ns = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 1.9), netMat);
+      ns.position.set(gx + s * 0.85, 0.95, z);
+      grp.add(ns);
+    });
+    scene.add(grp);
+  });
+})();
+
+/* ================= 6. 围栏 ================= */
+(function buildFence() {
+  var chainMat = new THREE.MeshStandardMaterial({
+    map: chainTex, transparent: true, alphaTest: 0.35,
+    side: THREE.DoubleSide, color: 0xb9c3cd, roughness: 0.55, metalness: 0.35
+  });
+  var postMat = new THREE.MeshStandardMaterial({ color: 0x59626b, roughness: 0.5, metalness: 0.5 });
+  var sides = [
+    { x0: COMPOUND.x0, z0: COMPOUND.z0, x1: COMPOUND.x0, z1: -3.5 },
+    { x0: COMPOUND.x0, z0: 3.5, x1: COMPOUND.x0, z1: COMPOUND.z1 },
+    { x0: COMPOUND.x1, z0: COMPOUND.z0, x1: COMPOUND.x1, z1: COMPOUND.z1 },
+    { x0: COMPOUND.x0, z0: COMPOUND.z0, x1: COMPOUND.x1, z1: COMPOUND.z0 },
+    { x0: COMPOUND.x0, z0: COMPOUND.z1, x1: COMPOUND.x1, z1: COMPOUND.z1 }
+  ];
+  addCollider(COMPOUND.x0 - 0.3, COMPOUND.x0 + 0.3, COMPOUND.z0, -3.5);
+  addCollider(COMPOUND.x0 - 0.3, COMPOUND.x0 + 0.3, 3.5, COMPOUND.z1);
+  addCollider(COMPOUND.x1 - 0.3, COMPOUND.x1 + 0.3, COMPOUND.z0, COMPOUND.z1);
+  addCollider(COMPOUND.x0, COMPOUND.x1, COMPOUND.z0 - 0.3, COMPOUND.z0 + 0.3);
+  addCollider(COMPOUND.x0, COMPOUND.x1, COMPOUND.z1 - 0.3, COMPOUND.z1 + 0.3);
+  var warnMat = new THREE.MeshStandardMaterial({ color: 0x66121c, emissive: 0xd42a3c, emissiveIntensity: 1.6, roughness: 0.4 });
+  [-4.1, 4.1].forEach(function (gz) {
+    var gw = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.6, 0.3), postMat);
+    gw.position.set(COMPOUND.x0, 1.8, gz);
+    gw.castShadow = true;
+    scene.add(gw);
+    var wl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.36), warnMat);
+    wl.position.set(COMPOUND.x0, 3.9, gz);
+    scene.add(wl);
+  });
+  var postMats = [];
+  sides.forEach(function (sd) {
+    var len = Math.hypot(sd.x1 - sd.x0, sd.z1 - sd.z0);
+    var g = new THREE.PlaneGeometry(len, 3);
+    var t = chainTex.clone();
+    t.needsUpdate = true;
+    t.repeat.set(len / 3, 1);
+    var m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+      map: t, transparent: true, alphaTest: 0.35,
+      side: THREE.DoubleSide, color: 0xb9c3cd, roughness: 0.55, metalness: 0.35
+    }));
+    m.position.set((sd.x0 + sd.x1) / 2, 1.5, (sd.z0 + sd.z1) / 2);
+    m.rotation.y = Math.atan2(-(sd.z1 - sd.z0), sd.x1 - sd.x0);
+    scene.add(m);
+    var rail = cylinderBetween(
+      new THREE.Vector3(sd.x0, 3.02, sd.z0),
+      new THREE.Vector3(sd.x1, 3.02, sd.z1), 0.035, postMat);
+    rail.castShadow = true;
+    scene.add(rail);
+    var n = Math.max(2, Math.round(len / 6));
+    for (var i = 0; i <= n; i++) {
+      var t2 = i / n;
+      postMats.push([
+        sd.x0 + (sd.x1 - sd.x0) * t2, 1.6, sd.z0 + (sd.z1 - sd.z0) * t2
+      ]);
+    }
+  });
+  var posts = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 3.2, 8), postMat, postMats.length);
+  var mtx = new THREE.Matrix4();
+  postMats.forEach(function (p, i) {
+    mtx.makeTranslation(p[0], p[1], p[2]);
+    posts.setMatrixAt(i, mtx);
+  });
+  posts.castShadow = true;
+  scene.add(posts);
+})();
+
+/* ================= 7. 照明灯塔 ×4 ================= */
+(function buildFloodlights() {
+  var poleMat = new THREE.MeshStandardMaterial({ color: 0x8b939c, roughness: 0.55, metalness: 0.6 });
+  var baseMat = new THREE.MeshStandardMaterial({ map: concreteTex, color: 0xb9bdc4, roughness: 0.9 });
+  var lampMat = new THREE.MeshStandardMaterial({
+    color: 0xd9d4c6, emissive: 0xfff3d9, emissiveIntensity: 1.5, roughness: 0.4
+  });
+  [[-95, -73], [137, -73], [-95, 63], [137, 63]].forEach(function (p) {
+    var grp = new THREE.Group();
+    var base = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.7, 1.6), baseMat);
+    base.position.set(0, 0.35, 0);
+    base.castShadow = true;
+    grp.add(base);
+    var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.32, 21, 12), poleMat);
+    pole.position.set(0, 10.85, 0);
+    pole.castShadow = true;
+    grp.add(pole);
+    var head = new THREE.Group();
+    var frame = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.16, 1.0), poleMat);
+    head.add(frame);
+    for (var i = 0; i < 4; i++) {
+      for (var j = 0; j < 2; j++) {
+        var lamp = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.3, 0.08), lampMat);
+        lamp.position.set(-0.9 + i * 0.6, 0.22 + j * 0.38, 0.1);
+        head.add(lamp);
+      }
+    }
+    head.position.set(0, 21.4, 0);
+    grp.add(head);
+    grp.position.set(p[0], 0, p[1]);
+    grp.updateMatrixWorld(true);
+    head.lookAt(new THREE.Vector3(0, 2, 0));
+    scene.add(grp);
+  });
+})();
+
+/* ================= 8. 看台 ================= */
+(function buildStands() {
+  var concMat = new THREE.MeshStandardMaterial({ map: concreteTex, color: 0xcdd1d7, roughness: 0.92 });
+  var concDark = new THREE.MeshStandardMaterial({ map: concreteTex, color: 0x9aa0a8, roughness: 0.92 });
+  var seatColors = [0x3e7bc4, 0x4686cc, 0x4f91d4, 0x589cdb, 0x62a7e2];
+  var grp = new THREE.Group();
+  var rows = 10;
+  for (var i = 0; i < rows; i++) {
+    var h = (i + 1) * 0.5;
+    var step = new THREE.Mesh(new THREE.BoxGeometry(68, h, 0.95), concMat);
+    step.position.set(0, h / 2, -58.5 - i * 0.95);
+    step.castShadow = true; step.receiveShadow = true;
+    grp.add(step);
+    var seat = new THREE.Mesh(
+      new THREE.BoxGeometry(67, 0.06, 0.42),
+      new THREE.MeshStandardMaterial({ color: seatColors[i % seatColors.length], roughness: 0.38 }));
+    seat.position.set(0, h + 0.03, -58.5 - i * 0.95 + 0.26);
+    grp.add(seat);
+  }
+  var back = new THREE.Mesh(new THREE.BoxGeometry(68, 8.6, 0.5), concDark);
+  back.position.set(0, 4.3, -68.6);
+  back.castShadow = true;
+  grp.add(back);
+  [-34.2, 34.2].forEach(function (x) {
+    var wall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 8.6, 10.6), concDark);
+    wall.position.set(x, 4.3, -63.6);
+    wall.castShadow = true;
+    grp.add(wall);
+  });
+  var roof = new THREE.Mesh(new THREE.BoxGeometry(69, 0.35, 10.5), concDark);
+  roof.position.set(0, 8.9, -63.8);
+  roof.rotation.x = 0.09;
+  roof.castShadow = true;
+  grp.add(roof);
+  for (i = -2; i <= 2; i++) {
+    var col = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 8.9, 10), concDark);
+    col.position.set(i * 16, 4.45, -68.2);
+    col.castShadow = true;
+    grp.add(col);
+  }
+  scene.add(grp);
+  addCollider(-34.5, 34.5, -69.0, -57.8);
+})();
+
+/* ================= 9. 教学楼群（镂空可进入） ================= */
+function makeBuilding(w, h, d, x, z, tex, winRepeatX, winRepeatZ) {
+  var grp = new THREE.Group();
+  var T = 0.45;
+  var doorW = 3.0, doorH = 3.2;
+  var innerH = Math.min(h - 1.5, 6.0);
+
+  var wallMat = new THREE.MeshStandardMaterial({ color: 0xb8b5a8, roughness: 0.92 });
+  var inFloorMat = new THREE.MeshStandardMaterial({ color: 0x8f948c, roughness: 0.95 });
+  var deskMat = new THREE.MeshStandardMaterial({ color: 0x7d6a52, roughness: 0.85 });
+  var roofMat = new THREE.MeshStandardMaterial({ color: 0x6d747c, roughness: 0.95 });
+  var lampMat = new THREE.MeshBasicMaterial({ color: 0xfff1c8 });
+  var warnMat = new THREE.MeshStandardMaterial({ color: 0x66121c, emissive: 0xd42a3c, emissiveIntensity: 1.8, roughness: 0.4 });
+
+  function skin(rx, ry) {
+    var t = tex.clone();
+    t.needsUpdate = true;
+    t.repeat.set(rx, ry);
+    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 });
+  }
+  function addBox(bw, bh, bd, px, py, pz, mat, collide) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+    m.position.set(px, py, pz);
+    m.castShadow = true; m.receiveShadow = true;
+    grp.add(m);
+    if (collide) {
+      addCollider(x + px - bw / 2 - 0.05, x + px + bw / 2 + 0.05,
+        z + pz - bd / 2 - 0.05, z + pz + bd / 2 + 0.05);
+    }
+    return m;
+  }
+  function addSkin(bw, bh, px, py, pz, ry) {
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), skin(bw / 8, bh / 8));
+    m.position.set(px, py, pz);
+    m.rotation.y = ry;
+    m.receiveShadow = true;
+    grp.add(m);
+    return m;
+  }
+
+  addBox(w, h, T, 0, h / 2, -d / 2 + T / 2, wallMat, true);
+  addBox(w, h, T, 0, h / 2, d / 2 - T / 2, wallMat, true);
+  addBox(T, h, d, -w / 2 + T / 2, h / 2, 0, wallMat, true);
+  var segLen = (d - doorW) / 2;
+  addBox(T, h, segLen, w / 2 - T / 2, h / 2, -(doorW / 2 + segLen / 2), wallMat, true);
+  addBox(T, h, segLen, w / 2 - T / 2, h / 2, (doorW / 2 + segLen / 2), wallMat, true);
+  addBox(T, h - doorH, doorW, w / 2 - T / 2, doorH + (h - doorH) / 2, 0, wallMat, false);
+
+  addSkin(w, h, 0, h / 2, -d / 2 - 0.02, Math.PI);
+  addSkin(w, h, 0, h / 2, d / 2 + 0.02, 0);
+  addSkin(d, h, -w / 2 - 0.02, h / 2, 0, Math.PI / 2);
+  addSkin(segLen, h, w / 2 + 0.02, h / 2, -(doorW / 2 + segLen / 2), -Math.PI / 2);
+  addSkin(segLen, h, w / 2 + 0.02, h / 2, (doorW / 2 + segLen / 2), -Math.PI / 2);
+  addSkin(doorW, h - doorH, w / 2 + 0.02, doorH + (h - doorH) / 2, 0, -Math.PI / 2);
+
+  var fl = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * T, 0.12, d - 2 * T), inFloorMat);
+  fl.position.y = 0.06;
+  fl.receiveShadow = true;
+  grp.add(fl);
+  var ceil = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * T, 0.18, d - 2 * T), wallMat);
+  ceil.position.y = innerH;
+  grp.add(ceil);
+  [-1, 1].forEach(function (sx) {
+    var strip = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, d * 0.88), lampMat);
+    strip.position.set(sx * w * 0.2, innerH - 0.12, 0);
+    grp.add(strip);
+  });
+  var pl = new THREE.PointLight(0xffeecc, 44, Math.max(w, d) * 0.95, 1.6);
+  pl.position.set(0, innerH - 0.7, 0);
+  grp.add(pl);
+
+  var rows = Math.max(2, Math.floor((d - 10) / 7));
+  for (var r = 0; r < rows; r++) {
+    var zOff = -d / 2 + 6 + r * ((d - 12) / Math.max(1, rows - 1));
+    for (var cx = -1; cx <= 1; cx += 2) {
+      addBox(1.5, 0.74, 0.8, cx * (w * 0.18), 0.37, zOff, deskMat, true);
+    }
+  }
+
+  var dl = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.25), warnMat);
+  dl.position.set(w / 2 + 0.1, doorH + 0.35, 0);
+  grp.add(dl);
+
+  var roof = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 0.3, d - 0.3), roofMat);
+  roof.position.y = h - 0.15;
+  roof.castShadow = true;
+  grp.add(roof);
+  var parapet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.7, d + 0.6), roofMat);
+  parapet.position.y = h + 0.3;
+  grp.add(parapet);
+  var tank = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 2.2, 14),
+    new THREE.MeshStandardMaterial({ color: 0x9aa4ae, roughness: 0.6, metalness: 0.3 }));
+  tank.position.set(w * 0.25, h + 1.6, -d * 0.2);
+  grp.add(tank);
+  var ac = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x84898f, roughness: 0.8 }));
+  ac.position.set(-w * 0.2, h + 0.8, d * 0.25);
+  grp.add(ac);
+  grp.position.set(x, 0, z);
+  scene.add(grp);
+  return grp;
+}
+makeBuilding(18, 22, 66, -136, -10, facadeA);
+makeBuilding(16, 17, 44, -141, -60, facadeB);
+makeBuilding(26, 13, 34, -132, 44, facadeC);
+
+/* ================= 10. 树木（实例化） ================= */
+(function buildTrees() {
+  var buildingRects = [
+    [-146, -127, -44, 24], [-149, -133, -83, -37], [-146, -119, 26, 62]
+  ];
+  var placed = [];
+  var tries = 0;
+  while (placed.length < 30 && tries < 900) {
+    tries++;
+    var x = -195 + rng() * 435;
+    var z = -128 + rng() * 246;
+    if (x > COMPOUND.x0 - 7 && x < COMPOUND.x1 + 7 && z > COMPOUND.z0 - 7 && z < COMPOUND.z1 + 7) continue;
+    var inB = false;
+    for (var i = 0; i < buildingRects.length; i++) {
+      var r = buildingRects[i];
+      if (x > r[0] - 4 && x < r[1] + 4 && z > r[2] - 4 && z < r[3] + 4) { inB = true; break; }
+    }
+    if (inB) continue;
+    var ok = true;
+    for (i = 0; i < placed.length; i++) {
+      if (Math.hypot(placed[i][0] - x, placed[i][1] - z) < 8) { ok = false; break; }
+    }
+    if (!ok) continue;
+    placed.push([x, z, 0.8 + rng() * 0.7, rng() * Math.PI * 2]);
+  }
+  var N = placed.length;
+  var trunkGeo = new THREE.CylinderGeometry(0.13, 0.22, 2.6, 8);
+  var trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4634, roughness: 0.95 });
+  var trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, N);
+  var leafGeo = new THREE.IcosahedronGeometry(1.55, 1);
+  var leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5d38, roughness: 0.72 });
+  var leaves = new THREE.InstancedMesh(leafGeo, leafMat, N * 3);
+  var m = new THREE.Matrix4();
+  var q = new THREE.Quaternion();
+  var sc = new THREE.Vector3();
+  var pos = new THREE.Vector3();
+  var li = 0;
+  for (var k = 0; k < N; k++) {
+    var t = placed[k];
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), t[3]);
+    pos.set(t[0], 1.3 * t[2], t[1]);
+    sc.set(t[2], t[2], t[2]);
+    m.compose(pos, q, sc);
+    trunks.setMatrixAt(k, m);
+    var blobs = [
+      [0, 3.1, 0, 1.0], [0.85, 2.5, 0.45, 0.62], [-0.7, 2.7, -0.5, 0.55]
+    ];
+    for (var b = 0; b < 3; b++) {
+      var bl = blobs[b];
+      pos.set(t[0] + bl[0] * t[2], bl[1] * t[2], t[1] + bl[2] * t[2]);
+      var bs = t[2] * bl[3] * (0.92 + rng() * 0.2);
+      sc.set(bs, bs * 0.92, bs);
+      m.compose(pos, q, sc);
+      leaves.setMatrixAt(li++, m);
+    }
+  }
+  trunks.castShadow = true;
+  leaves.castShadow = true;
+  scene.add(trunks);
+  scene.add(leaves);
+})();
+
+/* ================= 11. 旗杆 ================= */
+(function buildFlag() {
+  var grp = new THREE.Group();
+  var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 13, 10),
+    new THREE.MeshStandardMaterial({ color: 0xc8ced6, roughness: 0.35, metalness: 0.7 }));
+  pole.position.y = 6.5;
+  pole.castShadow = true;
+  grp.add(pole);
+  var ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10),
+    new THREE.MeshStandardMaterial({ color: 0xd8b45a, roughness: 0.3, metalness: 0.8 }));
+  ball.position.y = 13.05;
+  grp.add(ball);
+  var flagMat = new THREE.MeshStandardMaterial({
+    color: 0xd5342c, roughness: 0.8, side: THREE.DoubleSide
+  });
+  flagMat.onBeforeCompile = function (shader) {
+    shader.uniforms.uTime = sharedU.uTime;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace('#include <begin_vertex>', [
+        '#include <begin_vertex>',
+        'float fx = smoothstep(0.0, 3.4, position.x);',
+        'transformed.z += sin(position.x * 1.9 + uTime * 4.2) * 0.28 * fx;',
+        'transformed.y += sin(position.x * 1.3 + uTime * 3.1) * 0.09 * fx;'
+      ].join('\n'));
+  };
+  flagMat.customProgramCacheKey = function () { return 'flag'; };
+  var fg = new THREE.PlaneGeometry(3.4, 2.1, 22, 10);
+  fg.translate(1.7, 0, 0);
+  var flag = new THREE.Mesh(fg, flagMat);
+  flag.position.y = 11.8;
+  grp.add(flag);
+  grp.position.set(-93, 0, 40);
+  grp.rotation.y = 0.5;
+  scene.add(grp);
+})();
+
+/* ================= 12. 远景天际线 ================= */
+(function buildSkyline() {
+  var N = 16;
+  var geo = new THREE.BoxGeometry(1, 1, 1);
+  var mat = new THREE.MeshStandardMaterial({ color: 0x93a1b2, roughness: 0.9 });
+  var inst = new THREE.InstancedMesh(geo, mat, N);
+  var m = new THREE.Matrix4();
+  var q = new THREE.Quaternion();
+  for (var i = 0; i < N; i++) {
+    var a = rng() * Math.PI * 2;
+    var r = 240 + rng() * 90;
+    var w = 16 + rng() * 30;
+    var h = 22 + rng() * 55;
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rng() * Math.PI);
+    m.compose(
+      new THREE.Vector3(Math.cos(a) * r + 21, h / 2, Math.sin(a) * r - 5),
+      q, new THREE.Vector3(w, h, w * (0.7 + rng() * 0.6)));
+    inst.setMatrixAt(i, m);
+  }
+  scene.add(inst);
+})();
+
+/* ================= 13. 彩虹 ================= */
+var rainbowMat = null;
+(function buildRainbow() {
+  var b = new GeoBatch();
+  var r0 = 245, r1 = 318;
+  var nseg = 56;
+  for (var i = 0; i < nseg; i++) {
+    var a0 = Math.PI * 0.12 + Math.PI * 0.76 * i / nseg;
+    var a1 = Math.PI * 0.12 + Math.PI * 0.76 * (i + 1) / nseg;
+    b.quad(
+      [r0 * Math.cos(a0), r0 * Math.sin(a0), 0],
+      [r1 * Math.cos(a0), r1 * Math.sin(a0), 0],
+      [r1 * Math.cos(a1), r1 * Math.sin(a1), 0],
+      [r0 * Math.cos(a1), r0 * Math.sin(a1), 0],
+      [0, 0, 1],
+      [0, i / nseg, 1, i / nseg, 1, (i + 1) / nseg, 0, (i + 1) / nseg]
+    );
+  }
+  rainbowMat = new THREE.MeshBasicMaterial({
+    map: rainbowTex, transparent: true, opacity: 0.34,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+    side: THREE.DoubleSide, fog: false, toneMapped: false
+  });
+  var mesh = b.mesh(rainbowMat);
+  mesh.rotation.set(0, 2.147, 0);
+  mesh.position.set(0, -92, 0);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+})();
+
+/* ================= 14. 雨滴粒子 ================= */
+var rain = (function () {
+  var N = isMobile ? 900 : 1800;
+  var pos = new Float32Array(N * 3);
+  var spd = new Float32Array(N);
+  var off = new Float32Array(N);
+  for (var i = 0; i < N; i++) {
+    pos[i * 3] = -140 + rng() * 300;
+    pos[i * 3 + 1] = rng() * 62;
+    pos[i * 3 + 2] = -125 + rng() * 235;
+    spd[i] = 26 + rng() * 20;
+    off[i] = rng() * 62;
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aSpeed', new THREE.BufferAttribute(spd, 1));
+  g.setAttribute('aOff', new THREE.BufferAttribute(off, 1));
+  var mat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: {
+      uTime: sharedU.uTime,
+      uOpacity: { value: 0 },
+      uPR: { value: MAX_PR }
+    },
+    vertexShader: [
+      'attribute float aSpeed;',
+      'attribute float aOff;',
+      'uniform float uTime;',
+      'uniform float uPR;',
+      'varying float vA;',
+      'void main() {',
+      '  vec3 p = position;',
+      '  float fall = mod(uTime * aSpeed + aOff, 62.0);',
+      '  p.y = 60.0 - fall;',
+      '  p.x += sin(uTime * 0.4 + aOff) * 0.6;',
+      '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
+      '  gl_Position = projectionMatrix * mv;',
+      '  float ps = (300.0 / max(-mv.z, 1.0)) * uPR;',
+      '  gl_PointSize = clamp(ps, 3.2, 30.0);',
+      '  vA = clamp(ps / 7.0, 0.35, 1.0);',
+      '}'
+    ].join('\n'),
+    fragmentShader: [
+      'varying float vA;',
+      'uniform float uOpacity;',
+      'void main() {',
+      '  vec2 pc = gl_PointCoord - 0.5;',
+      '  float a = smoothstep(0.5, 0.05, abs(pc.x)) * smoothstep(0.5, 0.14, abs(pc.y)) * vA * uOpacity * 0.8;',
+      '  gl_FragColor = vec4(0.66, 0.75, 0.88, a);',
+      '}'
+    ].join('\n')
+  });
+  var pts = new THREE.Points(g, mat);
+  pts.frustumCulled = false;
+  pts.visible = false;
+  scene.add(pts);
+  return { mat: mat, obj: pts, anim: 0, target: 0 };
+})();
+
+/* ================= 15. 第一人称控制器 ================= */
+var btnRain = document.getElementById('btnRain');
+var btnReset = document.getElementById('btnReset');
+
+var touchCapable = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+if (touchCapable) document.body.classList.add('has-touch');
+
+var P_EYE = 1.7;
+var P_WALK = 4.4;
+var P_RUN = 9.5;
+var P_BOUND = {
+  x0: -150, x1: COMPOUND.x1 - 1.2,
+  z0: COMPOUND.z0 - 8, z1: COMPOUND.z1 + 1.2
+};
+var SPAWN = { x: 0, z: -6, yaw: 0, pitch: -0.02 };
+
+var player = {
+  pos: new THREE.Vector3(SPAWN.x, P_EYE, SPAWN.z),
+  yaw: SPAWN.yaw, pitch: SPAWN.pitch,
+  bob: 0
+};
+
+var keys = {};
+var MOVE_CODES = {
+  KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1,
+  ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1
+};
+/* ★ 统一键位：走 Keys 键位表（index 设置页可改键） */
+if (window.Keys) {
+  Keys.bindInput();
+  Keys.onDown('reload', weaponReload);
+  Keys.onDown('fire',   function () { game.shooting = true; });
+  Keys.onUp('fire',     function () { game.shooting = false; });
+  Keys.onDown('w1',     function () { weaponSwitch(0); });
+  Keys.onDown('w2',     function () { weaponSwitch(1); });
+  Keys.onDown('nade',   function () { throwNade(); });
+}
+
+/* ---------- 移动端虚拟摇杆 ---------- */
+var joyMove = { x: 0, y: 0, active: false };
+var JOY_R = 56;
+var joyEl = document.getElementById('joy-move');
+var joyThumb = document.getElementById('joyMoveThumb');
+var joyCenter = { x: 0, y: 0 };
+var joyId = -1;
+
+function joyStart(e) {
+  var t = e.touches[0];
+  joyId = t.identifier;
+  var r = joyEl.getBoundingClientRect();
+  joyCenter.x = r.left + r.width / 2;
+  joyCenter.y = r.top + r.height / 2;
+  e.preventDefault();
+}
+function joyTrack(e) {
+  for (var i = 0; i < e.touches.length; i++) {
+    if (e.touches[i].identifier !== joyId) continue;
+    var t = e.touches[i];
+    var dx = t.clientX - joyCenter.x, dy = t.clientY - joyCenter.y;
+    var d = Math.hypot(dx, dy);
+    if (d > JOY_R) { dx = dx / d * JOY_R; dy = dy / d * JOY_R; d = JOY_R; }
+    joyMove.x = dx / JOY_R;
+    joyMove.y = dy / JOY_R;
+    joyMove.active = d > 8;
+    joyThumb.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    e.preventDefault();
+    return;
+  }
+}
+function joyEnd(e) {
+  if (e.changedTouches && e.changedTouches[0].identifier === joyId) {
+    joyId = -1;
+    joyMove.x = 0; joyMove.y = 0; joyMove.active = false;
+    joyThumb.style.transform = 'translate(0px,0px)';
+  }
+}
+if (joyEl) {
+  joyEl.addEventListener('touchstart', joyStart, { passive: false });
+  joyEl.addEventListener('touchmove', joyTrack, { passive: false });
+  joyEl.addEventListener('touchend', joyEnd);
+  joyEl.addEventListener('touchcancel', joyEnd);
+}
+
+var dom = renderer.domElement;
+dom.style.touchAction = 'none';
+dom.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+var dragId = -1, lastPX = 0, lastPY = 0;
+function rotateView(dx, dy) {
+  var sm = window.__cfgSens || 1;              // ★ index 设置页的统一灵敏度
+  player.yaw -= dx * 0.0052 * sm;
+  player.pitch = clamp(player.pitch - dy * 0.0052 * sm, -1.45, 1.45);
+}
+dom.addEventListener('pointerdown', function (e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (dragId !== -1) return;
+  dragId = e.pointerId;
+  lastPX = e.clientX; lastPY = e.clientY;
+  if (dom.setPointerCapture) dom.setPointerCapture(e.pointerId);
+});
+dom.addEventListener('pointermove', function (e) {
+  if (e.pointerId !== dragId) return;
+  rotateView(e.clientX - lastPX, e.clientY - lastPY);
+  lastPX = e.clientX; lastPY = e.clientY;
+});
+function endDrag(e) {
+  if (e.pointerId === dragId) dragId = -1;
+}
+dom.addEventListener('pointerup', endDrag);
+dom.addEventListener('pointercancel', endDrag);
+
+dom.addEventListener('click', function () {
+  if (!touchCapable && !game.dead && document.pointerLockElement !== dom && dom.requestPointerLock) {
+    dom.requestPointerLock();
+  }
+});
+document.addEventListener('pointerlockchange', function () {
+  game.locked = document.pointerLockElement === dom;
+});
+document.addEventListener('mousemove', function (e) {
+  if (game.locked) rotateView(e.movementX || 0, e.movementY || 0);
+});
+dom.addEventListener('mousedown', function (e) {
+  if (game.locked && e.button === 0) game.shooting = true;
+});
+window.addEventListener('mouseup', function (e) {
+  if (e.button === 0) game.shooting = false;
+});
+
+function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+var _fwd = new THREE.Vector3();
+var _rgt = new THREE.Vector3();
+var _look = new THREE.Vector3();
+
+function updateControls(dt) {
+  /* ★ 观战：自由飞行（穿墙、无视碰撞与受击） */
+  if (window.MP && MP.spectating()) {
+    _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    _rgt.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+    var sx = 0, sz = 0, su = 0;
+    if (Keys.isDown('forward')) sz += 1;
+    if (Keys.isDown('back'))    sz -= 1;
+    if (Keys.isDown('left'))    sx -= 1;
+    if (Keys.isDown('right'))   sx += 1;
+    if (Keys.isDown('sprint'))  su += 1;
+    var ssp = 16 * dt;
+    player.pos.x += (_fwd.x * sz + _rgt.x * sx) * ssp;
+    player.pos.z += (_fwd.z * sz + _rgt.z * sx) * ssp;
+    player.pos.y = Math.max(0.6, player.pos.y + su * ssp - player.pitch * sz * ssp);
+    camera.position.set(player.pos.x, player.pos.y, player.pos.z);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+    return;
+  }
+  _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  _rgt.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+
+  var mvx = 0, mvz = 0;
+  if (Keys.isDown('forward')) mvz += 1;
+  if (Keys.isDown('back'))    mvz -= 1;
+  if (Keys.isDown('left'))    mvx -= 1;
+  if (Keys.isDown('right'))   mvx += 1;
+  if (joyMove.active) { mvx += joyMove.x; mvz += -joyMove.y; }
+
+  var wantSprint = !!(Keys && Keys.isDown && Keys.isDown('sprint')) || game.sprintToggle || game.sprintHeld;
+  var ml = Math.hypot(mvx, mvz);
+  var moving = ml > 0.001 && !game.dead;
+
+  game.sprinting = moving && wantSprint && game.stamina > 1.5;
+  if (game.sprinting) game.stamina = Math.max(0, game.stamina - 26 * dt);
+  else game.stamina = Math.min(100, game.stamina + 15 * dt);
+
+  if (moving) {
+    var inv = ml > 1 ? 1 / ml : 1;
+    var sp = (game.sprinting ? P_RUN : P_WALK) * dt * inv;
+    player.pos.x += (_fwd.x * mvz + _rgt.x * mvx) * sp;
+    player.pos.z += (_fwd.z * mvz + _rgt.z * mvx) * sp;
+    player.bob += dt * (game.sprinting ? 13.5 : 9);
+  } else {
+    player.bob *= Math.max(0, 1 - dt * 6);
+  }
+
+  var cr = collideXZ(player.pos.x, player.pos.z, 0.42);
+  player.pos.x = clamp(cr[0], P_BOUND.x0, P_BOUND.x1);
+  player.pos.z = clamp(cr[1], P_BOUND.z0, P_BOUND.z1);
+  var bobY = Math.sin(player.bob) * (game.sprinting ? 0.075 : 0.045) * (moving ? 1 : 0);
+
+  var wantFov = game.aiming ? 38 : (game.sprinting ? 66 : 55);
+  camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 7);
+  camera.updateProjectionMatrix();
+
+  var cp = Math.cos(player.pitch);
+  _look.set(cp * -Math.sin(player.yaw), Math.sin(player.pitch), cp * -Math.cos(player.yaw));
+  camera.position.set(player.pos.x, P_EYE + bobY, player.pos.z);
+  camera.lookAt(
+    player.pos.x + _look.x,
+    P_EYE + bobY + _look.y,
+    player.pos.z + _look.z
+  );
+}
+
+/* ================= 16. UI 交互 ================= */
+if (btnRain) btnRain.addEventListener('click', function () {
+  rain.target = rain.target ? 0 : 1;
+  btnRain.classList.toggle('on', rain.target === 1);
+});
+if (btnReset) btnReset.addEventListener('click', function () {
+  player.pos.set(SPAWN.x, P_EYE, SPAWN.z);
+  player.yaw = SPAWN.yaw;
+  player.pitch = SPAWN.pitch;
+  player.bob = 0;
+});
+
+/* ================= 16.5 战斗系统 ================= */
+var game = {
+  hp: 100, maxHp: 100, stamina: 100,
+  ammo: 30, magSize: 30, reloading: false, reloadT: 0,
+  fireCd: 0, recoil: 0,
+  shooting: false, locked: false, sprintToggle: false, sprintHeld: false, sprinting: false, aiming: false,
+  kills: 0, wave: 1, spawnT: 0, elapsed: 0,
+  dead: false, hurtT: 0, noDmgT: 0, shake: 0, hitmarkT: 0
+};
+
+/* ---------- 枪械模型 ---------- */
+var gunGrp = new THREE.Group();
+(function buildGun() {
+  var body = new THREE.MeshStandardMaterial({ color: 0x454c54, roughness: 0.42, metalness: 0.6 });
+  var grip = new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 0.85 });
+  var acc = new THREE.MeshStandardMaterial({ color: 0x1f242b, roughness: 0.4, metalness: 0.6 });
+  function part(w, h, d, x, y, z, mat) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat || body);
+    m.position.set(x, y, z);
+    gunGrp.add(m);
+    return m;
+  }
+  part(0.09, 0.11, 0.62, 0, 0, -0.18);
+  part(0.07, 0.07, 0.34, 0, 0.015, -0.62);
+  part(0.05, 0.09, 0.16, 0, -0.09, 0.02, grip);
+  part(0.06, 0.13, 0.07, 0, -0.1, -0.28, grip);
+  part(0.05, 0.05, 0.2, 0, 0.085, -0.3, acc);
+  part(0.045, 0.05, 0.05, 0, 0.115, -0.34, acc);
+  gunGrp.position.set(0.22, -0.18, -0.42);
+  camera.add(gunGrp);
+  scene.add(camera);
+})();
+
+var muzzle = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.46, 0.46),
+  new THREE.MeshBasicMaterial({
+    color: 0xffd9a0, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  })
+);
+muzzle.position.set(0, 0.015, -0.84);
+gunGrp.add(muzzle);
+var muzzleLight = new THREE.PointLight(0xffc477, 0, 10, 1.8);
+muzzleLight.position.set(0, 0, -0.9);
+gunGrp.add(muzzleLight);
+
+/* ---------- 丧尸 ---------- */
+var zombies = [];
+var zSkins = [0x7d9161, 0x8a9a6a, 0x6f8558, 0x93a37b].map(function (c) {
+  return new THREE.MeshStandardMaterial({
+    color: c, roughness: 0.92,
+    emissive: 0x1a3322, emissiveIntensity: 0.85
+  });
+});
+var zCloths = [0x4a4a52, 0x3d4148, 0x53463b].map(function (c) {
+  return new THREE.MeshStandardMaterial({ color: c, roughness: 0.95 });
+});
+var zEyeMat = new THREE.MeshStandardMaterial({
+  color: 0x220000, emissive: 0xd42a3c, emissiveIntensity: 2.2, roughness: 0.3
+});
+var zShadowMat = new THREE.MeshBasicMaterial({ color: 0x0a1208, transparent: true, opacity: 0.34, depthWrite: false });
+var zShadowGeo = new THREE.CircleGeometry(0.55, 18);
+
+function makeZombie() {
+  var grp = new THREE.Group();
+  var skin = zSkins[Math.floor(Math.random() * zSkins.length)];
+  var cloth = zCloths[Math.floor(Math.random() * zCloths.length)];
+  function box(w, h, d, x, y, z, mat) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    grp.add(m);
+    return m;
+  }
+  var torso = box(0.52, 0.62, 0.28, 0, 1.12, 0, cloth);
+  torso.castShadow = false;
+  var head = box(0.3, 0.32, 0.3, 0, 1.58, 0, skin);
+  box(0.05, 0.045, 0.02, -0.07, 1.62, -0.16, zEyeMat);
+  box(0.05, 0.045, 0.02, 0.07, 1.62, -0.16, zEyeMat);
+  function limb(w, len, x, y, mat) {
+    var g = new THREE.Group();
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, len, w), mat);
+    m.position.y = -len / 2;
+    g.add(m);
+    g.position.set(x, y, 0);
+    grp.add(g);
+    return g;
+  }
+  var armL = limb(0.13, 0.52, -0.33, 1.36, skin);
+  var armR = limb(0.13, 0.52, 0.33, 1.36, skin);
+  armL.rotation.x = -1.4; armR.rotation.x = -1.4;
+  var legL = limb(0.17, 0.62, -0.14, 0.78, cloth);
+  var legR = limb(0.17, 0.62, 0.14, 0.78, cloth);
+  var blob = new THREE.Mesh(zShadowGeo, zShadowMat);
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.02;
+  grp.add(blob);
+  var sc = 0.9 + Math.random() * 0.22;
+  grp.scale.set(sc, sc, sc);
+  var runner = Math.random() < 0.1;
+  var z = {
+    grp: grp, r: 0.5,
+    speed: runner ? 4.4 + Math.random() * 0.8 : 1.15 + Math.random() * 1.05,
+    runner: runner, atkCd: 0, phase: Math.random() * 6.28,
+    armL: armL, armR: armR, legL: legL, legR: legR,
+    dead: false, deadT: 0
+  };
+
+  /* ★ 联机：把 hp 唯一数据源放在 grp.userData.hp，
+     z.hp 通过 defineProperty 代理读写，与 zsync.js 自动同步 */
+  grp.userData.hp = 100;
+  grp.userData.isZombie = true;
+  grp.userData.__zRef = z;
+  Object.defineProperty(z, 'hp', {
+    get: function () { return grp.userData.hp; },
+    set: function (v) { grp.userData.hp = v; }
+  });
+
+  scene.add(grp);
+  return z;
+}
+
+function spawnZombie() {
+  /* ★ 联机：客户端不刷丧尸，由房主快照驱动（除非 __zombieSpawn 补怪） */
+  if (window.ZS && window.ZS.isClient() && !window.__zombieSpawnMode) return;
+
+  for (var t = 0; t < 24; t++) {
+    var x = COMPOUND.x0 + 6 + Math.random() * (COMPOUND.x1 - COMPOUND.x0 - 12);
+    var z = COMPOUND.z0 + 6 + Math.random() * (COMPOUND.z1 - COMPOUND.z0 - 12);
+    if (Math.hypot(x - player.pos.x, z - player.pos.z) < 26) continue;
+    if (insideAnyCollider(x, z, 0.8)) continue;
+    var zb = makeZombie();
+    zb.grp.position.set(x, 0, z);
+    zombies.push(zb);
+    /* ★ 联机：注册到全局数组 + 稳定 id，供 zsync 序列化广播 */
+    if (!window.__zombieSpawnMode) {
+      if (window.ZS && ZS.register) ZS.register(zb.grp);
+      else zb.grp.userData.__zid = zb.grp.userData.__zid || ('z' + Math.random().toString(36).slice(2, 9));
+      window.__zombies.push(zb.grp);
+    }
+    return;
+  }
+}
+
+function damageZombie(z, dmg) {
+  if (z.dead) return;
+  z.hp -= dmg;
+  var p = z.grp.position;
+  bloodBurst(p.x, 1.1 + Math.random() * 0.5, p.z);
+  if (z.hp <= 0) {
+    z.dead = true;
+    z.deadT = 0;
+    game.kills++;
+  }
+}
+
+/* ---------- 血液粒子（对象池） ---------- */
+var bloodMat = new THREE.MeshBasicMaterial({ color: 0x7a1016 });
+var bloodGeo = new THREE.BoxGeometry(0.09, 0.09, 0.09);
+var bloodPool = [];
+for (var bi = 0; bi < 60; bi++) {
+  var bm = new THREE.Mesh(bloodGeo, bloodMat);
+  bm.visible = false;
+  scene.add(bm);
+  bloodPool.push({ m: bm, vx: 0, vy: 0, vz: 0, life: 0 });
+}
+function bloodBurst(x, y, z) {
+  var n = 6;
+  for (var i = 0; i < bloodPool.length && n > 0; i++) {
+    var b = bloodPool[i];
+    if (b.life > 0) continue;
+    n--;
+    b.life = 0.55 + Math.random() * 0.3;
+    b.m.visible = true;
+    b.m.position.set(x, y, z);
+    b.vx = (Math.random() - 0.5) * 4.5;
+    b.vy = 1.5 + Math.random() * 3.2;
+    b.vz = (Math.random() - 0.5) * 4.5;
+  }
+}
+function updateBlood(dt) {
+  for (var i = 0; i < bloodPool.length; i++) {
+    var b = bloodPool[i];
+    if (b.life <= 0) continue;
+    b.life -= dt;
+    if (b.life <= 0) { b.m.visible = false; continue; }
+    b.vy -= 11 * dt;
+    b.m.position.x += b.vx * dt;
+    b.m.position.y += b.vy * dt;
+    b.m.position.z += b.vz * dt;
+    if (b.m.position.y < 0.05) { b.m.position.y = 0.05; b.vy = 0; b.vx *= 0.6; b.vz *= 0.6; }
+    var s = Math.max(0.25, b.life * 1.6);
+    b.m.scale.set(s, s, s);
+  }
+}
+
+/* ---------- 射击：射线 vs 丧尸头/身球体 ---------- */
+var _rd = new THREE.Vector3();
+var _va = new THREE.Vector3();
+function fireRayHit() {
+  camera.getWorldDirection(_rd);
+  var o = camera.position;
+  var best = null, bestT = 1e9;
+  for (var i = 0; i < zombies.length; i++) {
+    var z = zombies[i];
+    if (z.dead) continue;
+    for (var s = 0; s < 2; s++) {
+      var sy = s === 0 ? 1.58 : 0.95;
+      var sr = s === 0 ? 0.30 : 0.48;
+      _va.set(z.grp.position.x, sy * z.grp.scale.y, z.grp.position.z).sub(o);
+      var tca = _va.dot(_rd);
+      if (tca < 0) continue;
+      var d2 = _va.lengthSq() - tca * tca;
+      if (d2 > sr * sr) continue;
+      var t = tca - Math.sqrt(sr * sr - d2);
+      if (t < bestT) {
+        bestT = t;
+        best = { z: z, hs: s === 0 };
+      }
+    }
+  }
+  return best;
+}
+
+function weaponFire() {
+  if (game.dead || game.reloading || game.fireCd > 0) return;
+  if (window.MP && MP.spectating()) return;                 // ★ 观战不可开火
+  if (game.ammo <= 0) { weaponReload(); return; }
+  game.ammo--;
+  game.fireCd = W.cd;
+  game.recoil = W.blast ? 2.4 : 1;
+  muzzle.material.opacity = 1;
+  muzzle.rotation.z = Math.random() * Math.PI;
+  muzzleLight.intensity = 24;
+  player.pitch = clamp(player.pitch + (W.blast ? 0.028 : 0.012), -1.45, 1.45);
+  var hit = fireRayHit();
+  if (hit) {
+    var isClient = !!(window.ZS && window.ZS.isClient());
+    if (isClient && window.P2P) {
+      /* ★ 联机：客户端按丧尸稳定 id 上报房主，由房主结算伤害 */
+      var g2 = W_SLOTS[wIdx].blast ? null : hit.z.grp;
+      if (W_SLOTS[wIdx].blast) {
+        /* 霰弹：近距离溅射，按 id 上报多枚 */
+        for (var bi = 0, bn = 0; bi < W_SLOTS[wIdx].pellets; bi++) {
+          var bh = fireRayHit();
+          if (bh && bh.z && !bh.z.dead) {
+            var bid = window.ZS && ZS.idOf ? ZS.idOf(bh.z.grp) : null;
+            if (bid) { P2P.sendHitZombie(bid, bh.hs ? 999 : W.damage); bn++; }
+          }
+        }
+        if (bn) game.hitmarkT = 0.14;
+      } else {
+        var gid = window.ZS && ZS.idOf ? ZS.idOf(g2) : null;
+        if (gid) P2P.sendHitZombie(gid, hit.hs ? 999 : W.damage);
+        game.hitmarkT = 0.14;
+      }
+    } else {
+      /* 房主 / 单机：本地结算 */
+      damageZombie(hit.z, hit.hs ? W.damage * 3 : W.damage);
+      game.hitmarkT = 0.14;
+    }
+  }
+}
+
+function weaponReload() {
+  if (game.reloading || game.ammo === game.magSize || game.dead) return;
+  game.reloading = true;
+  game.reloadT = W.reload;
+}
+
+/* ================= 16.5b 双武器 + 手雷（与 map1 统一） ================= */
+/* 主武器 = 原 AK-47；副武器 = 霰弹枪（多弹丸、射速慢） */
+var W_SLOTS = [
+  { name: 'AK-47', mag: 30, cd: 0.105, reload: 1.7, damage: 38, pellets: 1, spread: 0.008, blast: false },
+  { name: '霰弹枪', mag: 6, cd: 0.78, reload: 2.6, damage: 24, pellets: 8, spread: 0.075, blast: true }
+];
+var wIdx = 0;
+var W = W_SLOTS[0];
+var nadeCount = 8, NADE_MAX = 8;
+var liveNades = [];
+
+function weaponSwitch(i) {
+  if (!W_SLOTS[i] || i === wIdx) return;
+  wIdx = i; W = W_SLOTS[i];
+  game.magSize = W.mag;
+  game.ammo = Math.min(game.ammo, W.magSize);
+  if (game.ammo <= 0) game.ammo = W.magSize;
+  game.reloading = false;
+  game.fireCd = Math.max(game.fireCd, 0.28);
+  var a = document.getElementById('ws0'), b = document.getElementById('ws1');
+  if (a) a.classList.toggle('on', i === 0);
+  if (b) b.classList.toggle('on', i === 1);
+  /* 换枪音效 */
+  if (typeof sfxHit === 'function') try { sfxHit(); } catch (_) {}
+}
+
+function throwNade() {
+  if (game.dead || nadeCount <= 0) return;
+  nadeCount--;
+  var dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  var geo = new THREE.SphereGeometry(0.12, 8, 6);
+  var mat = new THREE.MeshStandardMaterial({ color: 0x39432c, roughness: 0.62, metalness: 0.35 });
+  var m = new THREE.Mesh(geo, mat);
+  m.position.copy(camera.position).addScaledVector(dir, 0.6);
+  scene.add(m);
+  liveNades.push({
+    m: m, v: dir.clone().multiplyScalar(19).add(new THREE.Vector3(0, 3.2, 0)),
+    fuse: 2.5, geo: geo, mat: mat
+  });
+  var el = document.getElementById('nadeN');
+  if (el) el.textContent = nadeCount;
+}
+
+function updateNades(dt) {
+  for (var i = liveNades.length - 1; i >= 0; i--) {
+    var n = liveNades[i];
+    n.fuse -= dt;
+    n.v.y -= 23 * dt;
+    var p = n.m.position;
+    var nx = p.x + n.v.x * dt, nz = p.z + n.v.z * dt, ny = p.y + n.v.y * dt;
+    /* 简易地面/碰撞：直接落在地面高度 */
+    var gh = 0.12;
+    if (ny - 0.12 <= gh) { ny = gh + 0.12; if (n.v.y < 0) { n.v.y *= -0.3; n.v.x *= 0.6; n.v.z *= 0.6; if (Math.abs(n.v.y) < 0.9) n.v.y = 0; } }
+    p.set(nx, ny, nz);
+    n.m.rotation.x += dt * 7; n.m.rotation.z += dt * 5;
+    if (n.fuse <= 0) {
+      nadeBoom(p.clone());
+      scene.remove(n.m);
+      liveNades.splice(i, 1);
+    }
+  }
+}
+
+function nadeBoom(at) {
+  var isClient = !!(window.ZS && window.ZS.isClient());
+  if (typeof bloodBurst === 'function') {
+    for (var k = 0; k < 14; k++) bloodBurst(at.x + (Math.random() - 0.5) * 3, at.y + Math.random() * 2, at.z + (Math.random() - 0.5) * 3);
+  }
+  var R = 6.5;
+  for (var i = 0; i < zombies.length; i++) {
+    var z = zombies[i];
+    if (z.dead) continue;
+    var d = Math.hypot(z.grp.position.x - at.x, z.grp.position.z - at.z);
+    if (d > R) continue;
+    var dmg = Math.round(60 + 170 * (1 - d / R));
+    if (isClient) {
+      var zid = window.ZS && ZS.idOf ? ZS.idOf(z.grp) : null;
+      if (zid && window.P2P) P2P.sendHitZombie(zid, dmg);
+    } else {
+      damageZombie(z, dmg);
+    }
+  }
+  var pd = Math.hypot(player.pos.x - at.x, player.pos.z - at.z);
+  if (pd < R * 0.7) hurtPlayer(Math.round(30 * (1 - pd / (R * 0.7))));
+}
+
+
+function updateWeapon(dt) {
+  game.fireCd = Math.max(0, game.fireCd - dt);
+  if (game.shooting && !game.dead) weaponFire();
+  if (game.reloading) {
+    game.reloadT -= dt;
+    if (game.reloadT <= 0) { game.reloading = false; game.ammo = game.magSize; }
+  }
+  game.recoil = Math.max(0, game.recoil - dt * 7);
+  muzzle.material.opacity *= Math.pow(0.0001, dt);
+  muzzleLight.intensity *= Math.pow(0.00001, dt);
+  var wantRot = game.reloading ? 0.55 : 0;
+  gunGrp.rotation.x += (wantRot + game.recoil * 0.1 - gunGrp.rotation.x) * Math.min(1, dt * 10);
+  gunGrp.position.z = -0.42 + game.recoil * 0.055;
+}
+
+/* ---------- 丧尸 AI（★ 联机：客户端分支） ---------- */
+function updateZombies(dt) {
+  var isClient = !!(window.ZS && window.ZS.isClient());
+
+  /* ★ 联机：房主 / 单机才推进波次和刷怪 */
+  if (!isClient) {
+    var target = Math.min(6 + Math.floor(game.elapsed / 22), 24);
+    game.wave = 1 + Math.floor(game.elapsed / 30);
+    game.spawnT -= dt;
+    var alive = 0;
+    for (var i = 0; i < zombies.length; i++) if (!zombies[i].dead) alive++;
+    if (game.spawnT <= 0 && alive < target && !game.dead) {
+      spawnZombie();
+      game.spawnT = 0.7;
+    }
+  }
+
+  for (var i = zombies.length - 1; i >= 0; i--) {
+    var z = zombies[i];
+    var p = z.grp.position;
+
+    if (z.dead) {
+      z.deadT += dt;
+      z.grp.rotation.x = Math.min(1.5, z.deadT * 4.4);
+      if (z.deadT > 0.75) p.y -= dt * 1.1;
+      if (z.deadT > 1.7) {
+        /* ★ 联机：出队时同步从 __zombies + ZS 登记表移除 */
+        if (window.ZS && ZS.unregister) ZS.unregister(z.grp);
+        if (z.grp.parent) z.grp.parent.remove(z.grp);
+        else scene.remove(z.grp);
+        var ix = (window.__zombies || []).indexOf(z.grp);
+        if (ix >= 0) window.__zombies.splice(ix, 1);
+        zombies.splice(i, 1);
+      }
+      continue;
+    }
+
+    /* ★ 联机：客户端僵尸位置由 zsync.js 的 rAF 插值控制；
+       本函数只做攻击判定 + 位置动画同步 */
+    if (isClient) {
+      /* zsync 已经 parent.remove() 隐藏的僵尸：同步移除 */
+      if (!z.grp.parent) {
+        if (window.ZS && ZS.unregister) ZS.unregister(z.grp);
+        var ix2 = (window.__zombies || []).indexOf(z.grp);
+        if (ix2 >= 0) window.__zombies.splice(ix2, 1);
+        zombies.splice(i, 1);
+        continue;
+      }
+      var dxC = player.pos.x - p.x, dzC = player.pos.z - p.z;
+      var distC = Math.hypot(dxC, dzC);
+      z.atkCd -= dt;
+      if (distC <= 1.35 && !game.dead) {
+        var swingC = Math.sin(Math.max(0, 0.55 - z.atkCd) * 9) * 0.5;
+        z.armL.rotation.x = -1.4 - swingC;
+        z.armR.rotation.x = -1.4 - swingC;
+        if (z.atkCd <= 0) {
+          z.atkCd = 0.95;
+          hurtPlayer(8 + Math.random() * 9);
+        }
+      } else {
+        /* 用位置变化速度驱动腿/手动画 */
+        var lx = z.__lx != null ? z.__lx : p.x;
+        var lz = z.__lz != null ? z.__lz : p.z;
+        var mv = Math.hypot(p.x - lx, p.z - lz);
+        z.__lx = p.x; z.__lz = p.z;
+        z.phase += dt * (2.6 + mv * 30);
+        var swC = Math.sin(z.phase) * 0.55;
+        z.legL.rotation.x = swC;
+        z.legR.rotation.x = -swC;
+        z.armL.rotation.x = -1.4 + Math.sin(z.phase + 3.14) * 0.16;
+        z.armR.rotation.x = -1.4 + Math.sin(z.phase) * 0.16;
+      }
+      /* 面向本地玩家（zsync 会覆盖 rotation.y，这里只在必要时补充） */
+      continue;
+    }
+
+    /* ============ 房主 / 单机：原逻辑 ============ */
+    var dx = player.pos.x - p.x, dz = player.pos.z - p.z;
+    var dist = Math.hypot(dx, dz);
+    var dxn = 0, dzn = 0;
+    if (dist > 0.001) { dxn = dx / dist; dzn = dz / dist; }
+    z.grp.rotation.y = Math.atan2(-dxn, -dzn);
+    if (dist > 1.15 && !game.dead) {
+      var sp = z.speed * (1 + game.wave * 0.02);
+      var nx = p.x + dxn * sp * dt;
+      var nz = p.z + dzn * sp * dt;
+      for (var j = 0; j < zombies.length; j++) {
+        if (j === i || zombies[j].dead) continue;
+        var q = zombies[j].grp.position;
+        var ox = nx - q.x, oz = nz - q.z;
+        var od = Math.hypot(ox, oz);
+        if (od < 0.85 && od > 0.001) {
+          nx += ox / od * (0.85 - od) * 0.5;
+          nz += oz / od * (0.85 - od) * 0.5;
+        }
+      }
+      var cr = collideXZ(nx, nz, 0.5);
+      p.x = cr[0];
+      p.z = cr[1];
+      z.phase += dt * (2.6 + z.speed * 1.6);
+    } else if (dist <= 1.35) {
+      z.atkCd -= dt;
+      var swing = Math.sin(Math.max(0, 0.55 - z.atkCd) * 9) * 0.5;
+      z.armL.rotation.x = -1.4 - swing;
+      z.armR.rotation.x = -1.4 - swing;
+      if (z.atkCd <= 0 && !game.dead) {
+        z.atkCd = 0.95;
+        hurtPlayer(8 + Math.random() * 9);
+      }
+    }
+    var sw = Math.sin(z.phase) * 0.55;
+    z.legL.rotation.x = sw;
+    z.legR.rotation.x = -sw;
+    if (dist > 1.35) {
+      z.armL.rotation.x = -1.4 + Math.sin(z.phase + 3.14) * 0.16;
+      z.armR.rotation.x = -1.4 + Math.sin(z.phase) * 0.16;
+    }
+  }
+}
+
+/* ---------- 玩家受击 / 死亡 / 重开 ---------- */
+function hurtPlayer(dmg) {
+  if (game.dead) return;
+  game.hp -= dmg;
+  game.hurtT = 1;
+  game.noDmgT = 0;
+  game.shake = 0.4;
+  /* ★ 联机：上报本地 HP，让队友血条实时更新 */
+  if (window.MP) window.MP.setHP(Math.max(0, game.hp));
+  if (game.hp <= 0) {
+    game.hp = 0;
+    playerDie();
+  }
+}
+function playerDie() {
+  game.dead = true;
+  game.shooting = false;
+  /* ★ 联机：改为上报阵亡 + 观战，不各自弹结算 */
+  if (window.P2P && P2P.inGame()) {
+    if (window.MP) MP.reportDeath();
+    if (document.exitPointerLock) document.exitPointerLock();
+    return;
+  }
+  var ds = document.getElementById('deathScreen');
+  if (ds) {
+    document.getElementById('deathStats').textContent =
+      '击杀 ' + game.kills + ' · 抵达第 ' + game.wave + ' 波';
+    ds.style.display = 'flex';
+  }
+  if (document.exitPointerLock) document.exitPointerLock();
+}
+function restartGame() {
+  for (var i = 0; i < zombies.length; i++) scene.remove(zombies[i].grp);
+  zombies.length = 0;
+  /* ★ 联机：清空全局数组 */
+  if (window.__zombies) window.__zombies.length = 0;
+  if (window.ZS && ZS.byId) ZS.byId.clear();
+
+  game.hp = game.maxHp;
+  game.stamina = 100;
+  game.ammo = game.magSize;
+  game.reloading = false;
+  game.kills = 0;
+  game.wave = 1;
+  game.elapsed = 0;
+  game.dead = false;
+  game.hurtT = 0;
+  game.shake = 0;
+  nadeCount = NADE_MAX;
+  player.pos.set(SPAWN.x, P_EYE, SPAWN.z);
+  player.yaw = SPAWN.yaw;
+  player.pitch = SPAWN.pitch;
+  player.bob = 0;
+  var ds = document.getElementById('deathScreen');
+  if (ds) ds.style.display = 'none';
+}
+/* ★ 联机：统一重开（房主广播 restart 时由 mp-bridge 调用） */
+window.resetMatch = function () {
+  restartGame();
+  if (!touchCapable && dom && dom.requestPointerLock) {
+    try { dom.requestPointerLock(); } catch (_) {}
+  }
+};
+
+/* ---------- HUD ---------- */
+var elHpFill = document.getElementById('hpFill');
+var elHpNum = document.getElementById('hpNum');
+var elStFill = document.getElementById('stFill');
+var elAmmo = document.getElementById('ammoNum');
+var elKill = document.getElementById('killN');
+var elWave = document.getElementById('waveN');
+var elAlive = document.getElementById('aliveN');
+var elVig = document.getElementById('vignette');
+var elHit = document.getElementById('hitmark');
+var hudT = 0;
+function updateHUD(dt) {
+  game.hurtT = Math.max(0, game.hurtT - dt * 1.1);
+  game.hitmarkT = Math.max(0, game.hitmarkT - dt);
+  game.noDmgT += dt;
+  if (!game.dead && game.noDmgT > 6 && game.hp < game.maxHp) {
+    game.hp = Math.min(game.maxHp, game.hp + 4 * dt);
+  }
+  hudT -= dt;
+  if (hudT > 0) {
+    if (elVig) elVig.style.opacity = Math.min(0.9, game.hurtT).toFixed(2);
+    if (elHit) elHit.style.opacity = game.hitmarkT > 0 ? 1 : 0;
+    return;
+  }
+  hudT = 0.12;
+  if (elHpFill) {
+    elHpFill.style.width = game.hp + '%';
+    elHpFill.style.background = game.hp > 55 ? 'linear-gradient(90deg,#57d98a,#3cb96f)'
+      : (game.hp > 25 ? 'linear-gradient(90deg,#e8c04a,#d99a2b)' : 'linear-gradient(90deg,#ef5350,#c62828)');
+  }
+  if (elHpNum) elHpNum.textContent = Math.ceil(game.hp);
+  if (elStFill) elStFill.style.width = game.stamina + '%';
+  if (elAmmo) elAmmo.textContent = game.reloading ? '装填' : game.ammo;
+  if (elKill) elKill.textContent = game.kills;
+  if (elWave) elWave.textContent = game.wave;
+  if (elAlive) {
+    var a = 0;
+    for (var i = 0; i < zombies.length; i++) if (!zombies[i].dead) a++;
+    elAlive.textContent = a;
+  }
+}
+
+/* ---------- 移动端战斗按钮（统一 6 键：开火/瞄准/换弹/手雷/换枪/疾跑） ---------- */
+function $(id) { return document.getElementById(id); }
+var btnFire   = $('tbtn-fire');
+var btnAim    = $('tbtn-aim');
+var btnReloadM= $('tbtn-reload');
+var btnNade   = $('tbtn-nade');
+var btnSwap   = $('tbtn-swap');
+var btnSprint = $('tbtn-sprint');
+var btnRestart= $('btnRestart');
+
+if (btnFire) {
+  btnFire.addEventListener('pointerdown', function (e) { e.preventDefault(); game.shooting = true; });
+  ['pointerup','pointercancel','pointerleave'].forEach(function (ev) {
+    btnFire.addEventListener(ev, function () { game.shooting = false; });
+  });
+}
+/* 瞄准：按住开镜，松开复位 */
+if (btnAim) {
+  btnAim.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); game.aiming = true; btnAim.classList.add('on');
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(function (ev) {
+    btnAim.addEventListener(ev, function () { game.aiming = false; btnAim.classList.remove('on'); });
+  });
+}
+if (btnReloadM) btnReloadM.addEventListener('click', weaponReload);
+if (btnNade) btnNade.addEventListener('click', throwNade);
+if (btnSwap) btnSwap.addEventListener('click', function () { weaponSwitch(wIdx === 0 ? 1 : 0); });
+/* ★ 修复：疾跑按钮原用 click，触屏上按住时若手指有微动会被判定为非点击，
+   导致 toggle 从不翻转、疾跑失灵且体力不消耗。
+   改为 pointerdown/up 按住式：按下即疾跑，松开停止；同时保留"点一下锁住"的
+   体验（短按 < 180ms 视为切换锁定）。 */
+if (btnSprint) {
+  var _sprintDownAt = 0, _sprintWasToggle = false;
+  btnSprint.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    _sprintDownAt = Date.now();
+    if (!game.sprintToggle) {           // 若未锁定，按住期间强制疾跑
+      game.sprintHeld = true;
+      btnSprint.classList.add('on');
+    }
+    try { btnSprint.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  var _endSprint = function (e) {
+    if (e) e.preventDefault();
+    var dur = Date.now() - _sprintDownAt;
+    game.sprintHeld = false;
+    if (dur < 180) {                    // 短按 = 切换锁定疾跑
+      game.sprintToggle = !game.sprintToggle;
+    }
+    var on = game.sprintToggle || game.sprintHeld;
+    btnSprint.classList.toggle('on', on);
+  };
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
+    btnSprint.addEventListener(ev, _endSprint);
+  });
+}
+if (btnRestart) btnRestart.addEventListener('click', restartGame);
+
+/* ============================================================
+   ★ 联机桥接 API —— zsync.js 调用
+   ============================================================ */
+window.__zombieSpawn = function (s) {
+  if (!s) return null;
+  var before = zombies.length;
+  window.__zombieSpawnMode = true;
+  try { spawnZombie(); } finally { window.__zombieSpawnMode = false; }
+  if (zombies.length <= before) return null;
+  var zb = zombies[zombies.length - 1], g = zb.grp;
+  g.position.set(s.x, s.y || 0, s.z);
+  zb.hp = s.hp != null ? s.hp : zb.hp;
+  g.userData.hp = zb.hp;
+  g.userData.zType = s.type || 'normal';
+  g.userData.__zRef = zb;
+  g.userData.isZombie = true;
+  if (s.id) g.userData.__zid = s.id;
+  if (window.ZS && ZS.register) ZS.register(g, s.id);
+  if ((window.__zombies || []).indexOf(g) < 0) (window.__zombies = window.__zombies || []).push(g);
+  return g;
+};
+window.__applyZombieDamage = function (g, dmg) {
+  var z = g && g.userData && g.userData.__zRef;
+  if (!z || z.dead) return;
+  damageZombie(z, dmg);
+};
+window.__onZombieKilled = function (g) {
+  var z = g && g.userData && g.userData.__zRef;
+  if (z && !z.dead) { z.hp = 0; damageZombie(z, 1); }
+};
+window.__waveSet = function (w) {
+  game.wave = w;
+  var el = document.getElementById('waveN'); if (el) el.textContent = w;
+};
+window.__killsSet = function (k) {
+  game.kills = k;
+  var el = document.getElementById('killN'); if (el) el.textContent = k;
+};
+
+/* ★ 联机：HP 真实上报（不再靠轮询 DOM 血条） */
+if (window.MP && MP.setHud) {
+  MP.setHud({});
+}
+
+/* ================= 17. 主循环 ================= */
+var clock = new THREE.Clock();
+var perfT = 0;
+var fpsFrames = 0, fpsAcc = 0, fpsEl = document.getElementById('fps');
+var perfCheckT = 0, degraded = false;
+var loaderHidden = false;
+var loaderEl = document.getElementById('loader');
+
+invalidateShadows();
+
+/* ★ 修复：加载层隐藏必须独立于 3D 帧是否成功。
+   原实现把 loader 隐藏放在 animate() 末尾，一旦湿地反射/渲染任一 GPU 调用
+   抛异常，animate 中断，加载层就永远停在「正在构建雨后操场」。
+   现在：进入 animate 第一件事就先安排隐藏加载层，并整体 try/catch 兜底。 */
+function hideLoaderOnce() {
+  if (loaderHidden) return;
+  loaderHidden = true;
+  if (loaderEl) loaderEl.classList.add('hide');
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  /* ★ 首帧立即排定隐藏加载层，不等后面的渲染结果 */
+  if (!loaderHidden) setTimeout(hideLoaderOnce, 250);
+
+  var dt = Math.min(clock.getDelta(), 0.05);
+  var _fatal = null;
+  try {
+  perfT += dt;
+  sharedU.uTime.value = perfT;
+  skyUniforms.uTime.value = perfT;
+
+  rain.anim += (rain.target - rain.anim) * Math.min(1, dt * 1.1);
+  if (rain.anim < 0.005 && rain.target === 0) rain.anim = 0;
+  sharedU.uRain.value = rain.anim;
+  rain.mat.uniforms.uOpacity.value = rain.anim;
+  rain.obj.visible = rain.anim > 0.004;
+
+  if (rainbowMat) rainbowMat.opacity = 0.34 * (1.0 - rain.anim * 0.92);
+  renderer.toneMappingExposure = 0.94 - rain.anim * 0.15;
+  scene.fog.near = 120 - rain.anim * 50;
+  scene.fog.far = 640 - rain.anim * 210;
+
+  sky.position.copy(camera.position);
+  updateControls(dt);
+  game.elapsed += dt;
+  updateWeapon(dt);
+  updateNades(dt);
+  updateZombies(dt);
+  updateBlood(dt);
+  updateHUD(dt);
+  if (game.shake > 0) {
+    camera.position.x += (Math.random() - 0.5) * game.shake * 0.2;
+    camera.position.y += (Math.random() - 0.5) * game.shake * 0.15;
+    game.shake = Math.max(0, game.shake - dt * 1.7);
+  }
+  /* ★ 湿地反射最易在低端 GPU/半浮点不支持时抛异常，单独兜底 */
+  try { renderReflection(); }
+  catch (eR) { reflectionFailed = true; }
+  try { renderer.render(scene, camera); }
+  catch (eR2) { if (!_fatal) _fatal = eR2; }
+  } catch (e) { _fatal = e; }
+
+  /* ★ 无论本帧是否出错，加载层都要收起 */
+  hideLoaderOnce();
+
+  if (_fatal) {
+    if (!window.__map2Fatal) {
+      window.__map2Fatal = _fatal;
+      console.error('[map2] 渲染帧异常（已兜底，游戏继续）:', _fatal && _fatal.message, _fatal);
+    }
+    return;
+  }
+
+  fpsFrames++; fpsAcc += dt;
+  if (fpsAcc >= 0.6) {
+    if (fpsEl) fpsEl.textContent = Math.round(fpsFrames / fpsAcc);
+    fpsFrames = 0; fpsAcc = 0;
+  }
+  if (!degraded) {
+    perfCheckT += dt;
+    if (perfCheckT > 7 && fpsFrames / Math.max(fpsAcc, 0.001) < 24) {
+      degraded = true;
+      REFL_SCALE = 0.32;
+      renderer.setPixelRatio(1);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      resizeReflection();
+    }
+  }
+}
+
+window.addEventListener('resize', function () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  resizeReflection();
+});
+
+resizeReflection();
+animate();
+window.__map2Mark('scene:构建完成，主循环已启动');
+
+/* 调试接口 */
+window.__pg = {
+  camera: camera,
+  player: player,
+  game: game,
+  zombies: zombies,
+  weaponFire: weaponFire,
+  weaponReload: weaponReload,
+  restartGame: restartGame,
+  hurtPlayer: hurtPlayer,
+  spawnZombie: spawnZombie,
+  reflCam: reflCam,
+  uTexMatrix: sharedU.uTexMatrix,
+  renderReflection: renderReflection,
+  scene: scene,
+  renderer: renderer,
+  rt: reflectionRT,
+  sharedU: sharedU
+};
+
+} catch (__buildErr) {
+  /* 场景构建阶段任何异常：收起加载层，显示可读错误，避免永久卡"正在构建" */
+  window.__map2Fail('场景构建', __buildErr);
+}
+
+})();
+</script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="p2p.js"></script>
-<script src="mp-bridge.js"></script>
-<script src="zsync.js"></script>
+<script>
+/* 内联自 p2p.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * p2p.js v4 — 生化·校园突围 联机核心
+ *
+ * 相对 v3 的关键修复：
+ *   1. 丧尸快照带稳定 id + 类型 + boss + dead 标记（不再用数组下标）
+ *   2. 命中改按【丧尸稳定 id】上报结算，房主查表 → 不再打错目标
+ *   3. 新增团队生命协议：dead / aliveMap / all-dead / restart
+ *      · 单人阵亡 → 观战，不弹本机结算
+ *      · 全员阵亡 → 房主广播 all-dead，统一定时 restart
+ *   4. 玩家快照 ps 附带 alive，全员可见队友存活状态
+ *
+ * 依赖: peerjs 1.5.x（必须先于本文件引入）
+ * ============================================================ */
+const P2P = (() => {
+  'use strict';
+  const OPTS = { host: '0.peerjs.com', port: 443, secure: true, debug: 1 };
+  const TICK_MS   = 1000 / 20;  // 玩家状态 20Hz
+  const ZB_EVERY  = 2;          // 每 2 个 tick 广播一次丧尸 → 10Hz
+  const GS_EVERY  = 40;         // 全局状态（波次/击杀）每 40 tick → 0.5Hz
+  const CODE_RE   = /^[A-Z0-9]{6}$/;
+  const RESTART_DELAY = 3000;   // 全员阵亡 → 结算显示 3 秒后统一重开
+
+  let phase = 'off'; // off | lobby | game
+  let peer = null, hostConn = null;
+  let isHost = false, code = '', myName = '玩家', myId = null;
+
+  const conns = new Map();      // 房主: peerId → {conn,name,hp,alive}
+  const remotes = new Map();    // peerId → 快照(渲染用)
+  let local = null, timer = null, zbGet = null, gsGet = null, tickN = 0;
+
+  /* ---- 团队生命（房主权威）---- */
+  let localAlive = true;        // 自己是否存活
+  let matchOver  = false;       // 本局是否已进入"全员阵亡"流程
+  let restartAt  = 0;           // 房主计划重开的时间戳
+
+  const handlers = {};
+  const on   = (e, f) => (handlers[e] = handlers[e] || []).push(f);
+  const emit = (e, d) => (handlers[e] || []).forEach(f => { try { f(d); } catch (_) {} });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function randCode() {
+    const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 6; i++) s += A[(Math.random() * A.length) | 0];
+    return s;
+  }
+  function makePeer(id) {
+    if (typeof Peer === 'undefined') throw { type: 'peerjs-missing' };
+    return new Promise((res, rej) => {
+      const p = id ? new Peer(id, OPTS) : new Peer(OPTS);
+      const to = setTimeout(() => rej({ type: 'timeout' }), 15000);
+      p.on('open', i => { clearTimeout(to); myId = i; res(p); });
+      p.on('error', e => { if (!p.open) { clearTimeout(to); rej(e); } });
+    });
+  }
+  function waitOpen(conn, timeout = 12000) {
+    return new Promise((res, rej) => {
+      if (conn.open) return res();
+      const to = setTimeout(() => rej({ type: 'conn-timeout' }), timeout);
+      conn.on('open',  () => { clearTimeout(to); res(); });
+      conn.on('error', e => { clearTimeout(to); rej(e); });
+    });
+  }
+  const bcast  = (m, except) => conns.forEach((c, id) => {
+    if (id !== except && c.conn.open) try { c.conn.send(m); } catch (_) {}
+  });
+  const toHost = m => { if (hostConn && hostConn.open) try { hostConn.send(m); } catch (_) {} };
+
+  /* ---------------- 大厅 ---------------- */
+  const lobbyRoster = () => {
+    const r = [{ id: myId, name: myName, isHost }];
+    conns.forEach(c => r.push({ id: c.id, name: c.name || '…', isHost: false }));
+    return r;
+  };
+  async function hostLobby(name) {
+    if (phase !== 'off') await shutdown();
+    myName = (name || '房主').slice(0, 8);
+    isHost = true; phase = 'lobby';
+    code = randCode();
+    peer = await makePeer('zv' + code + 'L');
+    peer.on('connection', conn => {
+      conn.on('open', () => {
+        conns.set(conn.peer, { conn, id: conn.peer, name: null, hp: 100, alive: true });
+        conn.send({ t: 'lobby', code, players: lobbyRoster() });
+        bcast({ t: 'lobby', code, players: lobbyRoster() }, conn.peer);
+        emit('players', lobbyRoster());
+      });
+      conn.on('data', d => {
+        if (d && d.t === 'hi') {
+          const c = conns.get(conn.peer);
+          if (c) c.name = (d.name || '玩家').slice(0, 8);
+          bcast({ t: 'lobby', code, players: lobbyRoster() });
+          emit('players', lobbyRoster());
+        }
+      });
+      conn.on('close', () => {
+        conns.delete(conn.peer);
+        bcast({ t: 'lobby', code, players: lobbyRoster() });
+        emit('players', lobbyRoster());
+        emit('left', conn.peer);
+      });
+    });
+    emit('players', lobbyRoster());
+    return code;
+  }
+  async function joinLobby(codeIn, name) {
+    const cd = (codeIn || '').trim().toUpperCase();
+    if (!CODE_RE.test(cd)) throw { type: 'bad-code' };
+    if (phase !== 'off') await shutdown();
+    myName = (name || '玩家').slice(0, 8);
+    isHost = false; phase = 'lobby'; code = cd;
+    peer = await makePeer();
+    hostConn = peer.connect('zv' + cd + 'L', { reliable: true });
+    await waitOpen(hostConn);
+    hostConn.send({ t: 'hi', name: myName });
+    hostConn.on('data', d => {
+      if (!d) return;
+      if (d.t === 'lobby') emit('players', d.players);
+      else if (d.t === 'start') emit('start', d);
+    });
+    hostConn.on('close', () => { if (phase === 'lobby') emit('kicked'); });
+  }
+  function startGame(map) {
+    if (phase !== 'lobby' || !isHost) return;
+    const seed = (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
+    const msg = { t: 'start', code, seed, map: map.key, file: map.file };
+    bcast(msg);
+    setTimeout(() => emit('start', msg), 120);
+  }
+
+  /* ---------------- 对局 ---------------- */
+  /* 队伍名册：含存活标记 */
+  const gameRoster = () => {
+    const r = [{
+      id: myId, name: myName, isHost: true,
+      hp: local ? local.hp : 100, alive: localAlive
+    }];
+    conns.forEach(c => r.push({
+      id: c.id, name: c.name || '…', isHost: false,
+      hp: c.hp == null ? 100 : c.hp, alive: c.alive !== false
+    }));
+    return r;
+  };
+  const aliveCount = () => {
+    let n = localAlive ? 1 : 0;
+    conns.forEach(c => { if (c.alive !== false) n++; });
+    return n;
+  };
+  const totalCount = () => 1 + conns.size;
+
+  /* 房主：检查是否全员阵亡 */
+  function checkAllDead() {
+    if (!isHost || phase !== 'game' || matchOver) return;
+    if (aliveCount() > 0) return;
+    matchOver = true;
+    restartAt = performance.now() + RESTART_DELAY;
+    emit('all-dead', { wave: null });
+    bcast({ t: 'all-dead' });
+  }
+
+  async function enterGame(o) {
+    if (phase !== 'off') await shutdown();
+    phase = 'game';
+    isHost = !!o.isHost;
+    code = (o.code || '').toUpperCase();
+    myName = (o.name || '玩家').slice(0, 8);
+    localAlive = true; matchOver = false; restartAt = 0;
+    if (isHost) {
+      let ok = false;
+      for (let i = 0; i < 6 && !ok; i++) {
+        try { peer = await makePeer('zv' + code + 'G'); ok = true; }
+        catch (e) { if (i === 5) throw e; await sleep(900); }
+      }
+      peer.on('connection', conn => {
+        conn.on('open', () => {
+          conns.set(conn.peer, { conn, id: conn.peer, name: '…', hp: 100, alive: true });
+          conn.send({ t: 'you', id: conn.peer });
+          conn.send({ t: 'team', roster: gameRoster() });
+          emit('players', gameRoster());
+        });
+        conn.on('data', d => hostRecv(conn, d));
+        conn.on('close', () => {
+          conns.delete(conn.peer);
+          remotes.delete(conn.peer);
+          bcast({ t: 'left', id: conn.peer });
+          emit('players', gameRoster());
+          checkAllDead();
+        });
+      });
+    } else {
+      peer = await makePeer();
+      hostConn = await connectRetry('zv' + code + 'G');
+      hostConn.on('data', clientRecv);
+      hostConn.on('close', () => emit('host-lost'));
+      hostConn.send({ t: 'hi', name: myName });
+    }
+    timer = setInterval(netTick, TICK_MS);
+    emit('game-enter', { code, isHost });
+  }
+  async function connectRetry(id, tries = 25) {
+    for (let i = 0; i < tries; i++) {
+      try {
+        const c = peer.connect(id, { reliable: true });
+        await waitOpen(c, 4000);
+        return c;
+      } catch (_) { await sleep(1000); }
+    }
+    throw { type: 'host-not-found' };
+  }
+
+  /* ---------------- 消息分发 ---------------- */
+  function hostRecv(conn, d) {
+    if (!d) return;
+    switch (d.t) {
+      case 'hi': {
+        const c = conns.get(conn.peer);
+        if (c) { c.name = (d.name || '玩家').slice(0, 8); emit('players', gameRoster()); }
+        break;
+      }
+      case 'ps': {
+        remotes.set(conn.peer, Object.assign({}, d.s, { id: conn.peer, t: performance.now() }));
+        const c = conns.get(conn.peer);
+        if (c && d.s) c.hp = d.s.hp;
+        bcast({ t: 'ps', id: conn.peer, s: d.s }, conn.peer);
+        break;
+      }
+      case 'shot':
+        bcast({ t: 'shot', id: conn.peer, s: d.s }, conn.peer);
+        emit('shot', { id: conn.peer, s: d.s });
+        break;
+      case 'hs':
+        // 客户端命中丧尸（按稳定 id）→ 房主结算；结果随下一帧 zb 快照广播给全员
+        emit('hit-zombie', d);
+        break;
+      case 'dead': {
+        const c = conns.get(conn.peer);
+        if (c && c.alive !== false) {
+          c.alive = false;
+          emit('players', gameRoster());
+          /* 立刻通知其他客户端刷新存活显示 */
+          bcast({ t: 'team', roster: gameRoster() }, conn.peer);
+          checkAllDead();
+        }
+        break;
+      }
+      case 'client-restart-req':
+        // 客户端在全员阵亡后请求重开（兜底，正常由房主定时广播）
+        if (matchOver) doRestart();
+        break;
+    }
+  }
+  function clientRecv(d) {
+    if (!d) return;
+    switch (d.t) {
+      case 'you': myId = d.id; break;
+      case 'ps': remotes.set(d.id, Object.assign({}, d.s, { id: d.id, t: performance.now() })); break;
+      case 'left': remotes.delete(d.id); break;
+      case 'shot': emit('shot', d); break;
+      case 'zb': emit('zombies', d.z); break;
+      case 'gs': emit('game-state', d.s); break;
+      case 'team': emit('players', d.roster); break;
+      case 'all-dead':
+        matchOver = true;
+        emit('all-dead', {});
+        break;
+      case 'restart':
+        matchOver = false; localAlive = true;
+        emit('restart', d);
+        break;
+    }
+  }
+
+  function netTick() {
+    if (phase !== 'game') return;
+    tickN++;
+    if (isHost) {
+      if (local) bcast({ t: 'ps', id: myId, s: Object.assign({}, local, { alive: localAlive }) });
+      if (zbGet && tickN % ZB_EVERY === 0) {
+        const z = zbGet();
+        if (z && z.list) bcast({ t: 'zb', z });
+      }
+      if (gsGet && tickN % GS_EVERY === 0) {
+        const s = gsGet();
+        if (s) bcast({ t: 'gs', s });
+      }
+      /* 全员阵亡 → 定时统一重开 */
+      if (matchOver && restartAt && performance.now() >= restartAt) doRestart();
+    } else if (local) {
+      toHost({ t: 'ps', s: Object.assign({}, local, { alive: localAlive }) });
+    }
+  }
+
+  /* 房主：执行统一重开并广播 */
+  function doRestart() {
+    if (!isHost || !matchOver) return;
+    matchOver = false; restartAt = 0;
+    localAlive = true;
+    conns.forEach(c => { c.alive = true; c.hp = 100; });
+    const seed = (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
+    const msg = { t: 'restart', seed };
+    bcast(msg);
+    emit('restart', msg);
+    emit('players', gameRoster());
+  }
+
+  /* 本地阵亡：上报 + 更新存活 */
+  function reportDeath() {
+    if (!localAlive) return;
+    localAlive = false;
+    if (!isHost) toHost({ t: 'dead' });
+    else checkAllDead();
+    emit('local-dead', {});
+  }
+
+  async function shutdown() {
+    phase = 'off';
+    if (timer) { clearInterval(timer); timer = null; }
+    conns.forEach(c => { try { c.conn.close(); } catch (_) {} });
+    conns.clear();
+    try { hostConn && hostConn.close(); } catch (_) {}
+    hostConn = null;
+    remotes.clear(); local = null; zbGet = null; gsGet = null;
+    localAlive = true; matchOver = false; restartAt = 0;
+    try { peer && peer.destroy(); } catch (_) {}
+    peer = null;
+  }
+  window.addEventListener('beforeunload', () => { try { shutdown(); } catch (_) {} });
+
+  return {
+    on, hostLobby, joinLobby, startGame, enterGame,
+    leaveLobby: shutdown, shutdown,
+    setLocal: s => { local = s; },
+    eachRemote: fn => remotes.forEach(fn),
+    remoteCount: () => remotes.size,
+
+    /* 命中：按丧尸稳定 id 上报（房主自行结算） */
+    sendHitZombie: (id, dmg) => { if (!isHost) toHost({ t: 'hs', i: id, dmg }); },
+    sendShot: s => { isHost ? bcast({ t: 'shot', s, id: myId }) : toHost({ t: 'shot', s }); },
+
+    hostZombies:   fn => { zbGet = fn; },
+    hostGameState: fn => { gsGet = fn; },
+
+    /* 团队生命 */
+    reportDeath,
+    forceRestartRequest: () => { if (!isHost && matchOver) toHost({ t: 'client-restart-req' }); },
+    aliveCount, totalCount,
+    isAlive: () => localAlive,
+    matchOver: () => matchOver,
+    roster: () => gameRoster(),
+
+    isHost: () => isHost,
+    inGame: () => phase === 'game',
+    info: () => ({ phase, isHost, code, name: myName, id: myId })
+  };
+})();
+window.P2P = P2P;
+
+</script>
+<script>
+/* 内联自 mp-bridge.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * mp-bridge.js v5 — 地图页联机桥
+ *
+ * 相对 v4 的改动：
+ *   1. HP 改为【地图页直接上报真实值】（MP.setHP），不再靠轮询 DOM 血条猜测
+ *   2. 新增队伍存活显示：队友阵亡变灰，徽标显示"存活 N/M"
+ *   3. 新增【自由飞行观战】：本地阵亡后仍可移动/转视角，但不能开火
+ *   4. 新增全员阵亡 / 重开的 UI 钩子（结算面板 + 重开）
+ *   5. 队友头像用 playerId 稳定映射，避免 hash(undefined)
+ *
+ * 引入顺序：three.js → keys.js → settings.js → peerjs → p2p.js → mp-bridge.js → zsync.js
+ * ============================================================ */
+window.MP = (() => {
+  'use strict';
+  const q = new URLSearchParams(location.search);
+  const MODE = q.get('mp');                       // host | client | null
+  const CODE = (q.get('room') || '').toUpperCase();
+  const NAME = (q.get('name') || '玩家').slice(0, 8);
+  const ACTIVE = !!(MODE && window.P2P);
+  const state = { active: false, mode: MODE || null, code: CODE, name: NAME, players: 0, alive: 1, total: 1 };
+
+  let scene = null, camera = null;
+  const avatars = new Map();   // id → {group, tgt, scene, hpBar, alive}
+  const tracers = [];
+  const COLORS = [0x4d96ff, 0x16c79a, 0xffd166, 0xc77dff, 0xff8c42, 0x4dd0e1];
+  let hp = 100;
+  let hooked = false;
+  let spectating = false;                         // 本地是否处于观战（自己已阵亡）
+  let hud = null;                                 // 地图页可选注入的 UI 句柄
+
+  /* ---------- 右上角联机徽标 ---------- */
+  function badge(txt, warn) {
+    let el = document.getElementById('mp-badge');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mp-badge';
+      el.style.cssText = 'position:fixed;top:10px;right:12px;z-index:99990;font:600 12px system-ui;'
+        + 'padding:6px 12px;border-radius:20px;background:rgba(10,14,20,.72);color:#9fe8c1;'
+        + 'border:1px solid rgba(46,194,126,.4);pointer-events:none;backdrop-filter:blur(4px)';
+      document.body.appendChild(el);
+    }
+    el.textContent = txt;
+    el.style.color = warn ? '#ffc27a' : '#9fe8c1';
+    el.style.borderColor = warn ? 'rgba(255,194,122,.5)' : 'rgba(46,194,126,.4)';
+  }
+  function updateBadge() {
+    if (!state.active) return;
+    const role = state.mode === 'host' ? '房主' : '玩家';
+    let txt = '🌐 联机 · ' + role + ' · ' + state.code + ' · ' + (state.players + 1) + ' 人';
+    txt += ' · 存活 ' + state.alive + '/' + state.total;
+    if (spectating) txt += ' · 观战中';
+    badge(txt, spectating);
+  }
+
+  /* ---------- 捕获 scene / camera ---------- */
+  const renderers = new Set();
+  function takeEarly() {
+    const arr = window.__mpEarlyRenderers;
+    if (Array.isArray(arr)) { arr.forEach(attachRenderer); window.__mpEarlyRenderers = null; }
+  }
+  function attachRenderer(r) {
+    if (!r || r.__mpAttached || typeof r.render !== 'function') return;
+    r.__mpAttached = true;
+    const orig = r.render;
+    r.render = function (s, c) { if (s && c) { scene = s; camera = c; } return orig.apply(this, arguments); };
+    renderers.add(r);
+  }
+  function hookRenderer() {
+    if (hooked) return;
+    if (!window.THREE || !THREE.WebGLRenderer) { setTimeout(hookRenderer, 60); return; }
+    const W = THREE.WebGLRenderer;
+    if (!W.__mpCtorWrapped) {
+      W.__mpCtorWrapped = true;
+      if (typeof W === 'function' && W.prototype && !W.prototype.__mpCtorPatched) {
+        W.prototype.__mpCtorPatched = true;
+        const RealCtor = W;
+        const ProxyCtor = function () {
+          const inst = new (Function.prototype.bind.apply(RealCtor, [null].concat([].slice.call(arguments))));
+          attachRenderer(inst);
+          return inst;
+        };
+        ProxyCtor.prototype = RealCtor.prototype;
+        Object.setPrototypeOf(ProxyCtor, RealCtor);
+        for (const k of Object.getOwnPropertyNames(RealCtor)) {
+          if (['prototype', 'name', 'length', 'arguments', 'caller'].includes(k)) continue;
+          try { ProxyCtor[k] = RealCtor[k]; } catch (_) {}
+        }
+        THREE.WebGLRenderer = ProxyCtor;
+      }
+    }
+    takeEarly();
+    hooked = true;
+  }
+
+  /* ---------- 工具 ---------- */
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath(); c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);         c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function tagSprite(text) {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+    const c = cv.getContext('2d');
+    c.fillStyle = 'rgba(0,0,0,.55)'; roundRect(c, 4, 6, 248, 52, 14); c.fill();
+    c.fillStyle = '#9fe8c1'; c.font = 'bold 30px system-ui'; c.textAlign = 'center';
+    c.fillText(String(text == null ? '玩家' : text), 128, 44);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true
+    }));
+    sp.scale.set(1.7, 0.42, 1); sp.renderOrder = 999;
+    return sp;
+  }
+  function hpBarSprite() {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 16;
+    const tex = new THREE.CanvasTexture(cv);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    sp.scale.set(1.2, 0.15, 1); sp.renderOrder = 998;
+    sp.userData = { cv, tex };
+    return sp;
+  }
+  function drawHpBar(sp, ratio, alive) {
+    const { cv, tex } = sp.userData;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.fillStyle = 'rgba(0,0,0,.65)'; c.fillRect(0, 0, 128, 16);
+    if (!alive) { c.fillStyle = '#5a6470'; c.fillRect(2, 2, 124, 12); }
+    else {
+      const col = ratio > .5 ? '#2ec27e' : ratio > .25 ? '#ffd166' : '#d62828';
+      c.fillStyle = col; c.fillRect(2, 2, 124 * Math.max(0, Math.min(1, ratio)), 12);
+    }
+    tex.needsUpdate = true;
+  }
+  function hash(s) { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) | 0; return h; }
+  function displayName(name, id) {
+    if (name) return name;
+    const tail = (id == null ? '' : String(id)).slice(-2);
+    return tail ? ('玩家' + tail) : '玩家';
+  }
+  function markAvatar(g) {
+    g.userData.__mpAvatar = true;
+    g.traverse(o => { if (o && o.userData) o.userData.__mpAvatar = true; });
+  }
+
+  function buildAvatar(name, color) {
+    const g = new THREE.Group();
+    const bodyGeo = (typeof THREE.CapsuleGeometry === 'function')
+      ? new THREE.CapsuleGeometry(0.34, 0.95, 4, 10)
+      : new THREE.CylinderGeometry(0.34, 0.34, 1.3, 10);
+    const body = new THREE.Mesh(bodyGeo, new THREE.MeshLambertMaterial({ color }));
+    body.position.y = 0.95;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10),
+                                new THREE.MeshLambertMaterial({ color: 0xe8c9a8 }));
+    head.position.y = 1.72;
+    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.72),
+                               new THREE.MeshLambertMaterial({ color: 0x15181d }));
+    gun.position.set(0.26, 1.4, -0.34);
+    const tag = tagSprite(name); tag.position.y = 2.35;
+    const hpBar = hpBarSprite(); hpBar.position.y = 2.08;
+    g.add(body, head, gun, tag, hpBar);
+    g.userData.hpBar = hpBar;
+    markAvatar(g);
+    return g;
+  }
+
+  /* ---------- 队友同步（含存活/血条） ---------- */
+  function syncAvatars() {
+    if (!scene || !window.P2P || typeof P2P.eachRemote !== 'function') return;
+    const seen = new Set();
+    P2P.eachRemote((s, id) => {
+      if (!s) return;
+      const pid = id != null ? id : s.id;
+      if (pid == null) return;
+      seen.add(pid);
+      const isAlive = s.alive !== false && !(s.hp != null && s.hp <= 0);
+
+      let a = avatars.get(pid);
+      if (!a || a.scene !== scene) {
+        if (a && a.group && a.group.parent) a.group.parent.remove(a.group);
+        const col = COLORS[Math.abs(hash(pid)) % COLORS.length];
+        const g = buildAvatar(displayName(s.name, pid), col);
+        const tx = +s.x || 0, ty = Math.max(0, (+s.y || 1.6) - 1.58), tz = +s.z || 0;
+        g.position.set(tx, ty, tz);
+        if (s.ry != null) g.rotation.y = s.ry;
+        scene.add(g);
+        a = { group: g, scene, tgt: { x: s.x, y: s.y, z: s.z, ry: s.ry || 0 } };
+        avatars.set(pid, a);
+      }
+      a.tgt = { x: s.x, y: s.y, z: s.z, ry: s.ry || 0 };
+      a.alive = isAlive;
+      a.group.visible = true;
+      /* 阵亡的队友：身形置灰、血条清空 */
+      const bar = a.group.userData.hpBar;
+      if (bar) { drawHpBar(bar, isAlive ? (s.hp / 100) : 0, isAlive); bar.visible = true; }
+      a.group.traverse(o => {
+        if (o.isMesh && o.material && o.material.color && !o.userData.__origCol) {
+          o.userData.__origCol = o.material.color.getHex();
+        }
+        if (o.isMesh && o.material && o.material.color) {
+          const orig = o.userData.__origCol;
+          if (!isAlive) o.material.color.setHex(0x555b66);
+          else if (orig != null) o.material.color.setHex(orig);
+        }
+      });
+    });
+    avatars.forEach((a, id) => {
+      if (!seen.has(id) || a.scene !== scene) {
+        if (a.group && a.group.parent) a.group.parent.remove(a.group);
+        avatars.delete(id);
+      }
+    });
+    state.players = avatars.size;
+    updateBadge();
+  }
+
+  function animateAvatars() {
+    avatars.forEach(a => {
+      const g = a.group;
+      if (!g || !a.tgt) return;
+      g.position.x += (a.tgt.x - g.position.x) * 0.25;
+      g.position.y += (Math.max(0, (a.tgt.y || 1.6) - 1.58) - g.position.y) * 0.25;
+      g.position.z += (a.tgt.z - g.position.z) * 0.25;
+      let d = (a.tgt.ry || 0) - g.rotation.y;
+      while (d >  Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      g.rotation.y += d * 0.3;
+    });
+  }
+
+  function spawnTracer(x, y, z, ry) {
+    if (!scene) return;
+    const dir = new THREE.Vector3(-Math.sin(ry), 0, -Math.cos(ry)).multiplyScalar(28);
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, y - 0.12, z),
+      new THREE.Vector3(x + dir.x, y - 0.12, z + dir.z)
+    ]);
+    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
+      color: 0xffd166, transparent: true, opacity: 0.9
+    }));
+    scene.add(line);
+    tracers.push({ line, life: 1, scene });
+  }
+
+  /* ---------- 队伍存活统计 ---------- */
+  function refreshTeamRoster() {
+    if (!window.P2P) return;
+    try {
+      const r = P2P.roster ? P2P.roster() : null;
+      if (r && r.length) {
+        state.total = r.length;
+        state.alive = r.filter(p => p.alive !== false).length;
+      } else {
+        state.total = P2P.totalCount ? P2P.totalCount() : 1;
+        state.alive = P2P.aliveCount ? P2P.aliveCount() : 1;
+      }
+    } catch (_) {}
+    updateBadge();
+  }
+
+  /* ---------- 观战：自由飞行 ---------- */
+  /* 本地阵亡后不冻结相机。地图页只需在 updatePlayer 里判断 MP.spectating()，
+     跳过碰撞/受击/开火即可；这里仅维护标志与提示。 */
+  function enterSpectate() {
+    if (spectating) return;
+    spectating = true;
+    state.active && updateBadge();
+    showSpectateHint();
+    if (hud && typeof hud.onSpectate === 'function') { try { hud.onSpectate(); } catch (_) {} }
+  }
+  function exitSpectate() {
+    if (!spectating) return;
+    spectating = false;
+    hideSpectateHint();
+    updateBadge();
+    if (hud && typeof hud.onRespawn === 'function') { try { hud.onRespawn(); } catch (_) {} }
+  }
+
+  function showSpectateHint() {
+    let el = document.getElementById('mp-spectate');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mp-spectate';
+      el.style.cssText = 'position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:99991;'
+        + 'font:700 15px system-ui;padding:10px 22px;border-radius:999px;'
+        + 'background:rgba(20,10,10,.82);color:#ffb3b3;border:1px solid rgba(255,90,90,.45);'
+        + 'pointer-events:none;letter-spacing:1px';
+      document.body.appendChild(el);
+    }
+    el.textContent = '观战中 · 等待队友 · 剩余 ' + Math.max(0, state.alive - 0) + ' 人存活';
+    el.style.display = '';
+  }
+  function hideSpectateHint() {
+    const el = document.getElementById('mp-spectate');
+    if (el) el.style.display = 'none';
+  }
+  function updateSpectateHint() {
+    const el = document.getElementById('mp-spectate');
+    if (el && spectating) el.textContent = '观战中 · 剩余 ' + state.alive + ' 人存活 · 全员阵亡后重开';
+  }
+
+  /* ---------- 心跳 ---------- */
+  function heartbeat() {
+    if (state.active) {
+      try {
+        if (camera) {
+          const p = camera.position, e = camera.rotation;
+          P2P.setLocal({
+            x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2),
+            ry: +e.y.toFixed(2), hp, alive: !spectating, name: state.name, source: 'camera'
+          });
+        }
+        syncAvatars();
+        animateAvatars();
+        for (let i = tracers.length - 1; i >= 0; i--) {
+          const t = tracers[i];
+          t.life -= 0.08;
+          t.line.material.opacity = t.life;
+          if (t.life <= 0) { if (t.line.parent) t.line.parent.remove(t.line); tracers.splice(i, 1); }
+        }
+      } catch (err) {
+        if (!heartbeat.__err) { heartbeat.__err = true; console.error('[MP] heartbeat error:', err); }
+      }
+    }
+    requestAnimationFrame(heartbeat);
+  }
+
+  /* ---------- 启动 ---------- */
+  async function boot() {
+    hookRenderer();
+    requestAnimationFrame(heartbeat);
+    if (!MODE || !CODE) return;
+    if (!window.P2P) { badge('❌ 联机模块未加载', true); return; }
+    badge(MODE === 'host' ? '联机 · 房主建立对局中…' : '联机 · 连接房间 ' + CODE + '…');
+    try { await P2P.enterGame({ code: CODE, isHost: MODE === 'host', name: NAME }); state.active = true; }
+    catch (e) { badge('❌ 联机失败: ' + (e.type || e.message || e), true); return; }
+
+    P2P.on('shot', d => { if (d && d.s) spawnTracer(d.s.x, d.s.y || 1.6, d.s.z, d.s.ry || 0); });
+    P2P.on('host-lost', () => badge('⚠ 与房主断线', true));
+
+    /* 丧尸快照 / 全局状态 / 命中结算 → 桥接到地图页钩子 */
+    P2P.on('zombies',    snap => { refreshTeamRoster(); if (window.__zombieSync) try { window.__zombieSync(snap); } catch (_) {} });
+    P2P.on('game-state', s    => { if (window.__gameSync)  try { window.__gameSync(s);    } catch (_) {} });
+    P2P.on('hit-zombie', d    => { if (window.__hitZombie) try { window.__hitZombie(d);    } catch (_) {} });
+
+    /* 队伍名册（存活状态） */
+    P2P.on('players', r => {
+      state.total = (r && r.length) || state.total;
+      state.alive = r ? r.filter(p => p.alive !== false).length : state.alive;
+      updateBadge(); updateSpectateHint();
+    });
+
+    /* 本地阵亡 → 观战 */
+    P2P.on('local-dead', () => { enterSpectate(); refreshTeamRoster(); });
+
+    /* 全员阵亡 → 结算 */
+    P2P.on('all-dead', () => {
+      showAllDead();
+      if (hud && typeof hud.onAllDead === 'function') { try { hud.onAllDead(); } catch (_) {} }
+    });
+
+    /* 统一重开 */
+    P2P.on('restart', d => {
+      hideAllDead();
+      exitSpectate();
+      if (window.__clearAllZombies) try { window.__clearAllZombies(); } catch (_) {}
+      if (window.resetMatch) try { window.resetMatch(d); } catch (_) {}
+      if (hud && typeof hud.onRestart === 'function') { try { hud.onRestart(d); } catch (_) {} }
+      refreshTeamRoster();
+    });
+
+    refreshTeamRoster();
+    updateBadge();
+  }
+
+  function showAllDead() {
+    let el = document.getElementById('mp-alldead');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mp-alldead';
+      el.style.cssText = 'position:fixed;inset:0;z-index:99995;display:flex;align-items:center;'
+        + 'justify-content:center;background:rgba(8,6,8,.82);backdrop-filter:blur(3px)';
+      el.innerHTML = '<div style="text-align:center;font:700 22px system-ui;color:#ff8f8f;letter-spacing:2px">'
+        + '<div style="font-size:40px;margin-bottom:10px">全员阵亡</div>'
+        + '<div id="mp-alldead-sub" style="font-size:14px;color:#c9b3b3;font-weight:500;margin-bottom:18px"></div>'
+        + '<div style="font-size:13px;color:#8a93a3;font-weight:500">正在重新开局…</div></div>';
+      document.body.appendChild(el);
+    }
+    el.style.display = 'flex';
+  }
+  function hideAllDead() {
+    const el = document.getElementById('mp-alldead');
+    if (el) el.style.display = 'none';
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+
+  return {
+    setHP: v => { hp = v; },                        // 地图页在真实 HP 变化时调用
+    getHP: () => hp,
+    setHud: h => { hud = h || null; },              // 地图页注入 UI 句柄
+    spectating: () => spectating,
+    reportDeath: () => { if (window.P2P) P2P.reportDeath(); },
+    state,
+    _debug: () => ({
+      scene: !!scene, camera: !!camera, avatars: avatars.size, players: state.players,
+      spectating, alive: state.alive, total: state.total,
+      sceneRef: scene, cameraRef: camera,
+      avatarList: Array.from(avatars.entries()).map(([id, a]) => ({
+        id, alive: a.alive !== false,
+        pos: a.group ? [a.group.position.x, a.group.position.y, a.group.position.z] : null
+      }))
+    })
+  };
+})();
+
+</script>
+<script>
+/* 内联自 zsync.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * zsync.js v2 — 丧尸同步桥（地图页 ↔ P2P 层）
+ *
+ * 相对 v1 的关键修复：
+ *   1. 用【稳定 id】对齐，不再用数组下标 —— 这是"数量不同步"的根因
+ *   2. 快照带 type / boss / dead / sca，客户端可完整重建丧尸
+ *   3. 修正 v1 的 parent 判定错误
+ *      （v1 用 z.parent，但 map1 的丧尸挂在 zombieRoot 组下、组本身也挂在
+ *       scene 下，导致"仍在场景中"的判断失效）
+ *   4. 唯一实现：不再与 mp-hooks.js 的同名 __zombieSync 冲突
+ *   5. 新增：全员阵亡重开（restart）时清空本地丧尸
+ *
+ * 地图页需要提供的钩子（map1/map2 已内置）：
+ *   window.__zombieSpawn({id,type,boss,x,y,z,sca}) → 返回新建的 Group
+ *   window.__zombieRemove(grp)                     → 立即移除一只（可选，兜底用）
+ *   window.__onZombieKilled(grp)                   → 房主侧播放死亡流程
+ *   window.__waveSet(w) / window.__killsSet(k)
+ *   window.resetMatch()                            → 全员阵亡后统一重开
+ * ============================================================ */
+window.ZS = (() => {
+  'use strict';
+  const q = new URLSearchParams(location.search);
+  const MODE = q.get('mp');                       // host | client | null
+  const active = !!(MODE && window.P2P);
+  const IS_CLIENT = MODE === 'client';
+
+  /* ---------- 丧尸登记表：id → { grp, ref } ---------- */
+  const byId = new Map();
+
+  /* 供地图页在创建/移除丧尸时登记，保证 id 稳定 */
+  function register(grp, id) {
+    if (!grp) return null;
+    if (!grp.userData.__zid) grp.userData.__zid = id || ('z' + Math.random().toString(36).slice(2, 9));
+    byId.set(grp.userData.__zid, { grp, ref: grp.userData.__zRef || null });
+    return grp.userData.__zid;
+  }
+  function unregister(grp) {
+    if (!grp || !grp.userData) return;
+    const id = grp.userData.__zid;
+    if (id) byId.delete(id);
+  }
+  function idOf(grp) { return grp && grp.userData ? grp.userData.__zid : null; }
+
+  /* ---------- 房主：序列化器 ---------- */
+  function initHost() {
+    if (!active || MODE !== 'host') return;
+    const waitZombies = () => {
+      if (P2P.inGame() && window.__zombies) {
+        P2P.hostZombies(() => ({
+          list: window.__zombies
+            .filter(g => g && (g.parent || byId.has(idOf(g))))   // ★ 修正：不再只看 parent
+            .map(g => {
+              const zid = register(g);                            // 保证 id 存在
+              const u = g.userData || {};
+              const p = g.position;
+              return {
+                id: zid,
+                type: u.zType || (u.boss ? 'boss' : 'normal'),
+                boss: !!u.boss,
+                x: +p.x.toFixed(1), y: +p.y.toFixed(1), z: +p.z.toFixed(1),
+                ry: +(g.rotation.y || 0).toFixed(2),
+                sca: +(g.scale.x || 1).toFixed(2),
+                hp: u.hp != null ? u.hp : 100,
+                dead: !!(u.__zRef && u.__zRef.dead) || u.__deadSync === true
+              };
+            })
+        }));
+        P2P.hostGameState(() => ({
+          w: window.__wave  != null ? window.__wave  : 1,
+          k: window.__kills != null ? window.__kills : 0
+        }));
+      } else setTimeout(waitZombies, 200);
+    };
+    waitZombies();
+  }
+
+  /* ---------- 房主：接收客户端命中上报（按稳定 id 查表） ---------- */
+  window.__hitZombie = (d) => {
+    if (MODE !== 'host' || !d || !window.__zombies) return;
+    const rec = byId.get(d.i);
+    const grp = rec && rec.grp;
+    const z = (grp && (grp.userData.__zRef || (rec && rec.ref))) || null;
+    if (!grp || !z || z.dead) return;                  // 已死亡/已移除
+    /* 优先调用地图自身的伤害函数（map1: killZombie / map2: damageZombie） */
+    if (typeof window.__applyZombieDamage === 'function') {
+      try { window.__applyZombieDamage(grp, d.dmg || 0); return; } catch (_) {}
+    }
+    z.hp -= (d.dmg || 0);
+    if (z.hp <= 0) {
+      if (typeof window.__onZombieKilled === 'function') {
+        try { window.__onZombieKilled(grp); } catch (_) {}
+      }
+    }
+  };
+
+  /* ---------- 客户端：应用快照（按 id 对齐 / 增 / 删 / 重建） ---------- */
+  let localSpawningOff = false;
+  let lastSnapshotHtml = '';                       // 预留调试
+
+  window.__zombieSync = (snap) => {
+    if (!IS_CLIENT || !snap || !snap.list) return;
+    if (!window.__zombies) window.__zombies = [];
+
+    /* 首次收到快照 → 关闭本地刷怪（客户端只认房主权威） */
+    if (!localSpawningOff) {
+      localSpawningOff = true;
+      if (typeof window.__stopSpawning === 'function') try { window.__stopSpawning(); } catch (_) {}
+    }
+
+    const list = snap.list;
+    const seen = new Set();
+
+    /* ① 新增 / 更新 */
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i];
+      if (!s || !s.id) continue;
+      seen.add(s.id);
+      let rec = byId.get(s.id);
+
+      /* 本地没有 → 按类型新建（由地图页工厂负责） */
+      if (!rec || !rec.grp || !rec.grp.parent) {
+        if (typeof window.__zombieSpawn === 'function') {
+          const g = window.__zombieSpawn(s);
+          if (g) {
+            g.userData.__zid = s.id;
+            g.userData.isZombie = true;
+            g.userData.zType = s.type;
+            g.userData.boss = !!s.boss;
+            g.userData.hp = s.hp;
+            rec = { grp: g, ref: g.userData.__zRef || null };
+            byId.set(s.id, rec);
+            if (window.__zombies.indexOf(g) < 0) window.__zombies.push(g);
+          } else {
+            continue;                              // 工厂失败 → 跳过本次，下帧再补
+          }
+        } else {
+          continue;
+        }
+      }
+
+      const g = rec.grp;
+      /* ② 目标位姿（rAF 循环里插值过去） */
+      g.userData.tgt = { x: s.x, y: s.y, z: s.z, ry: s.ry || 0 };
+      g.userData.hp = s.hp;
+
+      /* ③ 房主已判死 → 客户端立刻走死亡流程 */
+      if (s.dead || s.hp <= 0) {
+        if (!g.userData.__deadSync) {
+          g.userData.__deadSync = true;
+          if (typeof window.__onZombieKilled === 'function') {
+            try { window.__onZombieKilled(g); } catch (_) {}
+          } else if (g.parent) {
+            g.parent.remove(g);
+          }
+        }
+      }
+    }
+
+    /* ④ 房主没有、本地还有 → 移除 */
+    for (const [id, rec] of Array.from(byId.entries())) {
+      if (seen.has(id)) continue;
+      const g = rec.grp;
+      if (g && g.parent) g.parent.remove(g);
+      byId.delete(id);
+      const ix = window.__zombies.indexOf(g);
+      if (ix >= 0) window.__zombies.splice(ix, 1);
+    }
+    /* 兜底：清掉已脱离场景的登记项 */
+    for (const [id, rec] of Array.from(byId.entries())) {
+      const g = rec.grp;
+      if (!g || !g.parent) {
+        byId.delete(id);
+        const ix = window.__zombies.indexOf(g);
+        if (ix >= 0) window.__zombies.splice(ix, 1);
+      }
+    }
+  };
+
+  /* ---------- 客户端：全局状态（波次/击杀） ---------- */
+  window.__gameSync = (s) => {
+    if (!IS_CLIENT || !s) return;
+    if (s.w != null && typeof window.__waveSet  === 'function') try { window.__waveSet(s.w);  } catch (_) {}
+    if (s.k != null && typeof window.__killsSet === 'function') try { window.__killsSet(s.k); } catch (_) {}
+  };
+
+  /* ---------- 全员阵亡重开：清空本地丧尸 ---------- */
+  window.__clearAllZombies = () => {
+    for (const [, rec] of byId.entries()) {
+      const g = rec.grp;
+      if (g && g.parent) g.parent.remove(g);
+    }
+    byId.clear();
+    if (window.__zombies) window.__zombies.length = 0;
+    localSpawningOff = false;
+  };
+
+  /* ---------- 每帧：客户端对丧尸做位置插值（幂等，若地图自带插值可忽略） ---------- */
+  function tick() {
+    if (IS_CLIENT && window.__zombies) {
+      for (const g of window.__zombies) {
+        const t = g && g.userData && g.userData.tgt;
+        if (!t) continue;
+        g.position.x += (t.x - g.position.x) * 0.25;
+        g.position.y += (t.y - g.position.y) * 0.25;
+        g.position.z += (t.z - g.position.z) * 0.25;
+        let d = (t.ry || 0) - (g.rotation.y || 0);
+        while (d >  Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        g.rotation.y += d * 0.3;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  initHost();
+
+  return {
+    isHost:  () => MODE === 'host',
+    isClient:() => IS_CLIENT,
+    active:  () => active,
+    register, unregister, idOf, byId
+  };
+})();
+
+</script>
+<script>
+/* ★ 应用 index 设置页的统一配置 */
+try{
+ Settings.apply({
+   setFps:(on)=>{ const f=document.getElementById('fps'); if(f) f.style.display = on?'':'none'; }
+ });
+}catch(e){}
+/* ★ 应用 index 设置页的触屏按钮自定义位置 */
+try{ if(window.TouchUI){ TouchUI.apply(document); TouchUI.watch(document); } }catch(e){}
+/* ★ 标记启动完成：仅在全程无启动期错误时才置位，避免后续错误被吞 */
+if (!window.__bootErrors || !window.__bootErrors.length) window.__bootOk = true;
+</script>
 </body>
 </html>

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>生化 · 校园突围</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="keys.js"></script>
+<script src="settings.js"></script>
+<script src="touch-ui.js"></script>
 <script src="p2p.js"></script>
 <style>
 :root{--red:#e94560;--grn:#2ec27e;--tx:#e8ecf1;--mut:#8a93a3;--ln:#263650}
@@ -56,6 +59,25 @@ input:focus,select:focus{outline:none;border-color:var(--grn)}
 .setrow{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 0;
  border-bottom:1px solid #1a2434;font-size:14px}
 .setrow select,.setrow input[type=range]{max-width:190px}
+/* ---------- 触屏按钮布局预览 ---------- */
+#tui-preview-wrap{margin-top:6px}
+#tui-preview{position:relative;width:100%;max-width:420px;margin:0 auto;aspect-ratio:16/10;
+ background:linear-gradient(160deg,#101a28,#0a1119);border:1px solid #1d2839;border-radius:14px;
+ overflow:hidden;touch-action:none;user-select:none}
+.tui-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+ color:#3d4c60;font-size:12px;letter-spacing:.14em;pointer-events:none}
+.tui-b{position:absolute;display:flex;justify-content:center;align-items:center;
+ border-radius:50%;color:#fff;font-size:11px;letter-spacing:.06em;line-height:1;
+ background:rgba(20,28,40,.85);border:1.5px solid rgba(180,200,220,.5);
+ cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;
+ box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.tui-b.fire{background:radial-gradient(circle at 35% 30%,rgba(214,69,51,.85),rgba(140,26,20,.9));
+ border-color:rgba(255,130,110,.8);color:#ffe0b0;font-weight:800}
+.tui-b:active,.tui-b.dragging{cursor:grabbing;border-color:#6fb7ff;box-shadow:0 0 0 3px rgba(111,183,255,.35)}
+.tui-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;font-size:12px;color:var(--mut)}
+.tui-legend span{display:inline-flex;align-items:center;gap:5px}
+.tui-legend i{width:10px;height:10px;border-radius:50%;background:#4a5a70;display:inline-block}
+.tui-legend i.fire{background:#d64533}
 .cre{display:grid;gap:10px;margin-top:10px}
 .cre div{background:#0f1520;border:1px solid #1d2839;border-radius:10px;padding:10px 14px;font-size:13px;color:var(--mut)}
 .cre b{display:block;color:var(--tx);margin-bottom:2px;letter-spacing:1px}
@@ -132,7 +154,26 @@ input:focus,select:focus{outline:none;border-color:var(--grn)}
     <div class="setrow"><span>音量 <b id="v-vol"></b></span><input type="range" id="s-vol" min="0" max="100" step="5"></div>
     <div class="setrow"><span>湿地实时反射</span><input type="checkbox" id="s-refl"></div>
     <div class="setrow"><span>显示 FPS</span><input type="checkbox" id="s-fps"></div>
-    <div class="sub" style="margin-top:12px">保存在本机浏览器，进入游戏自动生效。卡顿时切「低」或在局内右上角关闭反射。</div>
+
+    <h3 style="margin-top:22px">键位调整
+      <button class="btn" id="b-keys-reset" style="float:right;padding:5px 12px;font-size:12px">恢复默认</button>
+    </h3>
+    <div class="sub" style="margin-bottom:8px">点击右侧按键框后，按下新键即可绑定（三张地图通用）。</div>
+    <div id="key-list"></div>
+
+    <h3 style="margin-top:22px">触屏按钮布局
+      <button class="btn" id="b-tui-reset" style="float:right;padding:5px 12px;font-size:12px">恢复默认</button>
+    </h3>
+    <div class="sub" style="margin-bottom:8px">按住下方手机预览里的按钮拖动即可调整位置（三张地图通用）。手机横屏也适用。</div>
+    <div id="tui-preview-wrap">
+      <div id="tui-preview">
+        <div class="tui-hint">拖动按钮调整位置</div>
+        <!-- 6 个按钮由 touch-ui.js 生成，此处仅占位 -->
+      </div>
+    </div>
+    <div class="tui-legend" id="tui-legend"></div>
+
+    <div class="sub" style="margin-top:14px">全部设置保存在本机浏览器，进入游戏自动生效。卡顿时切「低」或在局内右上角关闭反射。</div>
   </section>
 
   <!-- ===== 制作人员 ===== -->
@@ -228,7 +269,7 @@ const mst2 = t => $('#mp-status2').textContent = t;
 $('#b-host').onclick = async () => {
   const n = nameI.value.trim() || '房主'; localStorage.setItem('p2p_name', n);
   mst('正在创建房间…');
-  try { const c = await P2P.hostLobby(n); enterLobby(c, true); mst2('把房间码发给好友，等 TA 加入'); }
+  try { const c = await P2P.hostLobby(n); enterLobby(c, true); mst2('把房间码发给好友，等 TA 加入\n注：请不要好友还没进房间就点开始游戏，否则好友会连接不上的；此房间中成员可能会因房主的切后台而断连。'); }
   catch(e){ mst('❌ 创建失败：' + (e.type || e.message || e)); }
 };
 $('#b-join').onclick = async () => {
@@ -285,9 +326,130 @@ ss.oninput  = () => { cfg.sens = +ss.value; save(); syncL(); };
 sv.oninput  = () => { cfg.vol = +sv.value; save(); syncL(); };
 sr.onchange = () => { cfg.refl = sr.checked; save(); };
 sf.onchange = () => { cfg.fps = sf.checked; save(); };
+
+/* ---------- 键位调整 ---------- */
+(function initKeys(){
+  const box = $('#key-list'); if (!box || !window.Keys) return;
+  let listening = null;
+
+  function render(){
+    box.innerHTML = '';
+    Keys.ACTIONS.forEach(a => {
+      const row = document.createElement('div');
+      row.className = 'setrow';
+      const label = document.createElement('span');
+      label.textContent = a.label + (a.group ? ' · ' + a.group : '');
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.style.minWidth = '130px';
+      btn.textContent = Keys.pretty(Keys.code(a.key));
+      btn.onclick = () => {
+        listening = a.key;
+        btn.textContent = '按下新键…';
+        btn.style.borderColor = 'var(--red)';
+      };
+      row.appendChild(label); row.appendChild(btn);
+      box.appendChild(row);
+    });
+  }
+
+  window.addEventListener('keydown', e => {
+    if (!listening) return;
+    e.preventDefault(); e.stopPropagation();
+    const action = listening; listening = null;
+    if (e.code === 'Escape') { render(); return; }
+    /* 冲突处理：若该键已被其它动作占用，先解绑对方 */
+    const names = Keys.conflicts(action, e.code);
+    if (names.length) {
+      if (!confirm('该键已用于「' + names.join('、') + '」，是否覆盖？')) { render(); return; }
+      Keys.ACTIONS.forEach(x => {
+        if (names.indexOf(x.label) >= 0) Keys.resetOne(x.key);
+      });
+    }
+    Keys.set(action, e.code);
+    render();
+  }, true);
+
+  $('#b-keys-reset').onclick = () => { Keys.resetAll(); render(); };
+  render();
+})();
+
+/* ---------- 触屏按钮布局：可视化拖拽 ---------- */
+(function initTouchUI(){
+  const box = document.getElementById('tui-preview');
+  const legend = document.getElementById('tui-legend');
+  if (!box || !window.TouchUI) return;
+
+  const SZ = { normal: 46, fire: 62 };   // 预览里的显示尺寸（不随真机变化）
+
+  function build(){
+    box.querySelectorAll('.tui-b').forEach(n => n.remove());
+    TouchUI.ACTIONS.forEach(a => {
+      const el = document.createElement('div');
+      el.className = 'tui-b' + (a.kind === 'fire' ? ' fire' : '');
+      el.dataset.action = a.action;
+      el.dataset.tbtn = a.action;
+      el.textContent = a.label;
+      const sz = a.kind === 'fire' ? SZ.fire : SZ.normal;
+      el.style.width = sz + 'px'; el.style.height = sz + 'px';
+      box.appendChild(el);
+    });
+    legend.innerHTML = TouchUI.ACTIONS.map(a =>
+      '<span><i class="' + (a.kind === 'fire' ? 'fire' : '') + '"></i>' + a.label + '</span>').join('');
+    layout();
+  }
+
+  function layout(){
+    const r = box.getBoundingClientRect();
+    TouchUI.ACTIONS.forEach(a => {
+      const el = box.querySelector('[data-action="' + a.action + '"]');
+      if (!el) return;
+      const p = TouchUI.get(a.action);
+      el.style.left = p.x + '%';
+      el.style.top  = p.y + '%';
+      el.style.transform = 'translate(-50%,-50%)';
+    });
+  }
+
+  /* 拖拽：用 pointer 事件，兼容鼠标与触屏 */
+  let dragging = null;
+  box.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.tui-b');
+    if (!el) return;
+    e.preventDefault();
+    dragging = el;
+    el.classList.add('dragging');
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  box.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    const r = box.getBoundingClientRect();
+    let x = (e.clientX - r.left) / r.width * 100;
+    let y = (e.clientY - r.top) / r.height * 100;
+    x = Math.max(4, Math.min(96, x));
+    y = Math.max(6, Math.min(94, y));
+    TouchUI.set(dragging.dataset.action, x, y);
+    dragging.style.left = x + '%';
+    dragging.style.top  = y + '%';
+  });
+  function endDrag(e){
+    if (!dragging) return;
+    dragging.classList.remove('dragging');
+    try { dragging.releasePointerCapture(e.pointerId); } catch (_) {}
+    dragging = null;
+  }
+  box.addEventListener('pointerup', endDrag);
+  box.addEventListener('pointercancel', endDrag);
+
+  const rb = document.getElementById('b-tui-reset');
+  if (rb) rb.onclick = () => { TouchUI.resetAll(); layout(); };
+
+  build();
+  window.addEventListener('resize', layout);
+})();
 </script>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script src="p2p.js"></script>
-<script src="mp-bridge.js"></script>
+<!-- ★ 修复：此处原先重复引入了 peerjs 与 p2p.js（head 中已引入），
+     导致 "Identifier 'P2P' has already been declared" 抛错并使后续脚本中断 -->
 </body>
 </html>

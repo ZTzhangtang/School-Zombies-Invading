@@ -1,10 +1,14 @@
 /* ============================================================
- * p2p.js v3 — 生化·校园突围 联机核心（完整版）
- * 新增：
- *   1. 丧尸快照广播 zb（房主 → 全员，10Hz，节省带宽）
- *   2. 客户端命中上报 hs → 房主结算，下一帧快照广播回全体
- *   3. 全局状态 gs（波次/击杀）广播，客户端 HUD 对齐
- *   4. 玩家 HP 已随 ps 通道同步（v2 已有，此版保持）
+ * p2p.js v4 — 生化·校园突围 联机核心
+ *
+ * 相对 v3 的关键修复：
+ *   1. 丧尸快照带稳定 id + 类型 + boss + dead 标记（不再用数组下标）
+ *   2. 命中改按【丧尸稳定 id】上报结算，房主查表 → 不再打错目标
+ *   3. 新增团队生命协议：dead / aliveMap / all-dead / restart
+ *      · 单人阵亡 → 观战，不弹本机结算
+ *      · 全员阵亡 → 房主广播 all-dead，统一定时 restart
+ *   4. 玩家快照 ps 附带 alive，全员可见队友存活状态
+ *
  * 依赖: peerjs 1.5.x（必须先于本文件引入）
  * ============================================================ */
 const P2P = (() => {
@@ -13,15 +17,21 @@ const P2P = (() => {
   const TICK_MS   = 1000 / 20;  // 玩家状态 20Hz
   const ZB_EVERY  = 2;          // 每 2 个 tick 广播一次丧尸 → 10Hz
   const GS_EVERY  = 40;         // 全局状态（波次/击杀）每 40 tick → 0.5Hz
-  const CODE_RE = /^[A-Z0-9]{6}$/;
+  const CODE_RE   = /^[A-Z0-9]{6}$/;
+  const RESTART_DELAY = 3000;   // 全员阵亡 → 结算显示 3 秒后统一重开
 
   let phase = 'off'; // off | lobby | game
   let peer = null, hostConn = null;
   let isHost = false, code = '', myName = '玩家', myId = null;
 
-  const conns = new Map();      // 房主: peerId → {conn,name,hp}
+  const conns = new Map();      // 房主: peerId → {conn,name,hp,alive}
   const remotes = new Map();    // peerId → 快照(渲染用)
   let local = null, timer = null, zbGet = null, gsGet = null, tickN = 0;
+
+  /* ---- 团队生命（房主权威）---- */
+  let localAlive = true;        // 自己是否存活
+  let matchOver  = false;       // 本局是否已进入"全员阵亡"流程
+  let restartAt  = 0;           // 房主计划重开的时间戳
 
   const handlers = {};
   const on   = (e, f) => (handlers[e] = handlers[e] || []).push(f);
@@ -70,7 +80,7 @@ const P2P = (() => {
     peer = await makePeer('zv' + code + 'L');
     peer.on('connection', conn => {
       conn.on('open', () => {
-        conns.set(conn.peer, { conn, id: conn.peer, name: null, hp: 100 });
+        conns.set(conn.peer, { conn, id: conn.peer, name: null, hp: 100, alive: true });
         conn.send({ t: 'lobby', code, players: lobbyRoster() });
         bcast({ t: 'lobby', code, players: lobbyRoster() }, conn.peer);
         emit('players', lobbyRoster());
@@ -119,17 +129,42 @@ const P2P = (() => {
   }
 
   /* ---------------- 对局 ---------------- */
+  /* 队伍名册：含存活标记 */
   const gameRoster = () => {
-    const r = [{ id: myId, name: myName, isHost: true, hp: local ? local.hp : 100 }];
-    conns.forEach(c => r.push({ id: c.id, name: c.name || '…', isHost: false, hp: c.hp == null ? 100 : c.hp }));
+    const r = [{
+      id: myId, name: myName, isHost: true,
+      hp: local ? local.hp : 100, alive: localAlive
+    }];
+    conns.forEach(c => r.push({
+      id: c.id, name: c.name || '…', isHost: false,
+      hp: c.hp == null ? 100 : c.hp, alive: c.alive !== false
+    }));
     return r;
   };
+  const aliveCount = () => {
+    let n = localAlive ? 1 : 0;
+    conns.forEach(c => { if (c.alive !== false) n++; });
+    return n;
+  };
+  const totalCount = () => 1 + conns.size;
+
+  /* 房主：检查是否全员阵亡 */
+  function checkAllDead() {
+    if (!isHost || phase !== 'game' || matchOver) return;
+    if (aliveCount() > 0) return;
+    matchOver = true;
+    restartAt = performance.now() + RESTART_DELAY;
+    emit('all-dead', { wave: null });
+    bcast({ t: 'all-dead' });
+  }
+
   async function enterGame(o) {
     if (phase !== 'off') await shutdown();
     phase = 'game';
     isHost = !!o.isHost;
     code = (o.code || '').toUpperCase();
     myName = (o.name || '玩家').slice(0, 8);
+    localAlive = true; matchOver = false; restartAt = 0;
     if (isHost) {
       let ok = false;
       for (let i = 0; i < 6 && !ok; i++) {
@@ -138,8 +173,9 @@ const P2P = (() => {
       }
       peer.on('connection', conn => {
         conn.on('open', () => {
-          conns.set(conn.peer, { conn, id: conn.peer, name: '…', hp: 100 });
+          conns.set(conn.peer, { conn, id: conn.peer, name: '…', hp: 100, alive: true });
           conn.send({ t: 'you', id: conn.peer });
+          conn.send({ t: 'team', roster: gameRoster() });
           emit('players', gameRoster());
         });
         conn.on('data', d => hostRecv(conn, d));
@@ -148,6 +184,7 @@ const P2P = (() => {
           remotes.delete(conn.peer);
           bcast({ t: 'left', id: conn.peer });
           emit('players', gameRoster());
+          checkAllDead();
         });
       });
     } else {
@@ -192,8 +229,23 @@ const P2P = (() => {
         emit('shot', { id: conn.peer, s: d.s });
         break;
       case 'hs':
-        // 客户端命中丧尸 → 房主结算；结算结果随下一帧 zb 快照广播给全员
+        // 客户端命中丧尸（按稳定 id）→ 房主结算；结果随下一帧 zb 快照广播给全员
         emit('hit-zombie', d);
+        break;
+      case 'dead': {
+        const c = conns.get(conn.peer);
+        if (c && c.alive !== false) {
+          c.alive = false;
+          emit('players', gameRoster());
+          /* 立刻通知其他客户端刷新存活显示 */
+          bcast({ t: 'team', roster: gameRoster() }, conn.peer);
+          checkAllDead();
+        }
+        break;
+      }
+      case 'client-restart-req':
+        // 客户端在全员阵亡后请求重开（兜底，正常由房主定时广播）
+        if (matchOver) doRestart();
         break;
     }
   }
@@ -204,8 +256,17 @@ const P2P = (() => {
       case 'ps': remotes.set(d.id, Object.assign({}, d.s, { id: d.id, t: performance.now() })); break;
       case 'left': remotes.delete(d.id); break;
       case 'shot': emit('shot', d); break;
-      case 'zb': emit('zombies', d.z); break;          // ✅ 已激活
-      case 'gs': emit('game-state', d.s); break;       // ✅ 已激活
+      case 'zb': emit('zombies', d.z); break;
+      case 'gs': emit('game-state', d.s); break;
+      case 'team': emit('players', d.roster); break;
+      case 'all-dead':
+        matchOver = true;
+        emit('all-dead', {});
+        break;
+      case 'restart':
+        matchOver = false; localAlive = true;
+        emit('restart', d);
+        break;
     }
   }
 
@@ -213,7 +274,7 @@ const P2P = (() => {
     if (phase !== 'game') return;
     tickN++;
     if (isHost) {
-      if (local) bcast({ t: 'ps', id: myId, s: local });
+      if (local) bcast({ t: 'ps', id: myId, s: Object.assign({}, local, { alive: localAlive }) });
       if (zbGet && tickN % ZB_EVERY === 0) {
         const z = zbGet();
         if (z && z.list) bcast({ t: 'zb', z });
@@ -222,9 +283,33 @@ const P2P = (() => {
         const s = gsGet();
         if (s) bcast({ t: 'gs', s });
       }
+      /* 全员阵亡 → 定时统一重开 */
+      if (matchOver && restartAt && performance.now() >= restartAt) doRestart();
     } else if (local) {
-      toHost({ t: 'ps', s: local });
+      toHost({ t: 'ps', s: Object.assign({}, local, { alive: localAlive }) });
     }
+  }
+
+  /* 房主：执行统一重开并广播 */
+  function doRestart() {
+    if (!isHost || !matchOver) return;
+    matchOver = false; restartAt = 0;
+    localAlive = true;
+    conns.forEach(c => { c.alive = true; c.hp = 100; });
+    const seed = (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
+    const msg = { t: 'restart', seed };
+    bcast(msg);
+    emit('restart', msg);
+    emit('players', gameRoster());
+  }
+
+  /* 本地阵亡：上报 + 更新存活 */
+  function reportDeath() {
+    if (!localAlive) return;
+    localAlive = false;
+    if (!isHost) toHost({ t: 'dead' });
+    else checkAllDead();
+    emit('local-dead', {});
   }
 
   async function shutdown() {
@@ -235,6 +320,7 @@ const P2P = (() => {
     try { hostConn && hostConn.close(); } catch (_) {}
     hostConn = null;
     remotes.clear(); local = null; zbGet = null; gsGet = null;
+    localAlive = true; matchOver = false; restartAt = 0;
     try { peer && peer.destroy(); } catch (_) {}
     peer = null;
   }
@@ -246,10 +332,22 @@ const P2P = (() => {
     setLocal: s => { local = s; },
     eachRemote: fn => remotes.forEach(fn),
     remoteCount: () => remotes.size,
+
+    /* 命中：按丧尸稳定 id 上报（房主自行结算） */
+    sendHitZombie: (id, dmg) => { if (!isHost) toHost({ t: 'hs', i: id, dmg }); },
     sendShot: s => { isHost ? bcast({ t: 'shot', s, id: myId }) : toHost({ t: 'shot', s }); },
-    sendHitZombie: (i, dmg) => { if (!isHost) toHost({ t: 'hs', i, dmg }); },
-    hostZombies:   fn => { zbGet = fn; },     // ✅ 房主注册丧尸序列化器
-    hostGameState: fn => { gsGet = fn; },     // ✅ 房主注册全局状态（波次/击杀）
+
+    hostZombies:   fn => { zbGet = fn; },
+    hostGameState: fn => { gsGet = fn; },
+
+    /* 团队生命 */
+    reportDeath,
+    forceRestartRequest: () => { if (!isHost && matchOver) toHost({ t: 'client-restart-req' }); },
+    aliveCount, totalCount,
+    isAlive: () => localAlive,
+    matchOver: () => matchOver,
+    roster: () => gameRoster(),
+
     isHost: () => isHost,
     inGame: () => phase === 'game',
     info: () => ({ phase, isHost, code, name: myName, id: myId })

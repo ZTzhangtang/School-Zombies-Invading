@@ -48,10 +48,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
 #joy{position:fixed;z-index:20;width:110px;height:110px;border-radius:50%;border:2px solid rgba(255,255,255,.25);
  background:rgba(255,255,255,.06);display:none;pointer-events:none}
 #joyKnob{position:absolute;left:50%;top:50%;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%)}
-#mBtns{position:fixed;right:12px;bottom:calc(80px + env(safe-area-inset-bottom));z-index:21;display:none;flex-direction:column;gap:12px;align-items:flex-end}
-#mBtns button{pointer-events:auto;border:none;border-radius:50%;font:inherit;color:#fff;touch-action:none}
-#mFire{width:86px;height:86px;background:rgba(255,80,60,.65);font-weight:700;letter-spacing:.1em}
-#mSprint,#mReload{width:56px;height:56px;background:rgba(30,40,50,.65);border:1px solid rgba(255,255,255,.2)!important;font-size:12px}
+#mBtns{position:fixed;inset:0;z-index:21;display:none;pointer-events:none}
+#mBtns .tbtn3{position:fixed;display:flex;justify-content:center;align-items:center;border:none;border-radius:50%;
+ font:inherit;color:#fff;touch-action:none;pointer-events:auto;letter-spacing:.06em;
+ background:rgba(30,40,50,.65);border:1px solid rgba(255,255,255,.2);transition:transform .08s,background .12s}
+#mBtns .tbtn3.on{background:rgba(93,177,255,.5)}
+#tbtn-fire{background:rgba(255,80,60,.65);font-weight:700;letter-spacing:.1em}
+#tbtn-fire:active{transform:translate(-50%,-50%) scale(.92)}
 .overlay{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;
  background:rgba(6,8,10,.82);backdrop-filter:blur(8px);text-align:center;padding:20px}
 .overlay h1{font-size:clamp(30px,6vw,54px);margin:0 0 10px;letter-spacing:.06em}
@@ -77,7 +80,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
   <div class="barRow"><span>HP</span><div class="bar"><i id="hpBar"></i></div><b id="hpN">100</b></div>
   <div class="barRow"><span>体力</span><div class="bar stam"><i id="stBar"></i></div></div>
 </div>
-<div class="hud" id="ammoBox"><small>弹药 AMMO</small><span id="ammoN">30 / ∞</span></div>
+<div class="hud" id="ammoBox"><small><span id="wpnName">AK-47</span> · 弹药 AMMO</small><span id="ammoN">30 / ∞</span><span id="nadeN2" style="display:block;font-size:13px;opacity:.8">💣 <b id="nadeN">6</b></span></div>
 <div class="hud" id="cross"></div>
 <div class="hud" id="hitmark"></div>
 <div class="hud" id="dmgFx"></div>
@@ -102,9 +105,12 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
 
 <div id="joy"><i id="joyKnob"></i></div>
 <div id="mBtns">
-  <button id="mReload">换弹</button>
-  <button id="mSprint">疾跑</button>
-  <button id="mFire">FIRE</button>
+  <div class="tbtn3" id="tbtn-fire"   data-tbtn="fire">FIRE</div>
+  <div class="tbtn3" id="tbtn-aim"    data-tbtn="aim">瞄准</div>
+  <div class="tbtn3" id="tbtn-reload" data-tbtn="reload">换弹</div>
+  <div class="tbtn3" id="tbtn-nade"   data-tbtn="nade">手雷</div>
+  <div class="tbtn3" id="tbtn-swap"   data-tbtn="swap">换枪</div>
+  <div class="tbtn3" id="tbtn-sprint" data-tbtn="sprint">疾跑</div>
 </div>
 
 <div class="overlay" id="menu">
@@ -151,7 +157,35 @@ window.addEventListener('unhandledrejection',function(e){if(!window.__BOOTED)sho
     s.onerror=function(){if(!done){done=true;clearTimeout(to);next();}};
     document.head.appendChild(s);
   }
+  function installEarlyProbe(){
+    if(!window.THREE||!THREE.WebGLRenderer) return;
+    if(THREE.WebGLRenderer.__mpEarlyProbe) return;
+    window.__mpEarlyRenderers = window.__mpEarlyRenderers || [];
+    var Real = THREE.WebGLRenderer;
+    var Wrapped = function(){
+      var inst = new (Function.prototype.bind.apply(Real, [null].concat([].slice.call(arguments))));
+      try { window.__mpEarlyRenderers.push(inst); } catch(e){}
+      return inst;
+    };
+    Wrapped.prototype = Real.prototype;
+    Object.setPrototypeOf(Wrapped, Real);
+    for (var k in Real){ try { if (k !== 'prototype') Wrapped[k] = Real[k]; } catch(e){} }
+    Wrapped.__mpEarlyProbe = true;
+    THREE.WebGLRenderer = Wrapped;
+  }
   function loadModel(){
+    installEarlyProbe();   /* ★ 必须在 boot() 内 new WebGLRenderer 之前 */
+    /* ★ 联机修复：预加载 PeerJS。该文件位于页面底部，若等到 P2P.init() 时才请求，
+       会错过用户在加载期间的点击；预加载到缓存即可，不阻塞 boot。 */
+    (function(){
+      try{
+        if (window.Peer) return;
+        var p=document.createElement('link');
+        p.rel='preload'; p.as='script';
+        p.href='https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
+        document.head.appendChild(p);
+      }catch(e){}
+    })();
     var s=document.createElement('script');s.src='./model.js';
     s.onload=boot;
     s.onerror=function(){console.warn('model.js 未找到，使用备用简易枪模');boot();};
@@ -455,8 +489,12 @@ function muzzleWorld(out){return camera.localToWorld(out.set(GUNPOS.x,GUNPOS.y,-
 /* ================= 玩家 ================= */
 var SPAWN={x:0.5,z:32}; // 操场中心, 面朝教学楼
 var player={x:SPAWN.x,z:SPAWN.z,yaw:0,pitch:0,hp:100,st:100,lastHit:-9,r:0.55};
-var keys={},firing=false,sprintKey=false,mSprintOn=false;
+var keys={},firing=false,mSprintOn=false;
 var ammo=30,MAG=30,reloading=false,reloadT=0,RELOAD_T=1.8,lastShot=0;
+/* ★ 统一触屏：双武器预设 / 瞄准 / 手雷 */
+var W_SLOTS=[{name:'AK-47',dmg:26,head:70,mag:30,rate:0.095},{name:'霰弹枪',dmg:58,head:110,mag:8,rate:0.62}];
+var wIdx=0,aiming=false,nadeCount=6,NADE_MAX=6;
+var liveNades=[];
 var playing=false,dead=false;
 
 function collide(px,pz,r){
@@ -472,11 +510,26 @@ function collide(px,pz,r){
  return [px,pz];
 }
 function updatePlayer(dt){
- var f=(keys['KeyW']?1:0)-(keys['KeyS']?1:0)-joy.y,
-     s=(keys['KeyD']?1:0)-(keys['KeyA']?1:0)+joy.x;
+ /* ★ 观战：自由飞行（穿墙、无重力、不可开火） */
+ if(window.MP&&MP.spectating()){
+  var sf=(Keys.isDown('forward')?1:0)-(Keys.isDown('back')?1:0);
+  var ss=(Keys.isDown('right')?1:0)-(Keys.isDown('left')?1:0);
+  var sUp=Keys.isDown('sprint')?1:0;
+  var ssp=16*dt;
+  var ssy=Math.sin(player.yaw),scy=Math.cos(player.yaw);
+  player.x+=(-ssy*sf+scy*ss)*ssp;
+  player.z+=(-scy*sf-ssy*ss)*ssp;
+  player.flyY=Math.max(0.6,(player.flyY||1.7)+sUp*ssp-player.pitch*sf*ssp);
+  camera.position.set(player.x,player.flyY,player.z);
+  camera.rotation.set(player.pitch,player.yaw,0);
+  updateHUD();
+  return;
+ }
+ var f=(Keys.isDown('forward')?1:0)-(Keys.isDown('back')?1:0)-joy.y,
+     s=(Keys.isDown('right')?1:0)-(Keys.isDown('left')?1:0)+joy.x;
  var mag=Math.hypot(f,s);if(mag>1){f/=mag;s/=mag;}
  var moving=mag>0.05;
- var sprint=(sprintKey||mSprintOn)&&f>0.1&&player.st>1;
+ var sprint=(Keys.isDown('sprint')||mSprintOn)&&f>0.1&&player.st>1;
  var spd=sprint?8:4.3;
  if(sprint)player.st=Math.max(0,player.st-22*dt);
  else player.st=Math.min(100,player.st+14*dt);
@@ -540,6 +593,13 @@ function spawnZombie(){
   cd:Math.random(),dead:false,dt:0,aL:aL,aR:aR,lL:lL,lR:lR};
  head.userData.z=zb;head.userData.head=true;torso.userData.z=zb;
  zParts.push(head,torso);zombies.push(zb);alive++;
+ /* ★ 联机：登记到 window.__zombies + 稳定 id（供 zsync 广播） */
+ g.userData.isZombie=true;g.userData.zType='normal';g.userData.hp=zb.hp;g.userData.__zRef=zb;
+ if(!window.__zombieSpawnMode){
+  if(window.ZS&&ZS.register)ZS.register(g);
+  else g.userData.__zid=g.userData.__zid||('z'+Math.random().toString(36).slice(2,9));
+  (window.__zombies=window.__zombies||[]).push(g);
+ }
 }
 function updateZombies(dt){
  for(var i=zombies.length-1;i>=0;i--){var zb=zombies[i],g=zb.g;
@@ -594,7 +654,8 @@ function updateFx(dt){
 function shoot(now){
  if(!firing||reloading)return;
  if(ammo<=0){reload();return;}
- if(now-lastShot<0.095)return;
+ var W=W_SLOTS[wIdx];
+ if(now-lastShot<W.rate)return;
  lastShot=now;ammo--;gunKick=0.05;flashT=0.045;
  flashMesh.visible=true;
  flashMesh.rotation.z=Math.random()*6.28;
@@ -603,7 +664,8 @@ function shoot(now){
  player.pitch=Math.min(1.4,player.pitch+0.006);sfxShot();
  camera.updateMatrixWorld();
  camera.getWorldDirection(_v3a);
- _v3a.x+=(Math.random()-0.5)*0.012;_v3a.y+=(Math.random()-0.5)*0.012;_v3a.z+=(Math.random()-0.5)*0.012;
+ var spread=aiming?0.004:0.012;              // ★ 开镜更稳
+ _v3a.x+=(Math.random()-0.5)*spread;_v3a.y+=(Math.random()-0.5)*spread;_v3a.z+=(Math.random()-0.5)*spread;
  _v3a.normalize();
  ray.set(camera.position,_v3a);
  var hits=ray.intersectObjects(blockers.concat(zParts),false);
@@ -613,11 +675,19 @@ function shoot(now){
   end=hits[0].point;
   var z=hits[0].object.userData.z;
   if(z&&!z.dead){
-   var dmg=hits[0].object.userData.head?70:26;
-   z.hp-=dmg;blood(end);
+   var dmg=hits[0].object.userData.head?W.head:W.dmg;   // ★ 按当前武器
+   blood(end);
    hitmark.style.opacity=1;setTimeout(function(){hitmark.style.opacity=0;},90);
    sfxHit();
-   if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);}
+   /* ★ 联机：客户端按丧尸稳定 id 上报，房主结算 */
+   if(window.ZS&&ZS.isClient()&&window.P2P){
+    var zid=ZS.idOf(z.g);
+    if(zid){P2P.sendHitZombie(zid,dmg);}
+   }else{
+    z.hp-=dmg;
+    if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);
+     if(window.ZS&&ZS.unregister)ZS.unregister(z.g);}
+   }
   }
  }else end=camera.position.clone().add(_v3a.clone().multiplyScalar(200));
  var pa=tracer.geometry.attributes.position.array;
@@ -627,6 +697,48 @@ function shoot(now){
 }
 function removeZParts(z){zParts=zParts.filter(function(m){return m.userData.z!==z;});}
 function reload(){if(reloading||ammo===MAG)return;reloading=true;reloadT=RELOAD_T;}
+/* ★ 换枪：切换武器预设（弹药按新弹匣补满，简化处理） */
+function weaponSwitch(i){
+ if(!W_SLOTS[i]||i===wIdx)return;
+ wIdx=i;var W=W_SLOTS[i];MAG=W.mag;RELOAD_T=W.rate>0.3?2.2:1.8;
+ ammo=MAG;reloading=false;updateHUD();
+ var el=document.getElementById('wpnName'); if(el)el.textContent=W.name;
+}
+/* ★ 手雷 */
+function throwNade(){
+ if(dead||nadeCount<=0)return;
+ nadeCount--;
+ camera.getWorldDirection(_v3a);
+ var g=new THREE.SphereGeometry(0.12,8,6);
+ var m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x39432c,roughness:.62,metalness:.35}));
+ m.position.copy(camera.position).addScaledVector(_v3a,0.6);
+ scene.add(m);
+ liveNades.push({m:m,v:_v3a.clone().multiplyScalar(19).add(new THREE.Vector3(0,3.2,0)),fuse:2.5,g:g});
+ var el=document.getElementById('nadeN'); if(el)el.textContent=nadeCount;
+}
+function updateNades(dt){
+ for(var i=liveNades.length-1;i>=0;i--){
+  var n=liveNades[i];
+  n.v.y-=16*dt;
+  n.m.position.addScaledVector(n.v,dt);
+  if(n.m.position.y<0.12){n.m.position.y=0.12;n.v.y*=-0.35;n.v.x*=0.7;n.v.z*=0.7;}
+  n.fuse-=dt;
+  if(n.fuse<=0){
+   var at=n.m.position.clone();
+   scene.remove(n.m);n.g.dispose();
+   /* 范围伤害 */
+   for(var j=0;j<zParts.length;j++){
+    var zp=zParts[j],z=zp.userData.z;
+    if(!z||z.dead)continue;
+    var d=zp.getWorldPosition(_v3b).distanceTo(at);
+    if(d<6){z.hp-=(d<3?180:90);if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);
+     if(window.ZS&&ZS.unregister)ZS.unregister(z.g);}}
+   }
+   liveNades.splice(i,1);
+  }
+ }
+}
+var _v3b=new THREE.Vector3();
 
 /* ================= 波次 ================= */
 var wave=1,kills=0,toSpawn=0,spawnT=0,waveState='inter',interT=2.5;
@@ -641,14 +753,36 @@ function updateWaves(dt){
 }
 function damagePlayer(d){
  player.hp-=d;player.lastHit=t_now;dmgA=0.85;sfxHurt();
+ if(window.MP&&window.MP.setHP)MP.setHP(Math.max(0,player.hp));
  if(player.hp<=0){player.hp=0;die();}
 }
 function die(){
+ /* ★ 联机：改为上报阵亡 + 观战，不各自弹结算；单机保持原死亡界面 */
+ if(window.P2P&&P2P.inGame()){
+  if(window.MP)MP.reportDeath();
+  playing=false;dead=true;
+  if(document.exitPointerLock)document.exitPointerLock();
+  return;
+ }
  playing=false;dead=true;
  if(document.exitPointerLock)document.exitPointerLock();
  document.getElementById('deadStats').textContent='击杀 '+kills+' · 抵达第 '+wave+' 波';
  document.getElementById('dead').classList.remove('hidden');
 }
+/* ★ 联机：统一重开 */
+window.resetMatch=function(){
+ for(var i=0;i<zombies.length;i++)scene.remove(zombies[i].g);
+ zombies.length=0;zParts.length=0;
+ if(window.__zombies)window.__zombies.length=0;
+ if(window.ZS&&ZS.byId)ZS.byId.clear();
+ wave=1;kills=0;toSpawn=0;waveState='inter';interT=2.5;
+ player.hp=100;player.st=100;player.x=SPAWN.x;player.z=SPAWN.z;player.yaw=0;player.pitch=0;
+ player.flyY=1.7;
+ ammo=MAG;reloading=false;dead=false;firing=false;audio();
+ playing=true;
+ document.getElementById('dead').classList.add('hidden');
+ if(!TOUCH){lockPointer();}
+};
 
 /* ================= 声音(轻量合成) ================= */
 var AC=null;
@@ -691,13 +825,11 @@ function onResize(){
 }
 addEventListener('resize',onResize);
 addEventListener('orientationchange',function(){setTimeout(onResize,300);});
-addEventListener('keydown',function(e){keys[e.code]=true;
- if(e.code==='ShiftLeft'||e.code==='ShiftRight')sprintKey=true;
- if(e.code==='KeyR')reload();
- if(e.code==='KeyF')firing=true;});
-addEventListener('keyup',function(e){keys[e.code]=false;
- if(e.code==='ShiftLeft'||e.code==='ShiftRight')sprintKey=false;
- if(e.code==='KeyF')firing=false;});
+/* ★ 统一键位：走 Keys 键位表，可在 index 设置页改键 */
+Keys.bindInput();
+Keys.onDown('reload',function(){reload();});
+Keys.onDown('fire',function(){firing=true;});
+Keys.onUp('fire',function(){firing=false;});
 function lockPointer(){if(!TOUCH&&canvas.requestPointerLock){
  try{var pl=canvas.requestPointerLock();if(pl&&pl.catch)pl.catch(function(){});}catch(_){}}}
 canvas.addEventListener('mousedown',function(e){
@@ -707,8 +839,8 @@ addEventListener('mouseup',function(e){if(e.button===0)firing=false;});
 addEventListener('contextmenu',function(e){e.preventDefault();});
 document.addEventListener('mousemove',function(e){
  if(document.pointerLockElement===canvas){
-  player.yaw-=e.movementX*0.0022;
-  player.pitch=Math.max(-1.45,Math.min(1.45,player.pitch-e.movementY*0.0022));}});
+  player.yaw-=e.movementX*0.0022*(window.__cfgSens||1);
+  player.pitch=Math.max(-1.45,Math.min(1.45,player.pitch-e.movementY*0.0022*(window.__cfgSens||1)));}});
 /* ---- 触屏: 左摇杆移动 / 滑动环视 / 右侧按钮 ---- */
 var joy={active:false,id:-1,bx:0,by:0,x:0,y:0},look={id:-1,lx:0,ly:0};
 var joyEl=document.getElementById('joy'),knob=document.getElementById('joyKnob');
@@ -734,12 +866,21 @@ function touchEnd(e){for(var i=0;i<e.changedTouches.length;i++){var t=e.changedT
   joyEl.style.display='none';knob.style.transform='translate(-50%,-50%)';}
  if(t.identifier===look.id)look.id=-1;}}
 canvas.addEventListener('touchend',touchEnd);canvas.addEventListener('touchcancel',touchEnd);
-function bindHold(id,down,up){var el=document.getElementById(id);
- el.addEventListener('touchstart',function(e){e.preventDefault();e.stopPropagation();down();},{passive:false});
- el.addEventListener('touchend',function(e){e.preventDefault();if(up)up();},{passive:false});}
-bindHold('mFire',function(){firing=true;},function(){firing=false;});
-bindHold('mSprint',function(){mSprintOn=true;},function(){mSprintOn=false;});
-bindHold('mReload',function(){reload();},null);
+/* ★ 统一触屏 6 键：pointer 事件，兼容触屏与鼠标 */
+function bindHold(id,down,up){
+ var el=document.getElementById(id); if(!el)return;
+ el.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();if(el.setPointerCapture)try{el.setPointerCapture(e.pointerId);}catch(_){}down();});
+ el.addEventListener('pointerup',function(e){e.preventDefault();if(up)up();});
+ el.addEventListener('pointercancel',function(){if(up)up();});
+ el.addEventListener('pointerleave',function(){if(up)up();});
+}
+bindHold('tbtn-fire',function(){firing=true;},function(){firing=false;});
+bindHold('tbtn-sprint',function(){mSprintOn=true;},function(){mSprintOn=false;});
+bindHold('tbtn-reload',function(){reload();},null);
+bindHold('tbtn-aim',function(){aiming=true;var e=document.getElementById('tbtn-aim');if(e)e.classList.add('on');},
+                    function(){aiming=false;var e=document.getElementById('tbtn-aim');if(e)e.classList.remove('on');});
+bindHold('tbtn-nade',function(){throwNade();},null);
+bindHold('tbtn-swap',function(){weaponSwitch(wIdx===0?1:0);},null);
 /* ---- 按钮 ---- */
 document.getElementById('btnRain').onclick=function(){rain.visible=!rain.visible;};
 document.getElementById('btnReset').onclick=function(){
@@ -749,9 +890,16 @@ document.getElementById('btnRestart').onclick=start;
 function start(){
  for(var i=zombies.length-1;i>=0;i--)scene.remove(zombies[i].g);
  zombies.length=0;zParts.length=0;alive=0;
+ if(window.__zombies)window.__zombies.length=0;
+ if(window.ZS&&ZS.byId)ZS.byId.clear();
  wave=1;kills=0;toSpawn=0;waveState='inter';interT=2.5;
  player.hp=100;player.st=100;player.x=SPAWN.x;player.z=SPAWN.z;player.yaw=0;player.pitch=0;
  ammo=MAG;reloading=false;dead=false;firing=false;audio();
+ /* ★ 重开时重置弹药/手雷/武器 */
+ nadeCount=NADE_MAX;liveNades.forEach(function(n){scene.remove(n.m);if(n.g)n.g.dispose();});liveNades.length=0;
+ wIdx=0;MAG=W_SLOTS[0].mag;RELOAD_T=1.8;ammo=MAG;aiming=false;
+ var ne=document.getElementById('nadeN');if(ne)ne.textContent=nadeCount;
+ var we=document.getElementById('wpnName');if(we)we.textContent=W_SLOTS[0].name;
  document.getElementById('menu').classList.add('hidden');
  document.getElementById('dead').classList.add('hidden');
  playing=true;updateHUD();lockPointer();
@@ -768,11 +916,14 @@ function loop(now){
   if(playing){
    updatePlayer(dt);
    shoot(t_now);
-   updateZombies(dt);updateWaves(dt);
+   updateZombies(dt);updateWaves(dt);updateNades(dt);
   }else{
    camera.position.set(player.x,1.7,player.z);
    camera.rotation.set(player.pitch,player.yaw,0);
   }
+  /* ★ 开镜：FOV 平滑缩放 */
+  var wantFov=aiming?44:74;
+  if(Math.abs(camera.fov-wantFov)>0.05){camera.fov+=(wantFov-camera.fov)*Math.min(1,dt*9);camera.updateProjectionMatrix();}
   updateGun(dt);updateRain(dt);updateFx(dt);
   if(toastT>0){toastT-=dt;if(toastT<=0)toast.style.opacity=0;}
   if(dmgA>0){dmgA=Math.max(0,dmgA-dt*1.6);dmgFxEl.style.opacity=dmgA;}
@@ -781,6 +932,39 @@ function loop(now){
   renderer.render(scene,camera);
  }catch(e){if(!loopErrShown){loopErrShown=true;showFatal(e);}}
 }
+/* ============================================================
+   ★ 联机桥接 API —— zsync.js 调用
+   ============================================================ */
+window.__zombieSpawn=function(s){
+ if(!s)return null;
+ var before=zombies.length;
+ window.__zombieSpawnMode=true;
+ try{spawnZombie();}finally{window.__zombieSpawnMode=false;}
+ if(zombies.length<=before)return null;
+ var zb=zombies[zombies.length-1],g=zb.g;
+ g.position.set(s.x,s.y||0,s.z);
+ zb.hp=s.hp!=null?s.hp:zb.hp;
+ g.userData.hp=zb.hp;
+ g.userData.zType=s.type||'normal';
+ g.userData.__zRef=zb;
+ if(s.id)g.userData.__zid=s.id;
+ if(window.ZS&&ZS.register)ZS.register(g,s.id);
+ if((window.__zombies||[]).indexOf(g)<0)(window.__zombies=window.__zombies||[]).push(g);
+ return g;
+};
+window.__applyZombieDamage=function(g,dmg){
+ var z=g&&g.userData&&g.userData.__zRef;
+ if(!z||z.dead)return;
+ z.hp-=dmg;
+ if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);}
+};
+window.__onZombieKilled=function(g){
+ var z=g&&g.userData&&g.userData.__zRef;
+ if(z&&!z.dead){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);}
+};
+window.__waveSet=function(w){wave=w;};
+window.__killsSet=function(k){kills=k;};
+
 updateHUD();
 document.getElementById('loading').classList.add('hidden'); // 构建完成 → 关闭加载层
 requestAnimationFrame(loop);
@@ -788,9 +972,17 @@ requestAnimationFrame(loop);
 }catch(err){showFatal(err);}
 }
 </script>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="keys.js"></script>
+<script src="settings.js"></script>
+<script src="touch-ui.js"></script>
 <script src="p2p.js"></script>
 <script src="mp-bridge.js"></script>
 <script src="zsync.js"></script>
+<script>
+try{ Settings.apply({}); }catch(e){}
+/* ★ 应用 index 设置页的触屏按钮自定义位置 */
+try{ if(window.TouchUI){ TouchUI.apply(document); TouchUI.watch(document); } }catch(e){}
+</script>
 </body>
 </html>
