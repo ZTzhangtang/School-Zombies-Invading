@@ -65,6 +65,8 @@ const P2P = (() => {
     if (id !== except && c.conn.open) try { c.conn.send(m); } catch (_) {}
   });
   const toHost = m => { if (hostConn && hostConn.open) try { hostConn.send(m); } catch (_) {} };
+  /* 定向发送给某个客户端（房主专用）：§0.1 咬中某玩家时只发给被咬者 */
+  const sendTo = (id, m) => { const c = conns.get(id); if (c && c.conn.open) try { c.conn.send(m); } catch (_) {} };
 
   /* ---------------- 大厅 ---------------- */
   const lobbyRoster = () => {
@@ -123,25 +125,28 @@ const P2P = (() => {
   function startGame(map) {
     if (phase !== 'lobby' || !isHost) return;
     const seed = (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
-    const msg = { t: 'start', code, seed, map: map.key, file: map.file };
+    const msg = { t: 'start', code, seed, map: map.key, file: map.file, mode: (map && map.mode) || 'endless' };
     bcast(msg);
     setTimeout(() => emit('start', msg), 120);
   }
 
   /* ---------------- 对局 ---------------- */
-  /* 队伍名册：含存活标记 */
+  /* 队伍名册：含存活标记、职业、濒死标记 */
   const gameRoster = () => {
     const r = [{
       id: myId, name: myName, isHost: true,
-      hp: local ? local.hp : 100, alive: localAlive
+      hp: local ? local.hp : 100, alive: localAlive,
+      cls: local ? local.cls : null, down: !!(local && local.down)
     }];
     conns.forEach(c => r.push({
       id: c.id, name: c.name || '…', isHost: false,
-      hp: c.hp == null ? 100 : c.hp, alive: c.alive !== false
+      hp: c.hp == null ? 100 : c.hp, alive: c.alive !== false,
+      cls: c.cls || null, down: !!c.down
     }));
     return r;
   };
   const aliveCount = () => {
+    /* ★ §3.1 濒死不等于死亡：down==true 仍算存活（等待被救） */
     let n = localAlive ? 1 : 0;
     conns.forEach(c => { if (c.alive !== false) n++; });
     return n;
@@ -232,15 +237,57 @@ const P2P = (() => {
         // 客户端命中丧尸（按稳定 id）→ 房主结算；结果随下一帧 zb 快照广播给全员
         emit('hit-zombie', d);
         break;
+      case 'hs-player':
+        // 客户端上报"咬中了远端玩家"→ 房主定向转发给被咬者
+        if (d && d.id) sendTo(d.id, { t: 'hit-player', id: d.id, dmg: +d.dmg || 0 });
+        break;
       case 'dead': {
         const c = conns.get(conn.peer);
         if (c && c.alive !== false) {
           c.alive = false;
+          c.down = false;
           emit('players', gameRoster());
           /* 立刻通知其他客户端刷新存活显示 */
           bcast({ t: 'team', roster: gameRoster() }, conn.peer);
           checkAllDead();
         }
+        break;
+      }
+      /* ★ §3.1 濒死：进入濒死仍算存活，房主记录并广播（供血条/名单显示倒地） */
+      case 'down': {
+        const c = conns.get(conn.peer);
+        if (c) c.down = true;
+        emit('players', gameRoster());
+        bcast({ t: 'team', roster: gameRoster() }, conn.peer);
+        break;
+      }
+      /* ★ §3.4 聊天：客户端发言 → 广播全员（含发言者回显） */
+      case 'chat': {
+        const c = conns.get(conn.peer);
+        emit('chat', {
+          t: 'chat', id: conn.peer, name: (c && c.name) || '玩家',
+          text: String(d.text || '').slice(0, 80), quick: !!d.quick
+        });
+        break;
+      }
+      /* ★ §3.1 救援进度上报：救援者 → 房主 → 定向转发给被救者 */
+      case 'revive': {
+        const c = conns.get(conn.peer);
+        if (c) c.cls = d.cls || c.cls;          // 顺带补职业标识
+        if (d && d.target) {
+          /* ★ 目标是房主（'__host'）→ 房主给自己派发本机 revive 事件 */
+          if (d.target === '__host' || d.target === myId) {
+            emit('revive', { target: d.target, by: conn.peer, p: +d.p || 0, done: !!d.done });
+          } else {
+            sendTo(d.target, { t: 'revive', target: d.target, by: conn.peer, p: +d.p || 0, done: !!d.done });
+          }
+        }
+        break;
+      }
+      /* ★ §3.2 职业选择同步 */
+      case 'cls': {
+        const c = conns.get(conn.peer);
+        if (c) { c.cls = d.cls || null; emit('players', gameRoster()); bcast({ t: 'team', roster: gameRoster() }, conn.peer); }
         break;
       }
       case 'client-restart-req':
@@ -253,12 +300,21 @@ const P2P = (() => {
     if (!d) return;
     switch (d.t) {
       case 'you': myId = d.id; break;
+      /* ★ §0.1 房主咬中本机玩家 → 交给地图页本地结算掉血 */
+      case 'hit-player': emit('hit-player', d); break;
       case 'ps': remotes.set(d.id, Object.assign({}, d.s, { id: d.id, t: performance.now() })); break;
       case 'left': remotes.delete(d.id); break;
       case 'shot': emit('shot', d); break;
       case 'zb': emit('zombies', d.z); break;
       case 'gs': emit('game-state', d.s); break;
       case 'team': emit('players', d.roster); break;
+      case 'horde': emit('horde', d); break;
+      /* ★ §5.1 有限防守胜利（房主广播） */
+      case 'victory': emit('victory', d); break;
+      /* ★ §3.4 聊天（房主广播） */
+      case 'chat': emit('chat', d); break;
+      /* ★ §3.1 被队友救起：本机恢复 */
+      case 'revive': emit('revive', d); break;
       case 'all-dead':
         matchOver = true;
         emit('all-dead', {});
@@ -275,6 +331,13 @@ const P2P = (() => {
     tickN++;
     if (isHost) {
       if (local) bcast({ t: 'ps', id: myId, s: Object.assign({}, local, { alive: localAlive }) });
+      /* ★ §3.1 房主把自己也写进 remotes（特殊 id '__host'）：
+         让客户端在 tickRevive 里能"看到并救起"濒死的房主 */
+      if (local) {
+        remotes.set('__host', Object.assign({}, local, {
+          id: '__host', isHost: true, t: performance.now()
+        }));
+      }
       if (zbGet && tickN % ZB_EVERY === 0) {
         const z = zbGet();
         if (z && z.list) bcast({ t: 'zb', z });
@@ -335,7 +398,51 @@ const P2P = (() => {
 
     /* 命中：按丧尸稳定 id 上报（房主自行结算） */
     sendHitZombie: (id, dmg) => { if (!isHost) toHost({ t: 'hs', i: id, dmg }); },
+    /* ★ §0.1 房主咬中某客户端玩家 → 定向发 hit-player，让对端本地掉血 */
+    sendHitPlayer: (peerId, dmg) => {
+      if (!isHost) return;
+      if (peerId == null || !(dmg > 0)) return;
+      sendTo(peerId, { t: 'hit-player', id: peerId, dmg: +dmg });
+    },
     sendShot: s => { isHost ? bcast({ t: 'shot', s, id: myId }) : toHost({ t: 'shot', s }); },
+    /* ★ §2.3 尸潮预警：房主广播给所有客户端 */
+    broadcastHorde: () => { if (isHost) bcast({ t: 'horde' }); },
+    /* ★ §5.1 有限防守胜利：房主广播胜利给所有客户端 */
+    broadcastVictory: w => { if (isHost) { bcast({ t: 'victory', wave: w }); emit('victory', { wave: w }); } },
+
+    /* ★ §3.1 濒死上报：进入濒死仍算存活（≠ reportDeath） */
+    reportDowned: () => {
+      if (local) local.down = true;
+      if (isHost) {
+        emit('players', gameRoster());
+        /* ★ 房主濒死 → 广播全队，客户端才知道该去救房主 */
+        bcast({ t: 'team', roster: gameRoster() });
+      } else toHost({ t: 'down' });
+    },
+    /* ★ §3.1 救援者上报进度：ok=正在救, done=救起 */
+    notifyRevive: (targetId, p, done) => {
+      if (targetId == null) return;
+      const msg = { t: 'revive', target: targetId, p: +p || 0, done: !!done, cls: local ? local.cls : null };
+      isHost ? sendTo(targetId, { t: 'revive', target: targetId, by: myId, p: +p || 0, done: !!done })
+             : toHost(msg);
+    },
+    /* ★ §3.2 上报职业 */
+    reportClass: cls => {
+      if (local) local.cls = cls || null;
+      if (!isHost) toHost({ t: 'cls', cls: cls || null });
+      else { emit('players', gameRoster()); bcast({ t: 'team', roster: gameRoster() }); }
+    },
+    /* ★ §3.4 聊天：客户端→房主→广播；房主直发 */
+    sendChat: (text, quick) => {
+      const t = String(text || '').slice(0, 80);
+      if (!t) return;
+      if (isHost) {
+        const msg = { t: 'chat', id: myId, name: myName, text: t, quick: !!quick };
+        bcast(msg); emit('chat', msg);
+      } else {
+        toHost({ t: 'chat', text: t, quick: !!quick });
+      }
+    },
 
     hostZombies:   fn => { zbGet = fn; },
     hostGameState: fn => { gsGet = fn; },

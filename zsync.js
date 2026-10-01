@@ -27,6 +27,10 @@ window.ZS = (() => {
   /* ---------- 丧尸登记表：id → { grp, ref } ---------- */
   const byId = new Map();
 
+  /* ★ 已死亡 id 墓碑：防止客户端在房主移除该 id 前"重建一只全新丧尸"
+     → 下帧再次收到 dead:true → 二次倒地（"重复倒地死亡"根因） */
+  const deadIds = new Set();
+
   /* 供地图页在创建/移除丧尸时登记，保证 id 稳定 */
   function register(grp, id) {
     if (!grp) return null;
@@ -115,6 +119,8 @@ window.ZS = (() => {
       const s = list[i];
       if (!s || !s.id) continue;
       seen.add(s.id);
+      /* ★ 已判死的 id：禁止重建（否则新 Group 的 __deadSync 为 false → 二次倒地） */
+      if (deadIds.has(s.id)) continue;
       let rec = byId.get(s.id);
 
       /* 本地没有 → 按类型新建（由地图页工厂负责） */
@@ -143,8 +149,9 @@ window.ZS = (() => {
       g.userData.tgt = { x: s.x, y: s.y, z: s.z, ry: s.ry || 0 };
       g.userData.hp = s.hp;
 
-      /* ③ 房主已判死 → 客户端立刻走死亡流程 */
+      /* ③ 房主已判死 → 客户端立刻走死亡流程（只触发一次，写墓碑防重建） */
       if (s.dead || s.hp <= 0) {
+        deadIds.add(s.id);
         if (!g.userData.__deadSync) {
           g.userData.__deadSync = true;
           if (typeof window.__onZombieKilled === 'function') {
@@ -162,6 +169,8 @@ window.ZS = (() => {
       const g = rec.grp;
       if (g && g.parent) g.parent.remove(g);
       byId.delete(id);
+      /* ★ 房主彻底出队 → 清墓碑（同时兜底清掉残留墓碑，防内存增长） */
+      deadIds.delete(id);
       const ix = window.__zombies.indexOf(g);
       if (ix >= 0) window.__zombies.splice(ix, 1);
     }
@@ -170,8 +179,15 @@ window.ZS = (() => {
       const g = rec.grp;
       if (!g || !g.parent) {
         byId.delete(id);
+        deadIds.delete(id);
         const ix = window.__zombies.indexOf(g);
         if (ix >= 0) window.__zombies.splice(ix, 1);
+      }
+    }
+    /* ★ 墓碑兜底清理：房主快照里若已彻底没有该 id，则一并清除（防无限增长） */
+    if (deadIds.size) {
+      for (const id of Array.from(deadIds)) {
+        if (!seen.has(id)) deadIds.delete(id);
       }
     }
   };
@@ -190,6 +206,7 @@ window.ZS = (() => {
       if (g && g.parent) g.parent.remove(g);
     }
     byId.clear();
+    deadIds.clear();                 // ★ 重开时清墓碑
     if (window.__zombies) window.__zombies.length = 0;
     localSpawningOff = false;
   };

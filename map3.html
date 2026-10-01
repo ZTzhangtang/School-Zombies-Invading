@@ -21,12 +21,15 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
 .bar{flex:1;height:8px;background:rgba(255,255,255,.14);border-radius:4px;overflow:hidden}
 .bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff5b4d,#ff8a5c);transition:width .15s}
 .bar.stam i{background:linear-gradient(90deg,#4dc3ff,#7bffce)}
-#cross{left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%)}
-#cross:before,#cross:after{content:'';position:absolute;background:rgba(255,255,255,.85);box-shadow:0 0 3px #000}
-#cross:before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%);
- clip-path:polygon(0 0,100% 0,100% 38%,0 38%,0 62%,100% 62%,100% 100%,0 100%)}
-#cross:after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%);
- clip-path:polygon(0 0,38% 0,38% 100%,0 100%,62% 0,100% 0,100% 100%,62% 100%)}
+#cross{left:50%;top:50%;width:0;height:0;--sp:4px}
+#cross i{position:absolute;display:block;background:rgba(255,255,255,.9);box-shadow:0 0 3px #000;opacity:.92}
+#cross i:nth-child(1){width:2px;height:8px;left:-1px;top:calc(-10px - var(--sp))}
+#cross i:nth-child(2){width:2px;height:8px;left:-1px;top:calc(2px + var(--sp))}
+#cross i:nth-child(3){width:8px;height:2px;top:-1px;left:calc(-10px - var(--sp))}
+#cross i:nth-child(4){width:8px;height:2px;top:-1px;left:calc(2px + var(--sp))}
+#cross i:nth-child(5){width:2px;height:2px;left:-1px;top:-1px;border-radius:50%;opacity:.7}
+#cross.ads i{opacity:.68}
+#cross.ads i:nth-child(5){opacity:1}
 #hitmark{left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%) rotate(45deg);opacity:0;transition:opacity .08s}
 #hitmark:before,#hitmark:after{content:'';position:absolute;background:#ff5340}
 #hitmark:before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
@@ -43,6 +46,15 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
 #btns button{background:rgba(20,26,32,.7);border:1px solid rgba(255,255,255,.14);color:#dfe7ee;border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;touch-action:none}
 #ammoBox{right:16px;bottom:calc(18px + env(safe-area-inset-bottom));text-align:right;font-size:26px;font-weight:700;text-shadow:0 2px 8px #000}
 #ammoBox small{display:block;font-size:11px;letter-spacing:.3em;opacity:.6}
+#ammoBox #ammoN{font-size:16px;font-weight:700;letter-spacing:.05em}
+/* ★ §1.1 武器槽徽标 + 特性标签 */
+#wslots{position:fixed;z-index:8;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));display:flex;gap:6px;pointer-events:none}
+.wslot{font-size:11px;padding:3px 9px;border-radius:7px;background:rgba(12,14,18,.72);border:1px solid rgba(255,255,255,.16);color:#9aa}
+.wslot.on{color:#ffd166;border-color:rgba(255,209,102,.8);background:rgba(58,42,10,.8)}
+.wslot.lock{opacity:.42;color:#667;border-style:dashed}
+.wslot.lock.on{opacity:.85}
+#wtag{position:fixed;z-index:8;right:16px;bottom:calc(100px + env(safe-area-inset-bottom));font-size:10px;letter-spacing:3px;color:#ffd166;opacity:.85;pointer-events:none;text-align:right}
+#wtag:empty{display:none}
 #waveToast{left:50%;top:26%;transform:translateX(-50%);font-size:30px;font-weight:700;letter-spacing:.3em;
  color:#ffd257;text-shadow:0 4px 18px #000;opacity:0;transition:opacity .4s;white-space:nowrap}
 #joy{position:fixed;z-index:20;width:110px;height:110px;border-radius:50%;border:2px solid rgba(255,255,255,.25);
@@ -73,15 +85,17 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
 <canvas id="scene"></canvas>
 
 <div class="hud" id="topbar">
-  <div>第 <b id="waveN">1</b> 波 · 击杀 <b id="killN">0</b> · 丧尸 <b id="zN">0</b></div>
+  <div>第 <b id="waveN">1</b> 波 · 击杀 <b id="killN">0</b> · 丧尸 <b id="zN">0</b> · 零件 <b id="uiCredits">0</b></div>
   <div id="fpsN">-- FPS</div>
 </div>
 <div class="hud" id="bars">
   <div class="barRow"><span>HP</span><div class="bar"><i id="hpBar"></i></div><b id="hpN">100</b></div>
   <div class="barRow"><span>体力</span><div class="bar stam"><i id="stBar"></i></div></div>
 </div>
-<div class="hud" id="ammoBox"><small><span id="wpnName">AK-47</span> · 弹药 AMMO</small><span id="ammoN">30 / ∞</span><span id="nadeN2" style="display:block;font-size:13px;opacity:.8">💣 <b id="nadeN">6</b></span></div>
-<div class="hud" id="cross"></div>
+<div class="hud" id="ammoBox"><small><span id="wpnName">手枪</span> · AMMO</small><span id="ammoN">手枪 · 12 / 100</span><span id="nadeN2" style="display:block;font-size:13px;opacity:.8">💣 <b id="nadeN">6</b></span></div>
+<div id="wslots"><span class="wslot on" id="ws0">1</span><span class="wslot lock" id="ws1">2</span><span class="wslot lock" id="ws2">3</span><span class="wslot lock" id="ws3">4</span><span class="wslot lock" id="ws4">5</span><span class="wslot" id="ws5">6</span></div>
+<div id="wtag"></div>
+<div class="hud" id="cross"><i></i><i></i><i></i><i></i><i></i></div>
 <div class="hud" id="hitmark"></div>
 <div class="hud" id="dmgFx"></div>
 <div class="hud" id="waveToast">第 1 波</div>
@@ -122,6 +136,12 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0d10;color:#e8edf2;
   <h2>你被丧尸击倒了</h2>
   <p id="deadStats">击杀 0 · 抵达第 1 波</p>
   <button id="btnRestart">重新开始</button>
+</div>
+<!-- ★ §5.1 有限防守胜利结算 -->
+<div class="overlay hidden" id="victoryBox">
+  <h2 style="color:#7fe0b0">🏆 防守成功</h2>
+  <p id="victoryStats">坚守 10 波 · 校园守住了</p>
+  <button id="btnRestartWin">再来一局</button>
 </div>
 <div class="overlay" id="loading">正在构建雨后操场…</div>
 <div class="overlay" id="nogl">当前浏览器不支持 WebGL<br>请更换 Chrome / Edge / Firefox 等现代浏览器后重试</div>
@@ -458,6 +478,7 @@ function updateRain(dt){
 
 /* ================= AK-47（model.js · 第一人称全貌） ================= */
 var gun=null,GUNPOS={x:0.20,y:-0.22,z:-0.65},gunKick=0,bobT=0;
+var MELEE_SWING_DUR=0.28,meleeSwingT=0;   // ★ 近战挥击动画计时
 var flashMesh,flashLight,flashT=0;
 (function(){
  try{if(window.AK47&&AK47.build)gun=AK47.build(renderer);}catch(e){console.warn('AK47 构建失败',e);gun=null;}
@@ -490,12 +511,90 @@ function muzzleWorld(out){return camera.localToWorld(out.set(GUNPOS.x,GUNPOS.y,-
 var SPAWN={x:0.5,z:32}; // 操场中心, 面朝教学楼
 var player={x:SPAWN.x,z:SPAWN.z,yaw:0,pitch:0,hp:100,st:100,lastHit:-9,r:0.55};
 var keys={},firing=false,mSprintOn=false;
-var ammo=30,MAG=30,reloading=false,reloadT=0,RELOAD_T=1.8,lastShot=0;
-/* ★ 统一触屏：双武器预设 / 瞄准 / 手雷 */
-var W_SLOTS=[{name:'AK-47',dmg:26,head:70,mag:30,rate:0.095},{name:'霰弹枪',dmg:58,head:110,mag:8,rate:0.62}];
+var ammo=100,MAG=12,reloading=false,reloadT=0,RELOAD_T=1.8,lastShot=0;
+var AMMO_MAX_BASE=100;
+/* ============================================================
+   ★ §1.1 武器库（与 map1/map2 统一）：6 槽，键 1~6
+     1 手枪 / 2 AK-47 / 3 霰弹枪 / 4 SMG / 5 狙击枪 / 6 近战（棒球棍↔斧头）
+     共享弹药池：所有枪械共用一个 ammo；初始仅手枪 + 棒球棍。
+   ============================================================ */
+var MELEE_SUB=['棒球棍','斧头'];
+var W_SLOTS=[
+ {key:'pistol', name:'手枪',   dmg:25, head:75,  mag:12, rate:0.22,  pellet:1, spread:0.020, gun:true,  usesAmmo:false, tag:'无限补'},
+ {key:'ak',     name:'AK-47',  dmg:42, head:126, mag:30, rate:0.105, pellet:1, spread:0.011, gun:true,  usesAmmo:true,  tag:'全自动'},
+ {key:'shotgun',name:'霰弹枪', dmg:24, head:72,  mag:6,  rate:0.78,  pellet:8, spread:0.075, gun:true,  usesAmmo:true,  tag:'×8 弹丸'},
+ {key:'smg',    name:'SMG',    dmg:19, head:57,  mag:35, rate:0.068, pellet:1, spread:0.024, gun:true,  usesAmmo:true,  tag:'高射速'},
+ {key:'sniper', name:'狙击枪', dmg:160,head:480, mag:5,  rate:1.15,  pellet:1, spread:0.002, gun:true,  usesAmmo:true,  tag:'穿透 ×3'},
+ {key:'melee',  name:'棒球棍', dmg:999,head:999, mag:0,  rate:0.55,  pellet:1, spread:0,     gun:false, usesAmmo:false, tag:'近战秒杀', range:5.4}
+];
+var wpUnlocked=Object.assign({pistol:true,melee:true},
+  (window.Profile&&Profile.unlocks)?Profile.unlocks():{});   /* ★ §7.2 永久解锁 */
+var meleeSub=0;
 var wIdx=0,aiming=false,nadeCount=6,NADE_MAX=6;
 var liveNades=[];
 var playing=false,dead=false;
+
+/* ============================================================
+ * ★ §4 局内经济（基础版：武器解锁 + 弹药补给，无上限升级）
+ *   各人独立纯本地；零件=击杀掉落
+ * ============================================================ */
+var credits=0;
+var KILL_REWARD={normal:1,runner:1,thrower:1,spitter:1,boomer:2,armored:2,summoner:2,boss:10};
+/* ★ §4.3 价格表（三图统一） */
+var WPN_PRICE={ak:100,shotgun:70,smg:120,sniper:200};
+var PRICE_AMMO_REFILL=4, PRICE_MED_REFILL=10, PRICE_NADE_REFILL=2;
+var WPN_LVL_PRICE={2:120,3:260};
+var PRICE_AMMO_REFILL=40;
+var WPN_INIT=Object.assign({},wpUnlocked);
+var buyLog=[];
+function addCredits(n){credits+=n;}
+/* ★ §4.2 商店契约（map3 仅解锁 + 补弹） */
+window.__shop={
+ balance:function(){return credits;},
+ items:function(){return [
+  {id:'ak',     name:'AK-47', price:WPN_PRICE.ak,      group:'unlock',owned:wpUnlocked.ak,     desc:'全自动 · 高射速'},
+  {id:'shotgun',name:'霰弹枪',price:WPN_PRICE.shotgun, group:'unlock',owned:wpUnlocked.shotgun,desc:'×8 弹丸 · 近距离爆发'},
+  {id:'smg',    name:'SMG',   price:WPN_PRICE.smg,     group:'unlock',owned:wpUnlocked.smg,    desc:'极高射速 · 压制走位'},
+  {id:'sniper', name:'狙击枪',price:WPN_PRICE.sniper,  group:'unlock',owned:wpUnlocked.sniper, desc:'穿透 ×3 · 单发高伤'},
+  {id:'ammo',   name:'补满弹药',price:PRICE_AMMO_REFILL,group:'supply',rebuy:true,owned:false,
+   canBuy:ammo<AMMO_MAX_BASE,desc:'共享弹药池补至上限 · 当前 '+ammo+' / '+AMMO_MAX_BASE}
+ ];},
+ buy:function(id){return buyItem(id);}
+};
+/* ★ §4.3 购买：失败不改状态、不扣款 */
+function buyItem(id){
+ function fail(m){return {ok:false,msg:m};}
+ if(WPN_PRICE[id]!==undefined){
+  if(wpUnlocked[id])return fail('已拥有');
+  var cost=WPN_PRICE[id];
+  if(credits<cost)return fail('零件不足');
+  credits-=cost;wpUnlocked[id]=true;updSlots();
+  buyLog.push({id:id,cost:cost});
+  var w=W_SLOTS.find(function(x){return x.key===id;});
+  banner('已解锁 · '+(w?w.name:id));
+  return {ok:true,msg:'已解锁'};
+ }
+ if(id==='ammo'){
+  if(ammo>=AMMO_MAX_BASE)return fail('弹药已满');
+  if(credits<PRICE_AMMO_REFILL)return fail('零件不足');
+  credits-=PRICE_AMMO_REFILL;ammo=AMMO_MAX_BASE;
+  buyLog.push({id:'ammo',cost:PRICE_AMMO_REFILL});
+  return {ok:true,msg:'弹药已补满'};
+ }
+ return fail('未知商品');
+}
+
+/* ★ §1.1 刷新槽位徽标 */
+function updSlots(){
+ for(var k=0;k<6;k++){var el=document.getElementById('ws'+k);if(!el)continue;
+  el.classList.toggle('on',k===wIdx);
+  el.classList.toggle('lock',!wpUnlocked[W_SLOTS[k].key]);}
+}
+/* ★ §1.1 轻量提示 */
+var _bannerTO=null;
+function banner(t){var el=document.getElementById('wtag');if(!el)return;el.textContent=t;
+ if(_bannerTO)clearTimeout(_bannerTO);
+ _bannerTO=setTimeout(function(){if(el.textContent===t)el.textContent='';},1800);}
 
 function collide(px,pz,r){
  for(var i=0;i<solids.length;i++){var s=solids[i];
@@ -510,6 +609,8 @@ function collide(px,pz,r){
  return [px,pz];
 }
 function updatePlayer(dt){
+ /* ★ §4 商店打开时冻结本地移动 */
+ if(window.__shopOpenFlag)return;
  /* ★ 观战：自由飞行（穿墙、无重力、不可开火） */
  if(window.MP&&MP.spectating()){
   var sf=(Keys.isDown('forward')?1:0)-(Keys.isDown('back')?1:0);
@@ -538,19 +639,31 @@ function updatePlayer(dt){
  var p=collide(player.x+vx*dt,player.z+vz*dt,player.r);
  player.x=p[0];player.z=p[1];
  bobT+=dt*(moving?(sprint?11:7):2);
- var bob=moving?Math.abs(Math.cos(bobT))*0.05:0;
+ var bob=moving?Math.abs(Math.cos(bobT))*(sprint?0.052:0.032):0;   // ★ §1.2 克制幅度
+ bob*=(aiming?0.15:1);                                            // ★ §1.2 开镜衰减
  camera.position.set(player.x,1.7+bob,player.z);
  camera.rotation.set(player.pitch,player.yaw,0);
+ /* ★ §1.2 准星扩散：静止基准 + 移动/疾跑外扩 - 开镜收敛；开火脉冲见 shoot() */
+ var _ct=Math.max(1.5,4+(moving?7:0)+(sprint?5:0)-(aiming?4.5:0));
+ crossSpread+=(_ct-crossSpread)*Math.min(1,dt*9);
+ if(crossSpread>_ct+0.01)crossSpread=Math.max(_ct,crossSpread-dt*22);
+ if(crossEl){crossEl.style.setProperty('--sp',crossSpread.toFixed(2)+'px');
+  crossEl.classList.toggle('ads',!!aiming);}
  if(t_now-player.lastHit>5&&player.hp<100)player.hp=Math.min(100,player.hp+3*dt);
- if(reloading){reloadT-=dt;if(reloadT<=0){reloading=false;ammo=MAG;}}
+ if(reloading){reloadT-=dt;if(reloadT<=0){reloading=false;}}
  updateHUD();
 }
 function updateGun(dt){
  if(!gun)return;
  gunKick=Math.max(0,gunKick-dt*0.55);
+ if(meleeSwingT>0)meleeSwingT=Math.max(0,meleeSwingT-dt);   // ★ 近战挥击计时
  var rl=reloading?Math.sin(Math.min(1-reloadT/RELOAD_T,1)*Math.PI):0;
- gun.position.set(GUNPOS.x+Math.sin(bobT)*0.012,GUNPOS.y-rl*0.12,GUNPOS.z+gunKick);
- gun.rotation.x=gunKick*1.4-rl*0.35;
+ /* ★ 近战挥击：在基础位移/旋转之上叠加一次横劈弧线 */
+ var msw=meleeSwingT>0?Math.sin((1-meleeSwingT/MELEE_SWING_DUR)*Math.PI):0;
+ gun.position.set(GUNPOS.x+Math.sin(bobT)*0.012+msw*0.05,GUNPOS.y-rl*0.12-msw*0.10,GUNPOS.z+gunKick-msw*0.30);
+ gun.rotation.x=gunKick*1.4-rl*0.35-msw*0.95;
+ gun.rotation.y=msw*0.55;
+ gun.rotation.z=msw*1.25;
  flashMesh.position.set(GUNPOS.x+Math.sin(bobT)*0.012,GUNPOS.y-rl*0.12,-0.99);
  flashLight.position.set(GUNPOS.x,GUNPOS.y-rl*0.12,-0.9);
  if(flashT>0){flashT-=dt;if(flashT<=0){flashMesh.visible=false;flashLight.intensity=0;}}
@@ -566,6 +679,49 @@ var zBodyG=new THREE.CylinderGeometry(0.30,0.36,0.95,10),
  zHeadG=new THREE.SphereGeometry(0.24,10,8),
  zArmG=new THREE.BoxGeometry(0.13,0.72,0.13),
  zLegG=new THREE.BoxGeometry(0.17,0.8,0.17);
+/* ★ §2.1 丧尸类型表（map3 精简版：仅类型表 + 装甲减伤，不做行为/尸潮）
+   基线沿用 map3 现有手感：normal=60hp+wave*12 / speed 2.1+… */
+var ZT={
+ /* ★ §2.1 数值对齐（map3）：普通 58 / 疾行 40 / 喷吐 65 / 自爆 30 / 装甲 120 / 召唤 65 */
+ normal :{hp:58, spd:2.1,dmg:8, unlock:1},
+ runner :{hp:40, spd:4.0,dmg:7, unlock:2},
+ spitter:{hp:65, spd:1.6,dmg:6, unlock:3},
+ boomer :{hp:30, spd:1.9,dmg:0, unlock:4},
+ armored:{hp:120,spd:1.4,dmg:12,unlock:5},
+ summoner:{hp:65,spd:1.6,dmg:7,unlock:6}
+};
+var ZARMOR={armored:{bullet:0.30}};
+function armorMulMap3(z,opts){
+ if(!z||z.type!=='armored')return 1;
+ if(opts&&opts.head)return 1;
+ if(opts&&opts.explosive)return 1;
+ return ZARMOR.armored.bullet;}
+function pickZTypeMap3(){
+ var w=wave,r=Math.random();
+ var elite=(w>=3&&w%3===0);              /* ★ §2.2 精英波：每 3 波一次 */
+ var mul=elite?2:1;
+ if(w>=6&&r<0.10*mul)return 'summoner';
+ if(w>=5&&r<0.22*mul)return 'armored';
+ if(w>=4&&r<0.34*mul)return 'boomer';
+ if(w>=3&&r<0.46*mul)return 'spitter';
+ if(w>=2&&r<0.60)return 'runner';
+ return 'normal';}
+/* 各类型服装色（只换材质，不追加几何） */
+var zShirtType={
+ spitter:new THREE.MeshStandardMaterial({color:0x4a6a2a,roughness:0.95}),
+ boomer :new THREE.MeshStandardMaterial({color:0x6a2a2a,roughness:0.95}),
+ armored:new THREE.MeshStandardMaterial({color:0x555b62,metalness:0.6,roughness:0.5}),
+ summoner:new THREE.MeshStandardMaterial({color:0x4a2f6a,roughness:0.95})};
+var zTypeScale3={normal:1.0,runner:0.95,spitter:1.04,boomer:1.15,armored:1.12,summoner:1.08};
+/* ★ §2.1 统一丧尸伤害结算（装甲减伤唯一实现） */
+function damageZ(zb,dmg,opts){
+ if(!zb||zb.dead)return;
+ var isHead=opts===true||(opts&&opts.head);
+ var isBoom=!!(opts&&opts.explosive);
+ zb.hp-=dmg*((isHead||isBoom)?1:armorMulMap3(zb,{}));
+ if(zb.hp<=0){zb.dead=true;zb.dt=0;alive--;kills++;removeZParts(zb);
+  /* ★ §4.1 击杀掉落零件（去重） */
+  if(!zb.__rewarded){zb.__rewarded=true;addCredits(KILL_REWARD[zb.type||'normal']||5);}}}
 function spawnZombie(){
  var x,z,ok=false,tries=0;
  while(!ok&&tries++<40){
@@ -578,8 +734,9 @@ function spawnZombie(){
   if(Math.hypot(x-player.x,z-player.z)<25)ok=false;
  }
  if(!ok)return;
+ var type=pickZTypeMap3(),T=ZT[type]||ZT.normal;
  var g=new THREE.Group();
- var skin=zSkin[(Math.random()*3)|0],shirt=zShirt[(Math.random()*4)|0];
+ var skin=zSkin[(Math.random()*3)|0],shirt=zShirtType[type]||zShirt[(Math.random()*4)|0];
  var torso=new THREE.Mesh(zBodyG,shirt);torso.position.y=1.15;torso.castShadow=true;
  var head=new THREE.Mesh(zHeadG,skin);head.position.y=1.88;head.castShadow=true;
  function limb(geo,mat,px,py){var p=new THREE.Group();p.position.set(px,py,0);
@@ -588,31 +745,90 @@ function spawnZombie(){
  var aL=limb(zArmG,skin,-0.36,1.55),aR=limb(zArmG,skin,0.36,1.55);
  aL.rotation.x=aR.rotation.x=-1.25;
  var lL=limb(zLegG,zPants,-0.17,0.82),lR=limb(zLegG,zPants,0.17,0.82);
+ g.scale.setScalar(zTypeScale3[type]||1.0);
  g.position.set(x,0,z);scene.add(g);
- var zb={g:g,hp:60+(wave-1)*12,speed:2.1+Math.random()*1.3+wave*0.07,dmg:8+wave,
+ var zb={g:g,type:type,hp:T.hp+(wave-1)*12,speed:T.spd+Math.random()*1.0+wave*0.05,dmg:T.dmg+wave,
   cd:Math.random(),dead:false,dt:0,aL:aL,aR:aR,lL:lL,lR:lR};
  head.userData.z=zb;head.userData.head=true;torso.userData.z=zb;
  zParts.push(head,torso);zombies.push(zb);alive++;
  /* ★ 联机：登记到 window.__zombies + 稳定 id（供 zsync 广播） */
- g.userData.isZombie=true;g.userData.zType='normal';g.userData.hp=zb.hp;g.userData.__zRef=zb;
+ g.userData.isZombie=true;g.userData.zType=type;g.userData.hp=zb.hp;g.userData.__zRef=zb;
  if(!window.__zombieSpawnMode){
   if(window.ZS&&ZS.register)ZS.register(g);
   else g.userData.__zid=g.userData.__zid||('z'+Math.random().toString(36).slice(2,9));
   (window.__zombies=window.__zombies||[]).push(g);
  }
 }
+/* ★ §0.1 候选目标表：本地玩家 + 所有存活远端玩家（单机时仅本地玩家） */
+function collectTargets(){
+ var out=[{id:'local',x:player.x,z:player.z,y:player.y,local:true}];
+ try{
+  if(window.MP&&typeof MP.peerTargets==='function'){
+   var list=MP.peerTargets();
+   for(var i=0;i<list.length;i++){var t=list[i];
+    if(!t||t.alive===false)continue;
+    out.push({id:t.id,x:t.x,z:t.z,y:t.y,local:false});}
+  }
+ }catch(e){}
+ return out;
+}
+/* ★ §0.1 选目标：最近且可达者优先；保持原目标粘性，避免横向抖动 */
+function pickTarget(zb){
+ var cands=collectTargets();
+ if(!cands.length)return null;
+ var chosen=null,bd=1e9,i,t,d;
+ for(i=0;i<cands.length;i++){t=cands[i];d=Math.hypot(t.x-zb.g.position.x,t.z-zb.g.position.z);
+  if(chosen&&zb.tgtId&&t.id===zb.tgtId&&d<bd+3.0){chosen=t;bd=d;continue;}
+  if(d<bd){bd=d;chosen=t;}}
+ var reachable=function(q){return Math.abs(q.y-zb.g.position.y)<2.5;};
+ if(chosen&&!reachable(chosen)){
+  var best=null,bd2=1e9;
+  for(i=0;i<cands.length;i++){t=cands[i];if(!reachable(t))continue;
+   d=Math.hypot(t.x-zb.g.position.x,t.z-zb.g.position.z);
+   if(d<bd2){bd2=d;best=t;}}
+  if(best)chosen=best;
+ }
+ if(chosen)zb.tgtId=chosen.id;
+ return chosen;
+}
 function updateZombies(dt){
+ var isClient=!!(window.ZS&&window.ZS.isClient());
  for(var i=zombies.length-1;i>=0;i--){var zb=zombies[i],g=zb.g;
   if(zb.dead){
    zb.dt+=dt;g.rotation.x=-Math.min(zb.dt*3,1)*1.45;
    if(zb.dt>1.1)g.position.y=-(zb.dt-1.1)*0.7;
-   if(zb.dt>2.2){scene.remove(g);zombies.splice(i,1);}
+   if(zb.dt>2.2){
+    if(window.ZS&&ZS.unregister)ZS.unregister(g);
+    var ix=(window.__zombies||[]).indexOf(g);if(ix>=0)window.__zombies.splice(ix,1);
+    scene.remove(g);zombies.splice(i,1);}
    continue;
   }
-  var dx=player.x-g.position.x,dz=player.z-g.position.z,dist=Math.hypot(dx,dz);
+  /* ★ §0.1 客户端分支：位置/朝向由 zsync 插值控制，本地只做"咬本机玩家"判定 */
+  if(isClient){
+   if(!g.parent){
+    if(window.ZS&&ZS.unregister)ZS.unregister(g);
+    var ix2=(window.__zombies||[]).indexOf(g);if(ix2>=0)window.__zombies.splice(ix2,1);
+    zombies.splice(i,1);continue;}
+   var dCx=player.x-g.position.x,dCz=player.z-g.position.z,dC=Math.hypot(dCx,dCz);
+   zb.cd-=dt;
+   if(dC<1.7&&zb.cd<=0&&!player.dead){zb.cd=0.9;damagePlayer(zb.dmg);}
+   var lx=(zb.__lx!=null?zb.__lx:g.position.x),lz=(zb.__lz!=null?zb.__lz:g.position.z);
+   var mv=Math.hypot(g.position.x-lx,g.position.z-lz);
+   zb.__lx=g.position.x;zb.__lz=g.position.z;
+   var swC=Math.sin(t_now*zb.speed*3+mv*20);
+   zb.lL.rotation.x=swC*0.55;zb.lR.rotation.x=-swC*0.55;
+   zb.aL.rotation.x=-1.25+swC*0.12;zb.aR.rotation.x=-1.25-swC*0.12;
+   continue;
+  }
+  /* ★ §0.1 房主选目标：本地玩家 + 存活远端玩家里最近者 */
+  var tgt=pickTarget(zb);
+  var tx=tgt?tgt.x:player.x,tz=tgt?tgt.z:player.z;
+  var dx=tx-g.position.x,dz=tz-g.position.z,dist=Math.hypot(dx,dz);
   zb.cd-=dt;
   if(dist<1.7){
-   if(zb.cd<=0){zb.cd=0.9;damagePlayer(zb.dmg);}
+   if(zb.cd<=0){zb.cd=0.9;
+    if(tgt&&!tgt.local){if(window.P2P&&P2P.sendHitPlayer)P2P.sendHitPlayer(tgt.id,zb.dmg);}
+    else damagePlayer(zb.dmg);}
   }else{
    var mx=dx/dist*zb.speed,mz=dz/dist*zb.speed;
    for(var j=0;j<zombies.length;j++){var o=zombies[j];
@@ -644,65 +860,132 @@ for(var bi=0;bi<8;bi++){var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:bl
 function blood(p){var s=bloodPool.pop();if(!s)return;
  s.position.copy(p);s.scale.setScalar(0.35);s.material.opacity=1;s.visible=true;
  bloodActive.push({s:s,t:0.28});}
+/* ★ §1.2 弹壳对象池（写实：自旋 + 重力 + 落地弹跳 + 躺平） */
+var shellGeo3=new THREE.CylinderGeometry(0.0065,0.0065,0.023,6);
+var shellMat3=new THREE.MeshStandardMaterial({color:0xb98a3c,roughness:.34,metalness:.9});
+var shellPool=[],shIdx=0;
+for(var shi=0;shi<24;shi++){var shm=new THREE.Mesh(shellGeo3,shellMat3);shm.visible=false;
+ shm.frustumCulled=false;scene.add(shm);
+ shellPool.push({m:shm,vx:0,vy:0,vz:0,sx:0,sy:0,sz:0,life:0,bounce:0});}
+function ejectShell(){
+ var s=shellPool[shIdx];shIdx=(shIdx+1)%shellPool.length;
+ s.m.visible=true;
+ /* 抛壳口：枪身右上方（相对 GUNPOS） */
+ s.m.position.set(GUNPOS.x+0.07,GUNPOS.y+0.10,-0.55);
+ camera.updateMatrixWorld();
+ camera.localToWorld(s.m.position);
+ /* 抛壳方向：相机右上方 */
+ var rgt=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+ s.vx=rgt.x*(1.6+Math.random())+(Math.random()-0.5)*0.6;
+ s.vy=1.5+Math.random()*0.6;
+ s.vz=rgt.z*(1.6+Math.random())+(Math.random()-0.5)*0.6;
+ s.sx=(Math.random()-0.5)*22;s.sy=(Math.random()-0.5)*14;s.sz=(Math.random()-0.5)*22;
+ s.life=0.9+Math.random()*0.35;s.bounce=0;
+ s.m.rotation.set(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28);
+}
+function updateShells(dt){
+ for(var i=0;i<shellPool.length;i++){var s=shellPool[i];if(s.life<=0)continue;
+  s.life-=dt;if(s.life<=0){s.m.visible=false;continue;}
+  s.vy-=9.8*dt;
+  s.m.position.x+=s.vx*dt;s.m.position.y+=s.vy*dt;s.m.position.z+=s.vz*dt;
+  s.m.rotation.x+=s.sx*dt;s.m.rotation.y+=s.sy*dt;s.m.rotation.z+=s.sz*dt;
+  if(s.m.position.y<=0.012){s.m.position.y=0.012;
+   if(s.bounce<1){s.vy=Math.abs(s.vy)*0.32;s.vx*=0.55;s.vz*=0.55;s.sx*=0.5;s.sz*=0.5;s.bounce++;}
+   else{s.vy=0;s.vx*=Math.pow(0.02,dt);s.vz*=Math.pow(0.02,dt);
+    s.m.rotation.x+=(Math.PI/2-s.m.rotation.x)*Math.min(1,dt*6);
+    s.sx*=0.9;s.sz*=0.9;s.life=Math.min(s.life,0.35);}}}
+}
 function updateFx(dt){
  if(tracerLife>0){tracerLife-=dt;tracer.material.opacity=Math.max(0,tracerLife/0.06)*0.85;
   if(tracerLife<=0)tracer.visible=false;}
  for(var i=bloodActive.length-1;i>=0;i--){var b=bloodActive[i];b.t-=dt;
   b.s.material.opacity=b.t/0.28;b.s.scale.addScalar(dt*1.4);
   if(b.t<=0){b.s.visible=false;bloodPool.push(b.s);bloodActive.splice(i,1);}}
-}
+ updateShells(dt);}
 function shoot(now){
  if(!firing||reloading)return;
- if(ammo<=0){reload();return;}
  var W=W_SLOTS[wIdx];
+ var isMelee=(W.gun===false);
+ /* ★ §1.1 共享弹药池：仅枪械消耗；手枪/近战不扣 */
+ if(W.usesAmmo){ if(ammo<=0){reload();return;} ammo--; }
  if(now-lastShot<W.rate)return;
- lastShot=now;ammo--;gunKick=0.05;flashT=0.045;
- flashMesh.visible=true;
- flashMesh.rotation.z=Math.random()*6.28;
- flashMesh.scale.setScalar(0.8+Math.random()*0.6);
- flashLight.intensity=2.2;
- player.pitch=Math.min(1.4,player.pitch+0.006);sfxShot();
+ lastShot=now;gunKick=0.05;
+ /* ★ 近战：不做枪口火光，改为挥击动画（棒球棍不发子弹） */
+ if(isMelee){ meleeSwingT=MELEE_SWING_DUR; }
+ else {
+  flashT=0.045;
+  flashMesh.visible=true;
+  flashMesh.rotation.z=Math.random()*6.28;
+  flashMesh.scale.setScalar(0.8+Math.random()*0.6);
+  flashLight.intensity=2.2;
+ }
+ player.pitch=Math.min(1.4,player.pitch+(isMelee?0.01:0.006));if(!isMelee)sfxShot();
+ /* ★ §1.2 弹壳抛出（近战不抛） + 准星开火脉冲 */
+ if(W.gun!==false)ejectShell();
+ crossSpread+=1.6+(W.pellet>1?3.0:1.0);
  camera.updateMatrixWorld();
  camera.getWorldDirection(_v3a);
- var spread=aiming?0.004:0.012;              // ★ 开镜更稳
+ var spread=aiming?W.spread*0.25:W.spread;    // ★ 开镜更稳（按武器散布）
  _v3a.x+=(Math.random()-0.5)*spread;_v3a.y+=(Math.random()-0.5)*spread;_v3a.z+=(Math.random()-0.5)*spread;
  _v3a.normalize();
  ray.set(camera.position,_v3a);
  var hits=ray.intersectObjects(blockers.concat(zParts),false);
+ /* ★ 近战射程限制：超出 W.range 视为空挥（射程已 ×3，墙体仍然阻挡） */
+ if(hits.length&&W.range&&hits[0].distance>W.range) hits=[];
  muzzleWorld(_muz);
  var end;
  if(hits.length){
   end=hits[0].point;
   var z=hits[0].object.userData.z;
   if(z&&!z.dead){
-   var dmg=hits[0].object.userData.head?W.head:W.dmg;   // ★ 按当前武器
+   /* ★ §1.1 近战一击必杀；狙击穿甲（非 BOSS） */
+   var isHead=!!hits[0].object.userData.head;
+   var raw=isMelee?9999:(isHead?W.head:W.dmg);
+   /* ★ §2.1 装甲减伤在最终伤害上生效（爆头/近战/穿透绕过） */
+   var mul=(isHead||isMelee)?1:armorMulMap3(z,{});
+   var dmg=raw*mul;
    blood(end);
    hitmark.style.opacity=1;setTimeout(function(){hitmark.style.opacity=0;},90);
-   sfxHit();
-   /* ★ 联机：客户端按丧尸稳定 id 上报，房主结算 */
+   sfxHit(isHead,(z.hp-dmg)<=0);               // ★ §1.2 爆头音效三档
+   /* ★ 联机：客户端按丧尸稳定 id 上报，房主结算（上报名义值，房主端再乘减伤） */
    if(window.ZS&&ZS.isClient()&&window.P2P){
     var zid=ZS.idOf(z.g);
-    if(zid){P2P.sendHitZombie(zid,dmg);}
+    if(zid){P2P.sendHitZombie(zid,raw);}
    }else{
-    z.hp-=dmg;
-    if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);
-     if(window.ZS&&ZS.unregister)ZS.unregister(z.g);}
+    damageZ(z,dmg,{head:isHead||isMelee});
+    if(z.dead&&window.ZS&&ZS.unregister)ZS.unregister(z.g);
    }
   }
  }else end=camera.position.clone().add(_v3a.clone().multiplyScalar(200));
- var pa=tracer.geometry.attributes.position.array;
- pa[0]=_muz.x;pa[1]=_muz.y;pa[2]=_muz.z;pa[3]=end.x;pa[4]=end.y;pa[5]=end.z;
- tracer.geometry.attributes.position.needsUpdate=true;tracer.visible=true;tracerLife=0.06;
+ /* ★ 近战不画弹道曳光，只保留枪械曳光 */
+ if(!isMelee){
+  var pa=tracer.geometry.attributes.position.array;
+  pa[0]=_muz.x;pa[1]=_muz.y;pa[2]=_muz.z;pa[3]=end.x;pa[4]=end.y;pa[5]=end.z;
+  tracer.geometry.attributes.position.needsUpdate=true;tracer.visible=true;tracerLife=0.06;
+ }
  updateHUD();
 }
 function removeZParts(z){zParts=zParts.filter(function(m){return m.userData.z!==z;});}
-function reload(){if(reloading||ammo===MAG)return;reloading=true;reloadT=RELOAD_T;}
-/* ★ 换枪：切换武器预设（弹药按新弹匣补满，简化处理） */
+/* ★ §1.1 换弹：从共享弹药池补满；池空不空转 */
+function reload(){if(W_SLOTS[wIdx].gun===false)return;if(reloading)return;if(ammo<=0)return;reloading=true;reloadT=RELOAD_T;}
+/* ★ §1.1 换枪：6 槽 + 解锁校验；近战槽重复按 → 轮换 */
 function weaponSwitch(i){
- if(!W_SLOTS[i]||i===wIdx)return;
+ if(!W_SLOTS[i])return;
+ if(i===5&&wIdx===5){cycleMelee();return;}
+ if(i===wIdx)return;
+ if(!wpUnlocked[W_SLOTS[i].key]){banner('未解锁 · '+W_SLOTS[i].name+'（商店购买）');return;}
  wIdx=i;var W=W_SLOTS[i];MAG=W.mag;RELOAD_T=W.rate>0.3?2.2:1.8;
- ammo=MAG;reloading=false;updateHUD();
+ reloading=false;updateHUD();
  var el=document.getElementById('wpnName'); if(el)el.textContent=W.name;
+ updSlots();
+}
+/* 近战槽内轮换 */
+function cycleMelee(){
+ if(wIdx!==5)return;
+ meleeSub=(meleeSub+1)%MELEE_SUB.length;
+ W_SLOTS[5].name=MELEE_SUB[meleeSub];
+ var el=document.getElementById('wpnName'); if(el)el.textContent=W_SLOTS[5].name;
+ updateHUD();
 }
 /* ★ 手雷 */
 function throwNade(){
@@ -731,8 +1014,8 @@ function updateNades(dt){
     var zp=zParts[j],z=zp.userData.z;
     if(!z||z.dead)continue;
     var d=zp.getWorldPosition(_v3b).distanceTo(at);
-    if(d<6){z.hp-=(d<3?180:90);if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);
-     if(window.ZS&&ZS.unregister)ZS.unregister(z.g);}}
+    if(d<6){damageZ(z,(d<3?180:90),{explosive:true});   // ★ §2.1 爆炸绕过装甲减伤
+     if(z.dead&&window.ZS&&ZS.unregister)ZS.unregister(z.g);}
    }
    liveNades.splice(i,1);
   }
@@ -742,9 +1025,33 @@ var _v3b=new THREE.Vector3();
 
 /* ================= 波次 ================= */
 var wave=1,kills=0,toSpawn=0,spawnT=0,waveState='inter',interT=2.5;
+/* ★ §5.1 关卡模式（有限防守；map3 不做夜战） */
+var MODE_KIND=(function(){try{return new URLSearchParams(location.search).get('mode')||'endless';}catch(e){return 'endless';}})();
+var LIMIT_WAVES = MODE_KIND==='defense' ? (5+Math.floor(Math.random()*11)) : 0;   /* 5~15 */
+var victoryDone=false;
+var runT=0;                                   /* ★ §7 本局存活计时（map3 原先无） */
+var __runRecorded=false;
+/* ★ §7 档案：一局结束写入本机长期战绩 */
+function recordProfile(victory){
+ if(__runRecorded)return;__runRecorded=true;
+ if(window.Profile&&Profile.recordRun){try{Profile.recordRun({map:'map3',kills:kills,wave:wave,timeS:runT,victory:!!victory,
+  headshots:(window.__headshots|0)||0,bestStreak:(window.__bestStreak|0)||0,wKills:window.__wKills||{}});}catch(e){}}
+}
+window.__recordProfile=recordProfile;         /* ★ §7 供 mp-bridge 联机落幕调用 */
+function triggerVictory(){
+ if(victoryDone)return;victoryDone=true;
+ recordProfile(true);                         /* ★ §7 记入档案 */
+ var vs=document.getElementById('victoryStats');if(vs)vs.textContent='全员坚守 '+LIMIT_WAVES+' 波 · 校园守住了';
+ if(window.MP&&MP.broadcastVictory){try{MP.broadcastVictory(LIMIT_WAVES);}catch(e){}}
+ if(window.MP&&MP.showVictory){try{MP.showVictory(LIMIT_WAVES);}catch(e){}}
+ else{var el=document.getElementById('victoryBox');if(el)el.classList.remove('hidden');}
+}
 function updateWaves(dt){
  if(waveState==='inter'){interT-=dt;
-  if(interT<=0){waveState='combat';toSpawn=3+wave*2;showToast('第 '+wave+' 波');}
+  if(interT<=0){
+   /* ★ §5.1 有限防守：已达目标波数 → 胜利（不再开新波） */
+   if(LIMIT_WAVES&&wave>=LIMIT_WAVES){if(alive===0)triggerVictory();return;}
+   waveState='combat';toSpawn=3+wave*2;showToast('第 '+wave+' 波');}
  }else{
   if(toSpawn>0){spawnT-=dt;
    if(spawnT<=0&&alive<24){spawnZombie();toSpawn--;spawnT=0.9;}}
@@ -752,10 +1059,66 @@ function updateWaves(dt){
  }
 }
 function damagePlayer(d){
+ /* ★ §0.1 房主咬中本机（客户端）玩家 → mp-bridge 收到 hit-player 调用此钩子 */
+ window.__playerHurt=window.__playerHurt||function(d){try{damagePlayer(+d||0);}catch(e){}};
  player.hp-=d;player.lastHit=t_now;dmgA=0.85;sfxHurt();
  if(window.MP&&window.MP.setHP)MP.setHP(Math.max(0,player.hp));
- if(player.hp<=0){player.hp=0;die();}
+ if(player.hp<=0){player.hp=0;
+  /* ★ §3.1 救援：优先进入濒死（无队友/未联机自动返回 false） */
+  if(window.MP&&window.MP.tryEnterDown&&window.MP.tryEnterDown()){player.down=true;player.downT=30;return;}
+  die();}
 }
+/* ============================================================
+ * ★ §3 联机协作 —— map3 钩子（基础：救援 + 雷达 + 聊天，职业仅标识）
+ * ============================================================ */
+window.__revived=function(ratio){
+ try{var r=(typeof ratio==='number'&&ratio>0)?ratio:0.4;
+  player.down=false;player.downT=0;dead=false;playing=true;
+  player.hp=Math.max(player.hp,Math.round(100*r));
+  if(window.MP&&window.MP.setHP)MP.setHP(player.hp);
+ }catch(e){} };
+window.__downedFx=function(){try{dmgA=1;}catch(e){}};
+window.__reviveFx=function(){try{sfxHurt();}catch(e){}};
+window.__getLocalCombat=function(){
+ try{return {x:player.x,y:player.flyY||1.7,z:player.z,ry:player.yaw||0,
+  hp:Math.max(0,Math.round(player.hp)),alive:!dead&&!player.down,
+  down:!!player.down,downT:player.downT||0};}catch(e){return null;} };
+window.__applyClass=function(cls,info){
+ try{
+  info=info||{};
+  window.__CLS={dmgMul:info.dmgMul||1,ammoMul:info.ammoMul||1,spdMul:info.spdMul||1,
+   hpBonus:info.hpBonus||0,meleeMul:info.meleeMul||1,hurtMul:info.hurtMul||1};
+  window.__CLS_SPD=window.__CLS.spdMul;
+  window.__CLS_NAME=(info.name||'')+'';
+  window.__dashT=0;
+ }catch(e){} };
+/* ★ §3.2 主动技能（map3 基础版） */
+window.__classSkill=function(cls){
+ try{
+  var name=window.__CLS_NAME||'';
+  if(name.indexOf('医疗')>=0||cls==='medic'){
+   player.hp=Math.min(100,player.hp+60);
+   if(window.MP&&window.MP.setHP)MP.setHP(player.hp);
+   return true;}
+  if(name.indexOf('壮汉')>=0||cls==='brute'){
+   for(var i=0;i<zombies.length;i++){var z=zombies[i];if(!z||z.dead)continue;
+    var dx=z.g.position.x-player.x,dz=z.g.position.z-player.z;
+    if(dx*dx+dz*dz<=25)damageZ(z,80,{explosive:true});}
+   return true;}
+  window.__dashT=3.0;return true;
+ }catch(e){return false;} };
+/* ★ §15.11 供 mp-bridge 读取本地状态 */
+window.__gameState=function(){try{return {wave:wave,hp:player.hp,maxHp:100,elapsed:runT};}catch(e){return null;}};
+window.__headshots=window.__headshots||0;
+window.__bestStreak=window.__bestStreak||0;
+window.__wKills=window.__wKills||{};
+window.__pauseForInput=function(on){try{if(on&&document.exitPointerLock)document.exitPointerLock();}catch(e){}};
+window.__radarData=function(){
+ try{var out=[];for(var i=0;i<zombies.length;i++){var z=zombies[i];if(!z||z.dead)continue;
+  out.push({x:z.g.position.x,z:z.g.position.z,boss:!!z.boss});}return out;}catch(e){return [];} };
+window.__tickDown=function(dt){
+ try{if(!player.down)return;player.downT=Math.max(0,(player.downT||0)-dt);
+  if(player.downT<=0){player.down=false;die();}}catch(e){} };
 function die(){
  /* ★ 联机：改为上报阵亡 + 观战，不各自弹结算；单机保持原死亡界面 */
  if(window.P2P&&P2P.inGame()){
@@ -768,6 +1131,7 @@ function die(){
  if(document.exitPointerLock)document.exitPointerLock();
  document.getElementById('deadStats').textContent='击杀 '+kills+' · 抵达第 '+wave+' 波';
  document.getElementById('dead').classList.remove('hidden');
+ recordProfile(false);                        /* ★ §7 记入档案（单机阵亡） */
 }
 /* ★ 联机：统一重开 */
 window.resetMatch=function(){
@@ -775,10 +1139,10 @@ window.resetMatch=function(){
  zombies.length=0;zParts.length=0;
  if(window.__zombies)window.__zombies.length=0;
  if(window.ZS&&ZS.byId)ZS.byId.clear();
- wave=1;kills=0;toSpawn=0;waveState='inter';interT=2.5;
+ wave=1;kills=0;toSpawn=0;waveState='inter';interT=2.5;runT=0;__runRecorded=false;   /* ★ §7 复位 */
  player.hp=100;player.st=100;player.x=SPAWN.x;player.z=SPAWN.z;player.yaw=0;player.pitch=0;
  player.flyY=1.7;
- ammo=MAG;reloading=false;dead=false;firing=false;audio();
+ ammo=AMMO_MAX_BASE;reloading=false;dead=false;firing=false;audio();
  playing=true;
  document.getElementById('dead').classList.add('hidden');
  if(!TOUCH){lockPointer();}
@@ -802,12 +1166,18 @@ function tone(fr,dur,vol){var a=audio();if(!a)return;var t=a.currentTime;
  var o=a.createOscillator(),g=a.createGain();o.frequency.value=fr;o.type='square';
  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur);}
-function sfxHit(){tone(180,0.06,0.12);}
+/* ★ §1.2 爆头音效三档：普通躯干 / 爆头非致死 / 爆头致死 */
+function sfxHit(head,lethal){
+ if(head&&lethal){tone(1900,0.05,0.22);setTimeout(function(){tone(700,0.07,0.18);},40);}
+ else if(head){tone(1600,0.05,0.18);setTimeout(function(){tone(950,0.05,0.12);},35);}
+ else tone(620,0.06,0.14);
+}
 function sfxHurt(){tone(90,0.18,0.2);}
 
 /* ================= HUD / 输入 ================= */
-var hpBar=document.getElementById('hpBar'),stBar=document.getElementById('stBar'),
- hpN=document.getElementById('hpN'),ammoN=document.getElementById('ammoN'),
+/* ★ §1.2 准星扩散状态 + 元素引用 */
+var crossEl=document.getElementById('cross'),crossSpread=0;
+var hpBar=document.getElementById('hpBar'),stBar=document.getElementById('stBar'), hpN=document.getElementById('hpN'),ammoN=document.getElementById('ammoN'),
  waveN=document.getElementById('waveN'),killN=document.getElementById('killN'),
  zN=document.getElementById('zN'),hitmark=document.getElementById('hitmark'),
  dmgFxEl=document.getElementById('dmgFx'),toast=document.getElementById('waveToast');
@@ -816,8 +1186,13 @@ function showToast(txt){toast.textContent=txt;toast.style.opacity=1;toastT=1.4;}
 function updateHUD(){
  hpBar.style.width=player.hp+'%';hpN.textContent=Math.round(player.hp);
  stBar.style.width=player.st+'%';
- ammoN.textContent=ammo+' / ∞';
- waveN.textContent=wave;killN.textContent=kills;zN.textContent=alive;
+ var W=W_SLOTS[wIdx];
+ var sub=(wIdx===5)?(' · '+MELEE_SUB[meleeSub]):'';
+ ammoN.textContent=W.name+sub+' · '+(W.usesAmmo?(ammo+' / '+AMMO_MAX_BASE):'∞');
+ var tagEl=document.getElementById('wtag');if(tagEl)tagEl.textContent=W.tag||'';
+ waveN.textContent=LIMIT_WAVES?(Math.min(wave,LIMIT_WAVES)+' / '+LIMIT_WAVES):wave;killN.textContent=kills;zN.textContent=alive;
+ /* ★ §4.2 HUD 零件 */
+ var credEl=document.getElementById('uiCredits');if(credEl)credEl.textContent=credits;
 }
 function onResize(){
  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
@@ -828,8 +1203,24 @@ addEventListener('orientationchange',function(){setTimeout(onResize,300);});
 /* ★ 统一键位：走 Keys 键位表，可在 index 设置页改键 */
 Keys.bindInput();
 Keys.onDown('reload',function(){reload();});
+/* ★ §7.3：六把武器对应数字键 1~6 */
+Keys.onDown('w1',function(){weaponSwitch(0);});
+Keys.onDown('w2',function(){weaponSwitch(1);});
+Keys.onDown('w3',function(){weaponSwitch(2);});
+Keys.onDown('w4',function(){weaponSwitch(3);});
+Keys.onDown('w5',function(){weaponSwitch(4);});
+Keys.onDown('w6',function(){weaponSwitch(5);});
 Keys.onDown('fire',function(){firing=true;});
 Keys.onUp('fire',function(){firing=false;});
+/* ★ §4.2 商店：B 键随时开关（单机也生效；联机时 mp-bridge 会自行处理，此处用 flag 防双触发） */
+addEventListener('keydown',function(e){
+ if(e.code==='KeyB'&&(playing||dead)){
+  if(typeof window.__shop==='undefined')return;
+  if(e.__shopHandled)return;
+  e.__shopHandled=true;
+  e.preventDefault();
+  if(window.__shopToggle&&!window.__shopOpenFlag)window.__shopToggle();}
+});
 function lockPointer(){if(!TOUCH&&canvas.requestPointerLock){
  try{var pl=canvas.requestPointerLock();if(pl&&pl.catch)pl.catch(function(){});}catch(_){}}}
 canvas.addEventListener('mousedown',function(e){
@@ -880,24 +1271,38 @@ bindHold('tbtn-reload',function(){reload();},null);
 bindHold('tbtn-aim',function(){aiming=true;var e=document.getElementById('tbtn-aim');if(e)e.classList.add('on');},
                     function(){aiming=false;var e=document.getElementById('tbtn-aim');if(e)e.classList.remove('on');});
 bindHold('tbtn-nade',function(){throwNade();},null);
-bindHold('tbtn-swap',function(){weaponSwitch(wIdx===0?1:0);},null);
+bindHold('tbtn-swap',function(){
+ /* ★ §1.1 触摸换枪：在已解锁槽位间循环；若仅当前槽 → 轮换近战 */
+ var n=wIdx;
+ for(var k=1;k<=6;k++){var j=(wIdx+k)%6;
+  if(W_SLOTS[j]&&wpUnlocked[W_SLOTS[j].key]){n=j;break;}}
+ if(n===wIdx)cycleMelee(); else weaponSwitch(n);
+},null);
 /* ---- 按钮 ---- */
 document.getElementById('btnRain').onclick=function(){rain.visible=!rain.visible;};
 document.getElementById('btnReset').onclick=function(){
  player.x=SPAWN.x;player.z=SPAWN.z;player.yaw=0;player.pitch=0;};
 document.getElementById('btnStart').onclick=start;
 document.getElementById('btnRestart').onclick=start;
+document.getElementById('btnRestartWin').onclick=start;
 function start(){
  for(var i=zombies.length-1;i>=0;i--)scene.remove(zombies[i].g);
  zombies.length=0;zParts.length=0;alive=0;
  if(window.__zombies)window.__zombies.length=0;
  if(window.ZS&&ZS.byId)ZS.byId.clear();
- wave=1;kills=0;toSpawn=0;waveState='inter';interT=2.5;
+ wave=1;kills=0;toSpawn=0;waveState='inter';interT=2.5;runT=0;__runRecorded=false;   /* ★ §7 复位 */
  player.hp=100;player.st=100;player.x=SPAWN.x;player.z=SPAWN.z;player.yaw=0;player.pitch=0;
- ammo=MAG;reloading=false;dead=false;firing=false;audio();
+ ammo=AMMO_MAX_BASE;reloading=false;dead=false;firing=false;audio();
  /* ★ 重开时重置弹药/手雷/武器 */
  nadeCount=NADE_MAX;liveNades.forEach(function(n){scene.remove(n.m);if(n.g)n.g.dispose();});liveNades.length=0;
- wIdx=0;MAG=W_SLOTS[0].mag;RELOAD_T=1.8;ammo=MAG;aiming=false;
+ wIdx=0;MAG=W_SLOTS[0].mag;RELOAD_T=1.8;ammo=AMMO_MAX_BASE;aiming=false;meleeSub=0;W_SLOTS[5].name=MELEE_SUB[0];updSlots();
+ /* ★ §4 经济重置 */
+ credits=0;buyLog.length=0;
+ for(var wk in WPN_INIT)wpUnlocked[wk]=WPN_INIT[wk];
+ updSlots();
+ victoryDone=false;                                         /* ★ §5.1 复位胜利标记 */
+ var vbox=document.getElementById('victoryBox');if(vbox)vbox.classList.add('hidden');
+ if(window.MP&&MP.hideVictory){try{MP.hideVictory();}catch(e){}}
  var ne=document.getElementById('nadeN');if(ne)ne.textContent=nadeCount;
  var we=document.getElementById('wpnName');if(we)we.textContent=W_SLOTS[0].name;
  document.getElementById('menu').classList.add('hidden');
@@ -906,14 +1311,51 @@ function start(){
 }
 
 /* ================= 主循环 ================= */
+/* ============================================================
+ * ★ §6.1 屏幕反馈（map3 基础版）：低血心跳 + 红边
+ * ============================================================ */
+var _lowhpEl3=null,_hbP3=0,_hbS3=0;
+function _ensureLowHpM3(){
+ if(_lowhpEl3&&_lowhpEl3.parentNode)return _lowhpEl3;
+ _lowhpEl3=document.getElementById('lowhpFx');
+ if(!_lowhpEl3){_lowhpEl3=document.createElement('div');_lowhpEl3.id='lowhpFx';
+  _lowhpEl3.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:40;opacity:0;'+
+   'background:radial-gradient(ellipse at center,rgba(120,0,0,0) 42%,rgba(190,10,10,.62) 100%);'+
+   'transition:opacity .18s linear;';
+  document.body.appendChild(_lowhpEl3);}
+ return _lowhpEl3;
+}
+function updateLowHpFxM3(dt){
+ try{
+  var el=_ensureLowHpM3();
+  var ratio=Math.max(0,Math.min(1,player.hp/100));
+  if(ratio>0.35||dead){el.style.opacity=0;_hbP3=0;return;}
+  var k=Math.min(1,(0.35-ratio)/0.35);
+  _hbP3+=dt*(1.2+k*0.6);
+  var pulse=0.5+0.5*Math.sin(_hbP3*Math.PI*2);
+  el.style.opacity=(0.22+0.34*k*pulse).toFixed(3);
+  _hbS3-=dt;if(_hbS3<=0&&k>0.25){_hbS3=0.85-k*0.25;try{sfxHurt();}catch(e){}}
+ }catch(e){} }
+/* 感知：20 米内是否有活丧尸 */
+function _nearZM3(){
+ try{for(var i=0;i<zombies.length;i++){var z=zombies[i];if(!z||z.dead)continue;
+  var dx=z.g.position.x-player.x,dz=z.g.position.z-player.z;
+  if(dx*dx+dz*dz<400)return true;}}catch(e){}
+ return false;}
+
 var t_now=0,last=performance.now(),frames=0,fpsT=0,loopErrShown=false;
 function loop(now){
  requestAnimationFrame(loop);
  try{
   var dt=Math.min((now-last)/1000,0.05);last=now;t_now=now/1000;
+  /* ★ §6.1 濒死慢放 + 职业突进计时 */
+  if(window.__slowmo)dt*=0.6;
+  if(window.__dashT>0)window.__dashT=Math.max(0,window.__dashT-dt);
+  if(window.__tickDown)window.__tickDown(dt);           // ★ §3.1 濒死倒计时
+  if(playing&&!dead)runT+=dt;                           // ★ §7 存活计时
   frames++;fpsT+=dt;
   if(fpsT>=0.5){document.getElementById('fpsN').textContent=Math.round(frames/fpsT)+' FPS';frames=0;fpsT=0;}
-  if(playing){
+  if(playing&&!player.down){
    updatePlayer(dt);
    shoot(t_now);
    updateZombies(dt);updateWaves(dt);updateNades(dt);
@@ -925,6 +1367,14 @@ function loop(now){
   var wantFov=aiming?44:74;
   if(Math.abs(camera.fov-wantFov)>0.05){camera.fov+=(wantFov-camera.fov)*Math.min(1,dt*9);camera.updateProjectionMatrix();}
   updateGun(dt);updateRain(dt);updateFx(dt);
+  updateLowHpFxM3(dt);                                  // ★ §6.1 低血心跳 + 红边
+  /* ★ §6.3 BGM 分层 */
+  if(window.BGM&&BGM.set){
+   var _b=(player.down||player.hp/100<0.15)?'down'
+         :(wave>=3&&wave%3===0)?'horde'
+         :(_nearZM3()?'combat':'calm');
+   try{BGM.set(_b);}catch(e){}
+  }
   if(toastT>0){toastT-=dt;if(toastT<=0)toast.style.opacity=0;}
   if(dmgA>0){dmgA=Math.max(0,dmgA-dt*1.6);dmgFxEl.style.opacity=dmgA;}
   camera.updateMatrixWorld();
@@ -955,17 +1405,21 @@ window.__zombieSpawn=function(s){
 window.__applyZombieDamage=function(g,dmg){
  var z=g&&g.userData&&g.userData.__zRef;
  if(!z||z.dead)return;
- z.hp-=dmg;
- if(z.hp<=0){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);}
+ /* ★ §2.1 999 = 客户端爆头/近战约定 → 绕过装甲减伤 */
+ damageZ(z,dmg,(dmg>=999)?{head:true}:null);
 };
 window.__onZombieKilled=function(g){
  var z=g&&g.userData&&g.userData.__zRef;
- if(z&&!z.dead){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);}
+ if(z&&!z.dead){z.dead=true;z.dt=0;alive--;kills++;removeZParts(z);
+  /* ★ §4.1 客户端击杀同样掉落零件（双方各自本地发钱） */
+  if(!z.__rewarded){z.__rewarded=true;addCredits(KILL_REWARD[z.type||'normal']||5);}}
 };
 window.__waveSet=function(w){wave=w;};
 window.__killsSet=function(k){kills=k;};
 
 updateHUD();
+/* ★ §6.3 BGM 分层接线 */
+try{ if(window.BGM){ BGM.attach(function(){try{return audio();}catch(e){return null;}}); BGM.set('calm'); } }catch(e){}
 document.getElementById('loading').classList.add('hidden'); // 构建完成 → 关闭加载层
 requestAnimationFrame(loop);
 
@@ -975,6 +1429,8 @@ requestAnimationFrame(loop);
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="keys.js"></script>
 <script src="settings.js"></script>
+<script src="profile.js"></script>
+<script src="bgm.js"></script>
 <script src="touch-ui.js"></script>
 <script src="p2p.js"></script>
 <script src="mp-bridge.js"></script>

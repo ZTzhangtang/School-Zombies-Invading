@@ -5,7 +5,8 @@
  *   W/A/S/D  移动        Shift  疾跑
  *   F        开火        右键   开镜
  *   R        换弹        1 / 2  切换武器
- *   G        手雷
+ *   G        手雷        E      交互/救援
+ *   T        聊天        Q      快捷指令
  *
  * 用法：
  *   Keys.actionOf(e.code)   → 动作名 或 null
@@ -27,10 +28,20 @@ window.Keys = (function () {
     { key: 'sprint',  label: '疾跑',      def: 'ShiftLeft',     group: '移动' },
     { key: 'fire',    label: '开火',      def: 'KeyF',          group: '战斗' },
     { key: 'reload',  label: '换弹',      def: 'KeyR',          group: '战斗' },
-    { key: 'w1',      label: '主武器',    def: 'Digit1',        group: '战斗' },
-    { key: 'w2',      label: '副武器',    def: 'Digit2',        group: '战斗' },
-    { key: 'nade',    label: '手雷',      def: 'KeyG',          group: '战斗' }
+    { key: 'w1',      label: '武器 1',    def: 'Digit1',        group: '战斗' },
+    { key: 'w2',      label: '武器 2',    def: 'Digit2',        group: '战斗' },
+    { key: 'w3',      label: '武器 3',    def: 'Digit3',        group: '战斗' },
+    { key: 'w4',      label: '武器 4',    def: 'Digit4',        group: '战斗' },
+    { key: 'w5',      label: '武器 5',    def: 'Digit5',        group: '战斗' },
+    { key: 'w6',      label: '武器 6',    def: 'Digit6',        group: '战斗' },
+    { key: 'nade',    label: '手雷',      def: 'KeyG',          group: '战斗' },
+    { key: 'interact',label: '交互/救援', def: 'KeyE',          group: '战斗' },
+    { key: 'chat',    label: '聊天',      def: 'KeyT',          group: '社交' },
+    { key: 'order',   label: '快捷指令',  def: 'KeyQ',          group: '社交' }
   ];
+
+  /* 所有武器槽动作（w1~w6）：用于统一做 preventDefault 判定 */
+  const WP_ACTIONS = ACTIONS.filter(a => /^w[1-9]$/.test(a.key)).map(a => a.key);
 
   /* 疾跑额外允许 ShiftRight，两键同义 */
   const ALIAS = { sprint: ['ShiftLeft', 'ShiftRight'] };
@@ -153,8 +164,8 @@ window.Keys = (function () {
         holdCount[a] = (holdCount[a] || 0) + 1;
         setDown(a, true, e.code);
       });
-      /* 阻止 1/2 换枪时的浏览器默认（部分环境会切标签）与空格滚动 */
-      if (acts.indexOf('w1') >= 0 || acts.indexOf('w2') >= 0) e.preventDefault();
+      /* 阻止数字键换枪时的浏览器默认（部分环境会切标签）与空格滚动 */
+      if (acts.some(a => WP_ACTIONS.indexOf(a) >= 0)) e.preventDefault();
     });
 
     window.addEventListener('keyup', function (e) {
@@ -183,6 +194,7 @@ window.Keys = (function () {
     on, bindInput,
     /* 便捷：注册某动作按下时的回调 */
     onDown: (action, fn) => on(action, 'down', fn),
-    onUp:   (action, fn) => on(action, 'up',   fn)
+    onUp:   (action, fn) => on(action, 'up',   fn),
+    WP_ACTIONS
   };
 })();

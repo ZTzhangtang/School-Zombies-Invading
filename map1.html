@@ -11,7 +11,7 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe7;font-family:'Outfit','PingFang SC','Microsoft YaHei',sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
 #app{position:fixed;inset:0}#app canvas{display:block}
 .chip{background:rgba(12,14,18,.78);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:6px 14px;backdrop-filter:blur(4px)}
-#topUI{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:6;pointer-events:none;max-width:calc(100vw - 20px)}
+#topUI{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:99994;pointer-events:none;max-width:calc(100vw - 20px)}
 .btn{cursor:pointer;font-size:13px;padding:7px 16px;color:#f2efe7;background:rgba(12,14,18,.8);border:1px solid rgba(255,255,255,.2);border-radius:9px;letter-spacing:2px;transition:.15s}
 .btn:hover{background:rgba(226,73,59,.85);border-color:#e2493b}
 #stats{display:flex;gap:8px;justify-content:center;align-items:stretch;font-size:13px;flex-wrap:wrap}
@@ -27,18 +27,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
 #wslots{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);z-index:6;display:flex;gap:8px;pointer-events:none}
 .wslot{font-size:11px;letter-spacing:1px;padding:4px 11px;border-radius:8px;background:rgba(12,14,18,.72);border:1px solid rgba(255,255,255,.16);color:#9aa;white-space:nowrap}
 .wslot.on{color:#ffd166;border-color:rgba(255,209,102,.8);background:rgba(58,42,10,.8)}
+.wslot.lock{opacity:.42;color:#667;border-style:dashed}
+.wslot.lock.on{opacity:.85}
+#wtag{position:fixed;left:50%;bottom:68px;transform:translateX(-50%);z-index:6;font-size:10px;letter-spacing:3px;color:#ffd166;opacity:.85;text-shadow:0 1px 4px #000;pointer-events:none;white-space:nowrap}
+#wtag:empty{display:none}
 #panel{position:fixed;right:16px;top:calc(80px + env(safe-area-inset-top));z-index:6;width:252px;background:rgba(10,12,16,.72);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;font-size:12px;backdrop-filter:blur(6px)}
 #panel h3{font-size:13px;letter-spacing:4px;margin-bottom:8px;color:#ffd166}
 #panel table{width:100%;border-collapse:collapse}
 #panel td{padding:3px 0;color:#d8d4c8}
 #panel td:first-child{color:#fff;font-weight:700;width:86px}
 #panel .note{margin-top:8px;color:#9aa;font-size:11px;line-height:1.6}
-#cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;background:#fff;border-radius:50%;box-shadow:0 0 4px #000;z-index:5;pointer-events:none;transition:width .12s,height .12s,margin .12s}
-#cross.ads{width:3px;height:3px;margin:-1.5px;opacity:.85}
+/* ★ §1.2 统一四线十字准星：4 根短线随 --sp 外扩，--sp 由 JS 每帧驱动（无 CSS transition） */
+#cross{position:fixed;left:50%;top:50%;width:0;height:0;z-index:5;pointer-events:none;--sp:4px}
+#cross i{position:absolute;display:block;background:#fff;box-shadow:0 0 3px #000;opacity:.92}
+#cross i:nth-child(1){width:2px;height:7px;left:-1px;top:calc(-9px - var(--sp))}
+#cross i:nth-child(2){width:2px;height:7px;left:-1px;top:calc(2px + var(--sp))}
+#cross i:nth-child(3){width:7px;height:2px;top:-1px;left:calc(-9px - var(--sp))}
+#cross i:nth-child(4){width:7px;height:2px;top:-1px;left:calc(2px + var(--sp))}
+#cross i:nth-child(5){width:2px;height:2px;left:-1px;top:-1px;border-radius:50%;opacity:.75}
+#cross.ads i{opacity:.7}
+#cross.ads i:nth-child(5){opacity:1}
 #ammo{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:6;font-size:13px;letter-spacing:3px;color:#e8e4d8;text-shadow:0 1px 4px #000;white-space:nowrap}
 #footer{position:fixed;left:0;right:0;bottom:7px;text-align:center;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.5);z-index:5;pointer-events:none;padding:0 10px}
 #banner{position:fixed;top:32%;width:100%;text-align:center;font-size:clamp(26px,7vw,52px);font-weight:700;letter-spacing:clamp(4px,1.6vw,12px);color:#fff;text-shadow:0 4px 24px rgba(226,73,59,.9);opacity:0;transition:opacity .45s;z-index:7;pointer-events:none}
 #dmgFx{position:fixed;inset:0;box-shadow:inset 0 0 150px rgba(200,20,20,.95);opacity:0;z-index:4;pointer-events:none}
+/* ★ §6.1 低血心跳红边（脉动由脚本控制 opacity） */
+#lowhpFx{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .12s linear;
+ background:radial-gradient(ellipse at center,rgba(180,0,0,0) 42%,rgba(170,0,0,.55) 82%,rgba(120,0,0,.85) 100%)}
+/* ★ §6.2 校园广播字幕条 */
+#announce{position:fixed;top:9%;left:50%;transform:translateX(-50%);z-index:8;pointer-events:none;
+ max-width:min(760px,92vw);text-align:center;font:600 clamp(13px,2.6vw,17px) system-ui;color:#e8f2ea;
+ background:rgba(10,14,20,.72);border:1px solid rgba(120,200,160,.28);border-radius:10px;padding:7px 16px;
+ opacity:0;transition:opacity .5s;letter-spacing:.04em}
 #joyBase{position:fixed;width:120px;height:120px;border:2px solid rgba(255,255,255,.35);border-radius:50%;z-index:8;display:none;pointer-events:none}
 #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;background:rgba(255,255,255,.3);border-radius:50%}
 /* 触屏按键：整体贴合右下角一个圆弧，右手拇指够得到，左上大片留给摇杆与环视 */
@@ -123,13 +143,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
 <body>
 <div id="app"></div>
 
-<div id="cross"></div>
+<div id="cross"><i></i><i></i><i></i><i></i><i></i></div>
 <div id="topUI">
  <div id="stats">
   <span class="chip">第 <b id="uiWave">1</b> 波 · 击杀 <b id="uiKills">0</b> · 丧尸 <b id="uiZom">0</b></span>
   <span class="chip">HP <b id="uiHP">100</b><span id="hpBar"><i></i></span></span>
   <span class="chip">体力 <b id="uiST">100</b><span id="stBar"><i></i></span></span>
   <span class="chip">手雷 <b id="uiNade">10</b></span>
+  <span class="chip">零件 <b id="uiCredits">0</b></span>
+  <span class="chip" id="uiModeChip" style="display:none">目标 <b id="uiModeGoal">—</b></span>
  </div>
 </div>
 
@@ -142,22 +164,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
  <h3>生 化 突 围 · 操 作</h3>
  <table>
   <tr><td>点击画面</td><td>锁定鼠标环视</td></tr>
-  <tr><td>左键 / F</td><td>射击 · 爆头一击</td></tr>
+  <tr><td>左键</td><td>射击（按住连发）</td></tr>
   <tr><td>右键按住</td><td>开镜瞄准 · 更稳更准</td></tr>
   <tr><td>W A S D</td><td>走路</td></tr>
   <tr><td>Shift</td><td>疾跑 · 耗体力</td></tr>
   <tr><td>R</td><td>换弹</td></tr>
-  <tr><td>1 / 2</td><td>切换主 / 副武器</td></tr>
-  <tr><td>G</td><td>投掷手雷</td></tr>
+ <tr><td>1 ~ 6</td><td>切换武器（1手枪 2AK 3霰弹 4SMG 5狙击 6近战）</td></tr>
+ <tr><td>6（再按）</td><td>近战槽内轮换：棒球棍 ↔ 斧头</td></tr>
+ <tr><td>G</td><td>投掷手雷</td></tr>
+ <tr><td>V</td><td>职业主动技能（带冷却）</td></tr>
+ <tr><td>B / M</td><td>商店 / 小地图收起展开</td></tr>
+ <tr><td>F</td><td>救援倒地队友（联机）</td></tr>
  </table>
- <div class="note">触屏：左摇杆移动 · 滑动环视 · 右侧开火<br>西/南门出操场 · 双跑楼梯上 2F/3F<br>楼上有教室 · 丧尸会追上楼<br>普通 / 疾行者 / 投掷者 · 不定时出现 BOSS<br>卡顿自动降质</div>
+ <div class="note">触屏：左摇杆移动 · 滑动环视 · 右侧开火 · 顶部按钮栏<b>（🛒商店/🗺地图/⚡技能）</b><br>西/南门出操场 · 双跑楼梯上 2F/3F<br>楼上教室 · 丧尸会追上楼<br>普通 / 疾行者 / 投掷者 / 喷吐者 / 自爆者 / 装甲 / 召唤者 · 不定时出现 BOSS<br>枪械共用弹药池 · 初始仅手枪+棒球棍，其余需商店解锁<br><b>3 种职业开局选一（突击兵/医疗兵/壮汉）· 每 3 波一次尸潮</b><br>卡顿自动降质</div>
 </div>
 
-<div id="ammo">AK-47 · 30 / 30</div>
-<div id="wslots"><span class="wslot on" id="ws0">1 · AK-47</span><span class="wslot" id="ws1">2 · 霰弹枪</span></div>
+<div id="ammo">手枪 · 12 / 100</div>
+<div id="wtag"></div>
+<div id="wslots"><span class="wslot on" id="ws0">1</span><span class="wslot lock" id="ws1">2</span><span class="wslot lock" id="ws2">3</span><span class="wslot lock" id="ws3">4</span><span class="wslot lock" id="ws4">5</span><span class="wslot" id="ws5">6</span></div>
 <div id="footer">-- 双庭院教学楼 --</div>
 <div id="banner"></div>
 <div id="dmgFx"></div>
+<!-- ★ §6.1 低血心跳红边（全屏径向渐变，opacity 由 updateLowHpFx 驱动） -->
+<div id="lowhpFx"></div>
+<!-- ★ §6.2 校园广播字幕条 -->
+<div id="announce"></div>
 
 <div id="joyBase"><div id="joyKnob"></div></div>
 <div class="tbtn" id="bFire" data-tbtn="fire">FIRE</div>
@@ -177,6 +208,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
  <h1>你被丧尸击倒了</h1>
  <p id="deathStats">击杀 0 · 抵达第 1 波</p>
  <div class="btn" id="bRe">重新开始</div>
+</div>
+
+<!-- ★ §5.1 有限防守胜利结算（单机；联机由 mp-bridge 弹面板） -->
+<div class="overlay" id="victoryBox" style="display:none">
+ <h1 style="color:#9fe8c1">🏆 防守成功</h1>
+ <p id="victoryStats">坚守 10 波 · 校园守住了</p>
+ <div class="btn" id="bReWin">再来一局</div>
 </div>
 
 <div class="overlay" id="nogl"><p>当前浏览器不支持 WebGL<br>请更换 Chrome / Edge / Firefox 等现代浏览器后重试</p></div>
@@ -223,9 +261,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
 <script>if(!window.THREE){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');}</script>
 <!-- ★ 修复：全体依赖已内联（keys/settings/touch-ui/p2p/mp-bridge/zsync），
      不再依赖外部文件加载时序；游戏主体脚本紧随其后。 -->
-<script>
-/* 内联自 keys.js · 自动生成，勿手工编辑 */
-/* ============================================================
+<script>/* ============================================================
  * keys.js — 生化·校园突围 统一键位系统
  *
  * 三张地图共用同一套键位表（默认照搬 map1 风格）：
@@ -254,10 +290,17 @@ window.Keys = (function () {
     { key: 'sprint',  label: '疾跑',      def: 'ShiftLeft',     group: '移动' },
     { key: 'fire',    label: '开火',      def: 'KeyF',          group: '战斗' },
     { key: 'reload',  label: '换弹',      def: 'KeyR',          group: '战斗' },
-    { key: 'w1',      label: '主武器',    def: 'Digit1',        group: '战斗' },
-    { key: 'w2',      label: '副武器',    def: 'Digit2',        group: '战斗' },
+    { key: 'w1',      label: '武器 1',    def: 'Digit1',        group: '战斗' },
+    { key: 'w2',      label: '武器 2',    def: 'Digit2',        group: '战斗' },
+    { key: 'w3',      label: '武器 3',    def: 'Digit3',        group: '战斗' },
+    { key: 'w4',      label: '武器 4',    def: 'Digit4',        group: '战斗' },
+    { key: 'w5',      label: '武器 5',    def: 'Digit5',        group: '战斗' },
+    { key: 'w6',      label: '武器 6',    def: 'Digit6',        group: '战斗' },
     { key: 'nade',    label: '手雷',      def: 'KeyG',          group: '战斗' }
   ];
+
+  /* 所有武器槽动作（w1~w6）：用于统一做 preventDefault 判定 */
+  const WP_ACTIONS = ACTIONS.filter(a => /^w[1-9]$/.test(a.key)).map(a => a.key);
 
   /* 疾跑额外允许 ShiftRight，两键同义 */
   const ALIAS = { sprint: ['ShiftLeft', 'ShiftRight'] };
@@ -380,8 +423,8 @@ window.Keys = (function () {
         holdCount[a] = (holdCount[a] || 0) + 1;
         setDown(a, true, e.code);
       });
-      /* 阻止 1/2 换枪时的浏览器默认（部分环境会切标签）与空格滚动 */
-      if (acts.indexOf('w1') >= 0 || acts.indexOf('w2') >= 0) e.preventDefault();
+      /* 阻止数字键换枪时的浏览器默认（部分环境会切标签）与空格滚动 */
+      if (acts.some(a => WP_ACTIONS.indexOf(a) >= 0)) e.preventDefault();
     });
 
     window.addEventListener('keyup', function (e) {
@@ -410,21 +453,19 @@ window.Keys = (function () {
     on, bindInput,
     /* 便捷：注册某动作按下时的回调 */
     onDown: (action, fn) => on(action, 'down', fn),
-    onUp:   (action, fn) => on(action, 'up',   fn)
+    onUp:   (action, fn) => on(action, 'up',   fn),
+    WP_ACTIONS
   };
 })();
-
 </script>
-<script>
-/* 内联自 settings.js · 自动生成，勿手工编辑 */
-/* ============================================================
+<script>/* ============================================================
  * settings.js — 生化·校园突围 跨地图统一设置
  *
  * index.html 写入的设置此前只有主菜单自己用，进图后全部失效。
  * 本模块让每张地图启动时调用 Settings.apply(gameCtx) 真正生效。
  *
  * 存储在 localStorage.zs_cfg（与 index.html 同一份）：
- *   { quality:'auto|low|mid|high', sens:1, vol:70, refl:true, fps:false }
+ *   { quality:'auto|low|mid|high', sens:1, vol:70, refl:true, fps:false, bgm:true }
  *
  * 地图页模板：
  *   Settings.apply({
@@ -433,14 +474,15 @@ window.Keys = (function () {
  *     setSens:(v)=>{...},            // 可选：写回灵敏度
  *     getAudio:()=>AudioCtx,         // 可选：返回 AudioContext（用于音量）
  *     setRefl:(on)=>{...},           // 可选：开关湿地反射
- *     setFps:(on)=>{...}             // 可选：开关 FPS 显示
+ *     setFps:(on)=>{...},            // 可选：开关 FPS 显示
+ *     setBgm:(on)=>{...}             // 可选：开关背景音乐（§6.3）
  *   });
  * ============================================================ */
 window.Settings = (function () {
   'use strict';
 
   const LS = 'zs_cfg';
-  const DEF = { map: 'map1', quality: 'auto', sens: 1, vol: 70, refl: true, fps: false };
+  const DEF = { map: 'map1', quality: 'auto', sens: 1, vol: 70, refl: true, fps: false, bgm: true };
 
   let cfg = Object.assign({}, DEF);
 
@@ -504,6 +546,11 @@ window.Settings = (function () {
     window.__cfgFps = !!cfg.fps;
     applyFpsVisibility(!!cfg.fps);
 
+    /* ⑥ §6.3 背景音乐开关 */
+    if (typeof ctx.setBgm === 'function') { try { ctx.setBgm(cfg.bgm !== false); } catch (_) {} }
+    window.__cfgBgm = (cfg.bgm !== false);
+    if (window.BGM) { try { window.__cfgBgm ? window.BGM.on() : window.BGM.off(); } catch (_) {} }
+
     return cfg;
   }
 
@@ -544,8 +591,502 @@ window.Settings = (function () {
     refresh: load
   };
 })();
-
 </script>
+<script>/* ============================================================
+ * profile.js — 生化·校园突围 个人档案与长期留存（§7）
+ *
+ * 与 settings.js / keys.js / touch-ui.js 并列的「三图共用」持久化模块：
+ * 每张地图 + index 主菜单都以同一份 localStorage 记录玩家的长期战绩，
+ * 并据此做「永久武器解锁」（§7.2 武器升级树，区别于 §4 的局内零件经济）。
+ *
+ * 存储键：localStorage.zs_profile（与 zs_cfg / zs_keys / zs_ui 互不干扰）
+ *   {
+ *     v: 2,
+ *     total: { runs, kills, headshots, bestWave, bestTime, bestStreak, victories, wKills:{} },
+ *     byMap: { map1:{...}, map2:{...}, map3:{...} },
+ *     wpn:   { pistol:1, melee:1, ak:1, shotgun:1, smg:1, sniper:1 }   // §7.2 武器等级 1~3
+ *   }
+ *
+ *   注：v1 → v2 平滑升级，旧数据缺字段一律补默认（sanitize 内处理），不会清档。
+ *
+ * 用法：
+ *   一局结束时（死亡 / 胜利 / 全员阵亡）：
+ *     if (window.Profile) Profile.recordRun({ map:'map1', kills, wave, timeS, victory:false,
+ *                                             headshots, bestStreak, wKills });
+ *
+ *   进图初始化武器解锁（★ 仅局内，不读 Profile.unlocks 永久表）：
+ *     const wpUnlocked = { pistol:true, melee:true };
+ *
+ *   主菜单档案页：
+ *     Profile.all()      // 全量
+ *     Profile.get('map1')// 某图桶
+ *     Profile.unlocks()  // 永久解锁表（由 total 换算）
+ *
+ *   §7.1 新增派生指标：
+ *     Profile.headshotRate()  // 爆头率 0~1（headshots / kills）
+ *     Profile.favWeapon()     // 最常用武器 key（按总击杀数），无数据返回 null
+ *     Profile.favWeaponName() // 最常用武器中文名，无数据返回 '—'
+ *
+ *   §7.2 武器等级（每把 3 级，持久化）：
+ *     Profile.wpnLevel('ak')     // 1~3，缺省 1
+ *     Profile.wpnLevels()        // 全表副本 { pistol:2, ak:1, ... }
+ *     Profile.setWpnLevel('ak',2)// 写入（自动夹取 1~3）
+ *     Profile.upgradeWpn('ak')   // 升一级，返回新等级
+ * ============================================================ */
+window.Profile = (function () {
+  'use strict';
+
+  const LS = 'zs_profile';
+  const VER = 2;
+  const MAPS = ['map1', 'map2', 'map3'];
+  /* §7.2 武器等级键（与 map 内 WPN_LEVEL 保持一致） */
+  const WPN_KEYS = ['pistol', 'melee', 'ak', 'shotgun', 'smg', 'sniper'];
+  const WPN_LV_MAX = 3;
+  const WPN_NAMES = {
+    pistol: '手枪', melee: '棒球棍', ak: 'AK-47',
+    shotgun: '霰弹枪', smg: 'SMG', sniper: '狙击枪'
+  };
+
+  /* 单桶计数器 */
+  function mkBucket() {
+    return {
+      runs: 0, kills: 0, headshots: 0,
+      bestWave: 0, bestTime: 0, bestStreak: 0, victories: 0,
+      wKills: {}                                   // 武器 → 击杀数（§7.1 最常用武器）
+    };
+  }
+  /* 默认武器等级表 */
+  function mkWpn() {
+    const w = {};
+    WPN_KEYS.forEach(k => { w[k] = 1; });
+    return w;
+  }
+  /* 默认骨架（深拷贝，避免共享引用） */
+  function mkDef() {
+    const d = { v: VER, total: mkBucket(), byMap: {}, wpn: mkWpn() };
+    MAPS.forEach(m => { d.byMap[m] = mkBucket(); });
+    return d;
+  }
+
+  let data = mkDef();
+
+  /* 把任意来源对象「规整」为合法骨架：缺字段补默认，数值强转非负整数 */
+  function sanitize(raw) {
+    const def = mkDef();
+    if (!raw || typeof raw !== 'object') return def;
+    function normWK(w) {
+      const o = {};
+      if (w && typeof w === 'object') {
+        Object.keys(w).forEach(k => {
+          const n = Math.max(0, (w[k] | 0) || 0);
+          if (n > 0) o[k] = n;
+        });
+      }
+      return o;
+    }
+    function normBucket(b) {
+      const o = mkBucket();
+      if (b && typeof b === 'object') {
+        o.runs       = Math.max(0, (b.runs       | 0) || 0);
+        o.kills      = Math.max(0, (b.kills      | 0) || 0);
+        o.headshots  = Math.max(0, (b.headshots  | 0) || 0);
+        o.bestWave   = Math.max(0, (b.bestWave   | 0) || 0);
+        o.bestTime   = Math.max(0, (+b.bestTime  || 0));
+        o.bestStreak = Math.max(0, (b.bestStreak | 0) || 0);
+        o.victories  = Math.max(0, (b.victories  | 0) || 0);
+        o.wKills     = normWK(b.wKills);
+        /* 爆头数不可能多过击杀数，兜底校正（容忍旧数据/异常输入） */
+        if (o.headshots > o.kills) o.headshots = o.kills;
+      }
+      return o;
+    }
+    def.total = normBucket(raw.total);
+    MAPS.forEach(m => { def.byMap[m] = normBucket(raw.byMap && raw.byMap[m]); });
+    /* v2 武器等级表：缺键补 1，越界夹取 */
+    const w = mkWpn();
+    if (raw.wpn && typeof raw.wpn === 'object') {
+      WPN_KEYS.forEach(k => {
+        const lv = (raw.wpn[k] | 0) || 1;
+        w[k] = Math.min(WPN_LV_MAX, Math.max(1, lv));
+      });
+    }
+    def.wpn = w;
+    def.v = (raw.v | 0) || VER;
+    return def;
+  }
+
+  function load() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS) || 'null');
+      data = sanitize(raw);
+    } catch (_) {
+      data = mkDef();                       // 解析失败 → 回到默认，不抛错
+    }
+    return data;
+  }
+  function save() {
+    try { localStorage.setItem(LS, JSON.stringify(data)); } catch (_) {}
+  }
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  /* ---------- 写入一局战绩 ---------- */
+  /* opt: { map, kills, wave, timeS, victory, headshots, bestStreak, wKills } */
+  function recordRun(opt) {
+    opt = opt || {};
+    let map = opt.map;
+    if (MAPS.indexOf(map) < 0) map = 'map1';           // 容错
+    const kills = Math.max(0, (opt.kills | 0) || 0);
+    const wave  = Math.max(0, (opt.wave  | 0) || 0);
+    const timeS = Math.max(0, (+opt.timeS || 0));
+    const win   = !!opt.victory;
+    /* §7.1 新增：本局爆头数 / 最高连杀 / 武器击杀计数 */
+    const heads = Math.min(kills, Math.max(0, (opt.headshots | 0) || 0));
+    const streak= Math.max(0, (opt.bestStreak | 0) || 0);
+    const wk    = (opt.wKills && typeof opt.wKills === 'object') ? opt.wKills : null;
+
+    /* 未加载过（如首页直接调用）→ 先 load */
+    apply(data.total, kills, heads, streak, wave, timeS, win, wk);
+    apply(data.byMap[map], kills, heads, streak, wave, timeS, win, wk);
+    save();
+    return clone(data);
+  }
+  function apply(b, kills, heads, streak, wave, timeS, win, wk) {
+    b.runs += 1;
+    b.kills += kills;
+    b.headshots += heads;
+    if (streak > b.bestStreak) b.bestStreak = streak;
+    if (wave  > b.bestWave) b.bestWave = wave;
+    if (timeS > b.bestTime) b.bestTime = timeS;
+    if (win) b.victories += 1;
+    if (wk) {
+      if (!b.wKills || typeof b.wKills !== 'object') b.wKills = {};
+      Object.keys(wk).forEach(k => {
+        const n = Math.max(0, (wk[k] | 0) || 0);
+        if (n > 0) b.wKills[k] = (b.wKills[k] | 0) + n;
+      });
+    }
+    if (b.headshots > b.kills) b.headshots = b.kills;
+  }
+
+  /* ---------- 读取 ---------- */
+  function get(map) {
+    if (MAPS.indexOf(map) < 0) map = 'map1';
+    return clone(data.byMap[map]);
+  }
+  function all() { return clone(data); }
+  function total() { return clone(data.total); }
+
+  function reset() { data = mkDef(); save(); return clone(data); }
+
+  /* ---------- §7.2 武器升级树：由累计战绩换算「永久解锁」（纯函数） ---------- */
+  /* s: total 桶 { runs, kills, bestWave, bestTime, victories } */
+  function computeUnlocks(s) {
+    s = s || {};
+    const kills = (s.kills | 0) || 0;
+    const best  = (s.bestWave | 0) || 0;
+    return {
+      pistol:  true,
+      melee:   true,
+      ak:      kills >= 50,                       // 累计击杀 50
+      shotgun: best  >= 5,                        // 最高抵达第 5 波
+      smg:     kills >= 200 && best >= 8,         // 击杀 200 且抵达第 8 波
+      sniper:  best  >= 12,                       // 最高抵达第 12 波
+    };
+  }
+  /* 当前档案对应的解锁表 */
+  function unlocks() { return computeUnlocks(data.total); }
+
+  /* ---------- §7.1 派生指标 ---------- */
+  /* 爆头率：0~1（无击杀时返回 0） */
+  function headshotRate(map) {
+    const b = map && MAPS.indexOf(map) >= 0 ? data.byMap[map] : data.total;
+    const k = (b.kills | 0) || 0;
+    if (k <= 0) return 0;
+    return Math.min(1, ((b.headshots | 0) || 0) / k);
+  }
+  /* 最常用武器：按累计击杀数取最大者；无数据返回 null */
+  function favWeapon(map) {
+    const b = map && MAPS.indexOf(map) >= 0 ? data.byMap[map] : data.total;
+    const wk = b.wKills || {};
+    let best = null, bestN = 0;
+    Object.keys(wk).forEach(k => {
+      const n = (wk[k] | 0) || 0;
+      if (n > bestN) { bestN = n; best = k; }
+    });
+    return best;
+  }
+  /* 最常用武器中文名（档案页直接显示） */
+  function favWeaponName(map) {
+    const k = favWeapon(map);
+    return k ? (WPN_NAMES[k] || k) : '—';
+  }
+
+  /* ---------- §7.2 武器等级（持久化，1~3 级） ---------- */
+  function clampLv(lv) {
+    const n = (lv | 0) || 1;
+    return Math.min(WPN_LV_MAX, Math.max(1, n));
+  }
+  function wpnLevel(key) {
+    if (!key) return 1;
+    return clampLv(data.wpn ? data.wpn[key] : 1);
+  }
+  function wpnLevels() {
+    const o = {};
+    WPN_KEYS.forEach(k => { o[k] = wpnLevel(k); });
+    return o;
+  }
+  /* 直接设等级（1~3），写盘 */
+  function setWpnLevel(key, lv) {
+    if (!key) return 1;
+    if (!data.wpn) data.wpn = mkWpn();
+    data.wpn[key] = clampLv(lv);
+    save();
+    return data.wpn[key];
+  }
+  /* 升一级（封顶 WPN_LV_MAX），返回新等级 */
+  function upgradeWpn(key) {
+    if (!key) return 1;
+    return setWpnLevel(key, wpnLevel(key) + 1);
+  }
+
+  /* ---------- 升级树进度（供档案页渲染） ---------- */
+  /* 返回 [{ key, name, desc, cur, need, done }]，need 为阈值，cur 为进度值 */
+  function tree() {
+    const t = data.total;
+    const kills = (t.kills | 0) || 0, best = (t.bestWave | 0) || 0;
+    return [
+      { key: 'pistol',  name: '手枪',   desc: '初始武器',                 cur: 1,     need: 1,     done: true },
+      { key: 'melee',   name: '棒球棍', desc: '初始武器',                 cur: 1,     need: 1,     done: true },
+      { key: 'ak',      name: 'AK-47',  desc: '累计击杀 50',              cur: kills, need: 50,    done: kills >= 50 },
+      { key: 'shotgun', name: '霰弹枪', desc: '最高抵达第 5 波',          cur: best,  need: 5,     done: best  >= 5 },
+      { key: 'smg',     name: 'SMG',    desc: '击杀 200 且抵达第 8 波',   cur: Math.min(kills / 200, best / 8), need: 1, done: (kills >= 200 && best >= 8) },
+      { key: 'sniper',  name: '狙击枪', desc: '最高抵达第 12 波',         cur: best,  need: 12,    done: best  >= 12 },
+    ];
+  }
+
+  /* 监听跨窗口（多个标签页 / index 与地图同源不同窗）变更 */
+  window.addEventListener('storage', e => {
+    if (e.key === LS) load();
+  });
+
+  load();
+
+  return {
+    LS, VER, MAPS,
+    recordRun, get, all, total, reset,
+    computeUnlocks, unlocks, tree,
+    /* §7.1 */
+    headshotRate, favWeapon, favWeaponName,
+    /* §7.2 */
+    WPN_KEYS, WPN_LV_MAX, WPN_NAMES,
+    wpnLevel, wpnLevels, setWpnLevel, upgradeWpn,
+    refresh: load
+  };
+})();
+</script>
+
+<script>
+/* 内联自 bgm.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * bgm.js — 生化·校园突围 分层背景音乐（§6.3）
+ *
+ * 与 settings.js / profile.js 并列的「三图共用」模块。
+ * 纯 WebAudio 程序化合成，不引入任何音频文件（零体积 / 零加载失败风险）。
+ *
+ * 四层：
+ *   calm   平静 —— 低音 pad + 极缓 LFO（菜单 / 间歇）
+ *   combat 战斗 —— 叠加八分音符低频脉冲（战斗中）
+ *   horde  尸潮 —— 叠加十六分音符 + 噪声扫频（horde.active）
+ *   down   濒死 —— 压低各层 + 心跳 + 耳鸣（玩家濒死）
+ *
+ * 用法：
+ *   BGM.attach(() => AudioContext)   // 可选：复用地图页的 audio() 上下文
+ *   BGM.set('calm'|'combat'|'horde'|'down')
+ *   BGM.on() / off() / toggle()      // 开关（localStorage.zs_bgm）
+ *
+ * 说明：所有增益都挂在一个内部 masterGain 上；若地图页提供了
+ * 自己的 AudioContext 与 master gain，则用 BGM.setVolume 与设置页音量联动。
+ * ============================================================ */
+window.BGM = (function () {
+  'use strict';
+
+  const LS = 'zs_bgm';
+  const LAYERS = ['calm', 'combat', 'horde', 'down'];
+  const VOL = { calm: 0.05, combat: 0.09, horde: 0.13, down: 0.10 };
+  const FADE = 1.2;                         // 交叉淡入淡出时长（秒）
+
+  let enabled = true, vol = 0.7;
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS) || '{}');
+    if (typeof raw.on === 'boolean') enabled = raw.on;
+    if (typeof raw.vol === 'number') vol = Math.max(0, Math.min(1, raw.vol));
+  } catch (_) {}
+
+  let AC = null;
+  let master = null;
+  let userCtxGetter = null;
+  let current = null;                       // 当前层名
+  let nodes = {};                           // 每层的持续音源集合
+  let started = false;
+
+  function save() {
+    try { localStorage.setItem(LS, JSON.stringify({ on: enabled, vol: vol })); } catch (_) {}
+  }
+
+  /* 取得 AudioContext：优先复用地图页 audio()，否则自建 */
+  function ctx() {
+    if (AC) { if (AC.state === 'suspended') { try { AC.resume(); } catch (_) {} } return AC; }
+    try {
+      if (userCtxGetter) { const c = userCtxGetter(); if (c) AC = c; }
+    } catch (_) {}
+    if (!AC) {
+      try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { return null; }
+    }
+    if (!AC) return null;
+    if (!master) {
+      master = AC.createGain();
+      master.gain.value = enabled ? vol : 0;
+      master.connect(AC.destination);
+    }
+    return AC;
+  }
+
+  /* 单个持续振荡器（可挂 LFO） */
+  function drone(type, freq, detune, gainVal, lpf) {
+    const a = ctx(); if (!a) return null;
+    const o = a.createOscillator(); o.type = type; o.frequency.value = freq;
+    if (detune) o.detune.value = detune;
+    const g = a.createGain(); g.gain.value = 0;
+    let chain = o;
+    if (lpf) { const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lpf; o.connect(f); chain = f; }
+    chain.connect(g); g.connect(master);
+    o.start();
+    return { o: o, g: g };
+  }
+  /* 周期性脉冲调度器（用 setInterval 起音，配合 gain 包络） */
+  function pulseScheduler(freq, gainVal, intervalMs, decay) {
+    const id = setInterval(() => {
+      const a = ctx(); if (!a || !enabled) return;
+      const t = a.currentTime;
+      const o = a.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freq, t);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + decay);
+      const g = a.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gainVal * (enabled ? vol : 0), t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + decay + 0.02);
+    }, intervalMs);
+    return id;
+  }
+
+  /* 构建某一层的持续音源（只建一次，用 gain 控制显隐） */
+  function buildLayer(name) {
+    if (nodes[name]) return nodes[name];
+    const set = { gains: [], timers: [] };
+    if (name === 'calm') {
+      const a = drone('sine', 55, 0, 0.5, 400); if (a) set.gains.push(a);
+      const b = drone('sine', 82.4, 7, 0.35, 500); if (b) set.gains.push(b);
+    } else if (name === 'combat') {
+      set.timers.push(pulseScheduler(73, 0.22, 500, 0.16));   // 八分音符
+    } else if (name === 'horde') {
+      set.timers.push(pulseScheduler(98, 0.20, 220, 0.12));   // 十六分音符
+      set.timers.push(pulseScheduler(146, 0.14, 220, 0.10));
+    } else if (name === 'down') {
+      const a = drone('sine', 48, 0, 0.6, 300); if (a) set.gains.push(a);
+      const ear = drone('sine', 4000, 0, 0.06, 6000); if (ear) set.gains.push(ear);  // 耳鸣
+      set.timers.push(pulseScheduler(60, 0.30, 830, 0.20));   // 心跳
+    }
+    nodes[name] = set;
+    return set;
+  }
+
+  /* 把某层的所有 gain 线性淡到目标值 */
+  function fadeLayer(name, target, secs) {
+    const a = ctx(); if (!a) return;
+    const set = buildLayer(name);
+    const t = a.currentTime;
+    set.gains.forEach(x => {
+      try {
+        x.g.gain.cancelScheduledValues(t);
+        x.g.gain.setValueAtTime(x.g.gain.value, t);
+        x.g.gain.linearRampToValueAtTime(target, t + secs);
+      } catch (_) {}
+    });
+  }
+  function stopLayer(name, secs) {
+    const a = ctx(); if (!a) return;
+    const set = nodes[name]; if (!set) return;
+    fadeLayer(name, 0, secs);
+    set.timers.forEach(id => clearInterval(id));
+    set.timers = [];
+  }
+
+  function set(name) {
+    if (LAYERS.indexOf(name) < 0) name = 'calm';
+    if (name === current && started) return;
+    const a = ctx();
+    if (!a) { current = name; return; }
+    /* 淡出旧的持续层 */
+    if (current && current !== name) stopLayer(current, FADE);
+    else if (current && current === name) { /* 同层，保持 */ }
+    /* 淡入新层 */
+    const set = buildLayer(name);
+    const base = VOL[name] || 0.06;
+    const target = (enabled ? vol : 0) * base;
+    set.gains.forEach(x => {
+      if (!x.__started) { x.__started = true; }
+    });
+    fadeLayer(name, target, FADE);
+    /* 若该层之前被 stopLayer 清掉了 timer，重建 */
+    if (name === 'combat' && set.timers.length === 0) set.timers.push(pulseScheduler(73, 0.22, 500, 0.16));
+    if (name === 'horde' && set.timers.length === 0) {
+      set.timers.push(pulseScheduler(98, 0.20, 220, 0.12));
+      set.timers.push(pulseScheduler(146, 0.14, 220, 0.10));
+    }
+    if (name === 'down' && set.timers.length === 0) set.timers.push(pulseScheduler(60, 0.30, 830, 0.20));
+    current = name;
+    started = true;
+  }
+
+  function applyMaster() {
+    if (!master) return;
+    const a = ctx(); if (!a) return;
+    const t = a.currentTime;
+    try {
+      master.gain.cancelScheduledValues(t);
+      master.gain.setValueAtTime(master.gain.value, t);
+      master.gain.linearRampToValueAtTime(enabled ? vol : 0, t + 0.4);
+    } catch (_) {}
+  }
+
+  function on() { enabled = true; save(); applyMaster(); if (current) set(current); }
+  function off() { enabled = false; save(); applyMaster(); }
+  function toggle() { enabled ? off() : on(); return enabled; }
+  function setVolume(v) { vol = Math.max(0, Math.min(1, +v || 0)); save(); applyMaster(); if (current && started) { /* 重新淡到新音量 */ const a = ctx(); if (a) { const base = VOL[current] || 0.06; fadeLayer(current, (enabled ? vol : 0) * base, 0.5); } } }
+
+  function attach(getter) {
+    if (typeof getter === 'function') { userCtxGetter = getter; AC = null; master = null; }
+    return ctx() ? true : false;
+  }
+
+  return {
+    LS, LAYERS, VOL,
+    attach: attach,
+    set: set,
+    on: on, off: off, toggle: toggle,
+    isOn: () => enabled,
+    volume: () => vol,
+    setVolume: setVolume,
+    current: () => current,
+    _ctx: () => AC,
+    _master: () => master
+  };
+})();
+</script>
+
 <script>
 /* 内联自 touch-ui.js · 自动生成，勿手工编辑 */
 /* ============================================================
@@ -836,6 +1377,8 @@ AK47.uniquifyMaterials=function(){const all=[];AK47.parts.forEach(function(p){co
 if(!window.THREE){document.getElementById('nogl').style.display='flex';document.getElementById('loader').style.display='none';return;}
 const $=id=>document.getElementById(id);
 const crossEl=$('cross');
+/* ★ §1.2 准星扩散：crossSpread 为当前扩散像素，updateCrosshair 每帧平滑逼近目标 */
+let crossSpread=0;
 const V3=THREE.Vector3;
 const isTouch=('ontouchstart'in window)||navigator.maxTouchPoints>0;
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -856,9 +1399,12 @@ const canvas=renderer.domElement;
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 const scene=new THREE.Scene();
-const SKY=new THREE.Color(0x9fb0ba);
+/* ★ §5 关卡模式：提前解析（光照需在建场景时即应用） */
+const MODE_KIND=(()=>{try{return new URLSearchParams(location.search).get('mode')||'endless';}catch(e){return 'endless';}})();
+const NIGHT=MODE_KIND==='night';                 // ★ §5.2 夜战变体
+const SKY=new THREE.Color(NIGHT?0x0a0f18:0x9fb0ba);
 scene.background=SKY.clone();
-scene.fog=new THREE.Fog(SKY.getHex(),80,260);
+scene.fog=new THREE.Fog(SKY.getHex(),NIGHT?22:80,NIGHT?120:260);
 
 const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,0.08,420);
 camera.layers.enable(1);
@@ -947,7 +1493,8 @@ const M={
 };
 
 /* ---------- 灯光 ---------- */
-scene.add(new THREE.HemisphereLight(0xcfd8de,0x3a4038,0.85));
+const hemi=new THREE.HemisphereLight(0xcfd8de,0x3a4038,0.85);
+scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xdfe8ee,0.95);
 sun.castShadow=true;
 sun.shadow.mapSize.set(1024,1024);
@@ -955,6 +1502,42 @@ Object.assign(sun.shadow.camera,{left:-48,right:48,top:48,bottom:-48,far:220});
 sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias=-0.0006;
 scene.add(sun);scene.add(sun.target);
+
+/* ============================================================
+ * ★ §5.2 夜战操场：压暗环境光 + 四座灯塔 + 相机手电筒
+ * ============================================================ */
+let torch=null, torchOn=true;
+if(NIGHT){
+ /* 压暗环境（保留最低 0.18 保证出生点可见） */
+ hemi.intensity=0.18; hemi.color.setHex(0x3a4658); hemi.groundColor.setHex(0x0a0d12);
+ sun.intensity=0.10; sun.color.setHex(0x9fb4d8);
+ scene.add(new THREE.AmbientLight(0x223046,0.35));
+
+ /* 四座灯塔（SpotLight 自上而下照射校园四角） */
+ (function buildFloodlights(){
+  const posts=[{x:-58,z:34},{x:66,z:34},{x:-24,z:-10},{x:36,z:52}];
+  const postGeo=new THREE.CylinderGeometry(0.28,0.36,9,8);
+  const postMat=new THREE.MeshStandardMaterial({color:0x2b3138,roughness:.7,metalness:.5});
+  const headGeo=new THREE.BoxGeometry(1.5,0.5,0.8);
+  const headMat=new THREE.MeshStandardMaterial({color:0x1a1f26,roughness:.5,metalness:.6,
+    emissive:0xffe9b0,emissiveIntensity:1.4});
+  posts.forEach(p=>{
+   const post=new THREE.Mesh(postGeo,postMat);post.position.set(p.x,4.5,p.z);post.castShadow=true;scene.add(post);
+   const head=new THREE.Mesh(headGeo,headMat);head.position.set(p.x,9,p.z);scene.add(head);
+   const lamp=new THREE.SpotLight(0xfff0d0,1.5,64,Math.PI/5.2,0.55,1.3);
+   lamp.position.set(p.x,9,p.z);lamp.target.position.set(p.x,0,p.z);
+   lamp.castShadow=false;scene.add(lamp);scene.add(lamp.target);
+  });
+ })();
+
+ /* 玩家手电筒：挂在本机 camera 上，随视角照射（★ 不广播 → 联机看不到队友手电） */
+ torch=new THREE.SpotLight(0xfff4e0,2.0,42,Math.PI/7,0.45,1.4);
+ torch.position.set(0.14,-0.12,0);torch.target.position.set(0.14,-0.12,-1);
+ camera.add(torch);camera.add(torch.target);
+ /* L 键开关手电（夜战专属，原生监听，不污染全局键位表） */
+ window.addEventListener('keydown',e=>{ if(e.code==='KeyL'){ torchOn=!torchOn; torch.visible=torchOn;
+   try{banner(torchOn?'🔦 手电筒 开':'🔦 手电筒 关');}catch(_){}} });
+}
 
 /* ---------- 碰撞（带高度） / 可站立面 ---------- */
 const colliders=[],raySolids=[],rooms=[],doorPts=[],surfaces=[],flights=[];
@@ -1275,6 +1858,90 @@ const rifle=window.AK47?AK47.build(renderer):null;
 
 /* 副武器：泵动霰弹枪。与 AK 用同一套本地坐标约定（枪口沿 +X），
    直接套 scale 0.40 / rotation.y = PI/2 即可对齐第一人称视角。 */
+/* ★ §1.1 手枪：紧凑手枪，短滑套 + 握把。沿 +X 为枪口（与 AK/霰弹约定一致）。 */
+function buildPistol(){
+ const g=new THREE.Group();
+ const metal=new THREE.MeshStandardMaterial({color:0x2b2f36,roughness:.36,metalness:.88});
+ const dark =new THREE.MeshStandardMaterial({color:0x16191d,roughness:.66,metalness:.42});
+ const grip =new THREE.MeshStandardMaterial({color:0x24282e,roughness:.86,metalness:.10});
+ const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
+ const HALF=Math.PI/2;
+ put(new THREE.BoxGeometry(0.24,0.088,0.052),metal,0.03,0.02,0);          // 滑套
+ put(new THREE.BoxGeometry(0.20,0.070,0.044),dark,-0.02,0.012,0);          // 套筒座
+ put(new THREE.CylinderGeometry(0.014,0.014,0.10,8),metal,0.20,0.02,0,HALF); // 枪口
+ put(new THREE.BoxGeometry(0.055,0.135,0.052),grip,-0.075,-0.075,0,0.18);   // 握把
+ put(new THREE.BoxGeometry(0.045,0.028,0.030),dark,-0.02,-0.012,0);         // 扳机护圈
+ put(new THREE.BoxGeometry(0.010,0.026,0.010),metal,-0.02,0.002,0);         // 扳机
+ put(new THREE.BoxGeometry(0.024,0.014,0.030),brassDummy(),0.145,0.058,0);  // 准星
+ put(new THREE.BoxGeometry(0.020,0.012,0.026),dark,-0.095,0.058,0);         // 照门
+ return g;
+}
+/* ★ §1.1 SMG：紧凑冲锋枪，弹匣前握 + 折叠托。 */
+function buildSMG(){
+ const g=new THREE.Group();
+ const metal=new THREE.MeshStandardMaterial({color:0x2a2e35,roughness:.42,metalness:.80});
+ const dark =new THREE.MeshStandardMaterial({color:0x171a1e,roughness:.65,metalness:.40});
+ const poly =new THREE.MeshStandardMaterial({color:0x1f242b,roughness:.9,metalness:.05});
+ const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
+ const HALF=Math.PI/2;
+ put(new THREE.BoxGeometry(0.34,0.100,0.064),metal,0.03,0,0);              // 机匣
+ put(new THREE.CylinderGeometry(0.019,0.019,0.30,10),metal,0.34,0.010,0,HALF); // 枪管
+ put(new THREE.CylinderGeometry(0.026,0.026,0.045,10),dark,0.47,0.010,0,HALF); // 消焰器
+ put(new THREE.BoxGeometry(0.05,0.16,0.05),poly,0.10,-0.105,0);            // 前握把
+ put(new THREE.BoxGeometry(0.06,0.20,0.05),poly,-0.09,-0.115,0,0.12);      // 弹匣
+ put(new THREE.BoxGeometry(0.055,0.13,0.06),poly,-0.20,-0.06,0,0.16);      // 握把
+ put(new THREE.BoxGeometry(0.20,0.030,0.045),dark,-0.33,-0.005,0);         // 折叠托
+ put(new THREE.BoxGeometry(0.020,0.024,0.03),dark,0.02,0.064,0);           // 照门
+ put(new THREE.SphereGeometry(0.010,6,5),metal,0.50,0.036,0);              // 准星
+ return g;
+}
+/* ★ §1.1 狙击枪：长枪管 + 高倍镜 + 两脚架。 */
+function buildSniper(){
+ const g=new THREE.Group();
+ const metal=new THREE.MeshStandardMaterial({color:0x272b31,roughness:.38,metalness:.82});
+ const dark =new THREE.MeshStandardMaterial({color:0x15181c,roughness:.62,metalness:.45});
+ const stock=new THREE.MeshStandardMaterial({color:0x35402f,roughness:.85,metalness:.06});
+ const glass=new THREE.MeshStandardMaterial({color:0x1a3b52,roughness:.15,metalness:.9});
+ const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
+ const HALF=Math.PI/2;
+ put(new THREE.BoxGeometry(0.44,0.108,0.070),metal,0.04,0,0);              // 机匣
+ put(new THREE.CylinderGeometry(0.022,0.022,0.78,12),metal,0.62,0.012,0,HALF); // 长枪管
+ put(new THREE.CylinderGeometry(0.030,0.030,0.07,12),dark,1.00,0.012,0,HALF);  // 枪口制退器
+ put(new THREE.CylinderGeometry(0.035,0.035,0.26,12),dark,0.05,0.085,0,HALF);  // 镜筒
+ put(new THREE.SphereGeometry(0.036,10,8),glass,0.185,0.085,0);            // 物镜
+ put(new THREE.SphereGeometry(0.030,10,8),glass,-0.085,0.085,0);           // 目镜
+ put(new THREE.BoxGeometry(0.06,0.07,0.05)===undefined?0: new THREE.BoxGeometry(0.06,0.05,0.05),dark,0.02,-0.10,0); // 弹匣
+ put(new THREE.BoxGeometry(0.24,0.13,0.075),stock,-0.28,-0.04,0);          // 托身
+ put(new THREE.BoxGeometry(0.06,0.15,0.078),stock,-0.42,-0.055,0);         // 托底
+ put(new THREE.BoxGeometry(0.055,0.13,0.06),stock,-0.10,-0.075,0,0.14);    // 握把
+ return g;
+}
+/* ★ §1.1 斧头：木柄 + 单刃斧头（近战槽轮换用）。 */
+function buildAxe(){
+ const g=new THREE.Group();
+ const wood=new THREE.MeshStandardMaterial({color:0x6d4626,roughness:.82,metalness:.04});
+ const steel=new THREE.MeshStandardMaterial({color:0x7d838b,roughness:.42,metalness:.78});
+ const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
+ const HALF=Math.PI/2;
+ put(new THREE.CylinderGeometry(0.012,0.014,0.66,8),wood,0.30,0.02,0,HALF);   // 木柄
+ put(new THREE.BoxGeometry(0.10,0.11,0.030),steel,0.60,0.075,0);              // 斧头
+ put(new THREE.CylinderGeometry(0.020,0.020,0.06,8),steel,0.58,0.05,0,HALF);  // 斧箍
+ return g;
+}
+/* 棒球棍（近战槽默认）：木棍，粗端在外。 */
+function buildBat(){
+ const g=new THREE.Group();
+ const wood=new THREE.MeshStandardMaterial({color:0x9a6b3a,roughness:.80,metalness:.05});
+ const dark=new THREE.MeshStandardMaterial({color:0x3a2a1c,roughness:.88,metalness:.04});
+ const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
+ const HALF=Math.PI/2;
+ put(new THREE.CylinderGeometry(0.020,0.014,0.20,8),dark,0.02,0.02,0,HALF);   // 握把
+ put(new THREE.CylinderGeometry(0.016,0.030,0.42,10),wood,0.33,0.02,0,HALF);  // 棍身
+ put(new THREE.SphereGeometry(0.031,10,8),wood,0.55,0.02,0);                  // 棍头
+ return g;
+}
+function brassDummy(){ return new THREE.MeshStandardMaterial({color:0xb98a3c,roughness:.32,metalness:.90}); }
+
 function buildShotgun(){
  const g=new THREE.Group();
  const metal=new THREE.MeshStandardMaterial({color:0x2b2f36,roughness:.40,metalness:.85});
@@ -1299,27 +1966,65 @@ function buildShotgun(){
  return g;
 }
 let shotgun=null;
+/* ★ §1.1 六槽武器模型表：gunModels[i] 对应 WEAPONS[i]（槽 6 由 showWeaponModel 按 meleeSub 处理） */
+const gunModels=[null,null,null,null,null,null];
+function mountGun(m,scale){
+ if(!m)return m;
+ m.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});
+ m.scale.setScalar(scale||0.40);
+ m.rotation.set(0,Math.PI/2,0);
+ m.visible=false;
+ gunRig.add(m);
+ return m;
+}
 if(rifle){
  rifle.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});
  rifle.scale.setScalar(0.40);
  rifle.rotation.set(0,Math.PI/2,0);
- gunRig.add(rifle);
- shotgun=buildShotgun();
- shotgun.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});
- shotgun.scale.setScalar(0.40);
- shotgun.rotation.set(0,Math.PI/2,0);
- shotgun.visible=false;
- gunRig.add(shotgun);
+ gunRig.add(rifle); rifle.visible=false;
+ shotgun=mountGun(buildShotgun(),0.40);
+ gunModels[0]=mountGun(buildPistol(),0.40);
+ gunModels[1]=rifle;
+ gunModels[2]=shotgun;
+ gunModels[3]=mountGun(buildSMG(),0.40);
+ gunModels[4]=mountGun(buildSniper(),0.40);
+ gunModels[5]=mountGun(buildBat(),0.40);       // 槽 6 默认显示棒球棍
+ gunModels[6]=mountGun(buildAxe(),0.40);       // 槽 6 轮换时显示斧头（索引 6 = 近战备选）
  gunRig.position.copy(HIP);
+}
+showWeaponModel(0);   // ★ 清单⑥：武器模型构建后立即显示默认手枪，避免开局不显示
+/* ★ §1.1 显示指定槽位模型：其余全部隐藏。i===5（近战）时按 meleeSub 选棒球棍/斧头 */
+function showWeaponModel(i){
+ for(let k=0;k<gunModels.length;k++){if(gunModels[k])gunModels[k].visible=false;}
+ if(i===5){const m=gunModels[5+meleeSub];if(m)m.visible=true;return;}
+ const m=gunModels[i];if(m)m.visible=true;
 }
 const flashSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texFlash,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
 flashSprite.scale.set(0.5,0.5,1);flashSprite.position.set(0.015,0.01,-0.225);flashSprite.visible=false;gunRig.add(flashSprite);
 const flashLight=new THREE.PointLight(0xffc27a,0,10,2);flashLight.position.set(0.02,0,-0.55);gunRig.add(flashLight);
 const _mz=new V3();
+/* ★ §1.1 枪口世界坐标：按当前槽位取对应模型，枪口长度按武器类型微调 */
 function muzzleWorld(){
- const m=(wIdx===1&&shotgun)?shotgun:rifle;
+ const i=wIdx;
+ let m=null,len=0.528;
+ if(i===5){ m=gunModels[5+meleeSub]; len=0.5; }
+ else { m=gunModels[i]; if(i===2)len=0.556; else if(i===4)len=0.60; else if(i===0)len=0.20; else if(i===3)len=0.34; }
  if(!m)return camera.getWorldPosition(_mz);
- return m.localToWorld(_mz.set(wIdx===1?0.556:0.528,0.02,0));}
+ return m.localToWorld(_mz.set(len,0.02,0));}
+/* ★ §1.2 抛壳口世界坐标（机匣右上方）+ 抛壳方向（枪身右上方） */
+const _ejp=new V3(),_ejd=new V3();
+function ejectPortWorld(){
+ const i=wIdx, m=(i===5)?gunModels[5+meleeSub]:gunModels[i];
+ if(!m)return camera.getWorldPosition(_ejp);
+ return m.localToWorld(_ejp.set(0.15,0.055,0.0));
+}
+function ejectDirWorld(){
+ const i=wIdx, m=(i===5)?gunModels[5+meleeSub]:gunModels[i];
+ if(!m){camera.getWorldDirection(_ejd);return _ejd;}
+ /* 抛壳方向 = 枪身局部 +Z 偏右上的世界向量 */
+ m.localToWorld(_ejd.set(0.16,0.30,-0.18));
+ return _ejd.sub(_ejp).normalize();
+}
 
 /* ---------- 音效 ---------- */
 let AC=null,rainGain=null,noiseB=null;
@@ -1331,18 +2036,49 @@ function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioCont
  rainGain=AC.createGain();rainGain.gain.value=0;
  src.connect(f).connect(rainGain).connect(AC.destination);src.start();}
  if(AC.state==='suspended')AC.resume();return AC;}
-function sShot(){const a=audio();if(!a)return;const t=a.currentTime;
+/* ★ §1.1 分档射击音：按武器 key 调整低频/音色，让六把枪听感可辨 */
+const SHOT_TONE={
+ pistol:{lp:2600,sub:150,subEnd:60,bin:3300,gain:0.42,len:0.11},
+ ak:    {lp:3200,sub:140,subEnd:50,bin:4000,gain:0.50,len:0.13},
+ shotgun:{lp:2000,sub:110,subEnd:38,bin:2400,gain:0.62,len:0.24},
+ smg:   {lp:3000,sub:180,subEnd:70,bin:3600,gain:0.36,len:0.08},
+ sniper:{lp:4200,sub:170,subEnd:42,bin:5200,gain:0.72,len:0.30}
+};
+function sShot(key){const a=audio();if(!a)return;const t=a.currentTime;
+ const T=SHOT_TONE[key]||SHOT_TONE.ak;
  const n=a.createBufferSource();n.buffer=noiseB;
- const f=a.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(3200,t);f.frequency.exponentialRampToValueAtTime(400,t+0.12);
- const g=a.createGain();g.gain.setValueAtTime(0.5,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.13);
- n.connect(f);f.connect(g);g.connect(a.destination);n.start(t);n.stop(t+0.15);
- const o=a.createOscillator();o.type='triangle';o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(50,t+0.09);
- const g2=a.createGain();g2.gain.setValueAtTime(0.45,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.1);
- o.connect(g2);g2.connect(a.destination);o.start(t);o.stop(t+0.12);}
-function sHit(head){const a=audio();if(!a)return;const t=a.currentTime;
- const o=a.createOscillator();o.type=head?'sine':'square';o.frequency.setValueAtTime(head?1500:620,t);o.frequency.exponentialRampToValueAtTime(head?900:220,t+0.06);
- const g=a.createGain();g.gain.setValueAtTime(head?0.3:0.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.07);
- o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.08);}
+ const f=a.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(T.lp,t);f.frequency.exponentialRampToValueAtTime(400,t+T.len);
+ const g=a.createGain();g.gain.setValueAtTime(T.gain,t);g.gain.exponentialRampToValueAtTime(0.001,t+T.len+0.01);
+ n.connect(f);f.connect(g);g.connect(a.destination);n.start(t);n.stop(t+T.len+0.02);
+ const o=a.createOscillator();o.type='triangle';o.frequency.setValueAtTime(T.sub,t);o.frequency.exponentialRampToValueAtTime(T.subEnd,t+T.len*0.7);
+ const g2=a.createGain();g2.gain.setValueAtTime(T.gain*0.9,t);g2.gain.exponentialRampToValueAtTime(0.001,t+T.len*0.8);
+ o.connect(g2);g2.connect(a.destination);o.start(t);o.stop(t+T.len);
+ /* 狙击/霰弹：额外加一条尾音，突出威力 */
+ if(key==='sniper'||key==='shotgun'){const o2=a.createOscillator();o2.type='sine';o2.frequency.setValueAtTime(T.bin*0.6,t+T.len*0.4);
+  const g3=a.createGain();g3.gain.setValueAtTime(0.001,t);g3.gain.linearRampToValueAtTime(0.10,t+T.len*0.45);g3.gain.exponentialRampToValueAtTime(0.001,t+T.len*1.6);
+  o2.connect(g3);g3.connect(a.destination);o2.start(t);o2.stop(t+T.len*1.7);}}
+/* ★ §1.1 近战挥击音：短促风声 */
+function sMelee(){const a=audio();if(!a)return;const t=a.currentTime;
+ const n=a.createBufferSource();n.buffer=noiseB;
+ const f=a.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(900,t);f.frequency.exponentialRampToValueAtTime(250,t+0.12);
+ const g=a.createGain();g.gain.setValueAtTime(0.30,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.13);
+ n.connect(f);f.connect(g);g.connect(a.destination);n.start(t);n.stop(t+0.14);}
+/* ★ §1.1 空仓提示音：弹药池见底时按开火键的"咔哒" */
+function sEmpty(){const a=audio();if(!a)return;const t=a.currentTime;
+ const n=a.createBufferSource();n.buffer=noiseB;
+ const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=3000;
+ const g=a.createGain();g.gain.setValueAtTime(0.14,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.035);
+ n.connect(f);f.connect(g);g.connect(a.destination);n.start(t);n.stop(t+0.04);}
+/* ★ §1.2 爆头音效分档：普通命中 / 爆头 / 爆头击杀 */
+function sHit(head,lethal){const a=audio();if(!a)return;const t=a.currentTime;
+ const o=a.createOscillator();o.type=head?'sine':'square';
+ if(head){o.frequency.setValueAtTime(lethal?1900:1600,t);o.frequency.exponentialRampToValueAtTime(lethal?700:950,t+0.07);}
+ else{o.frequency.setValueAtTime(620,t);o.frequency.exponentialRampToValueAtTime(220,t+0.06);}
+ const g=a.createGain();g.gain.setValueAtTime(head?(lethal?0.40:0.30):0.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+ o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.09);
+ if(head&&lethal){const n=a.createBufferSource();n.buffer=noiseB;const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=2200;
+  const g2=a.createGain();g2.gain.setValueAtTime(0.22,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.10);
+  n.connect(f);f.connect(g2);g2.connect(a.destination);n.start(t);n.stop(t+0.11);}}
 function sReload(){const a=audio();if(!a)return;[0,0.5,1.6].forEach(dt=>{const t=a.currentTime+dt;
  const n=a.createBufferSource();n.buffer=noiseB;const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=2000;
  const g=a.createGain();g.gain.setValueAtTime(0.18,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
@@ -1371,6 +2107,96 @@ function sBoom(){const a=audio();if(!a)return;const t=a.currentTime;
  const o=a.createOscillator();o.type='sine';o.frequency.setValueAtTime(90,t);o.frequency.exponentialRampToValueAtTime(28,t+0.4);
  const g2=a.createGain();g2.gain.setValueAtTime(0.7,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.45);
  o.connect(g2);g2.connect(a.destination);o.start(t);o.stop(t+0.5);}
+/* ============================================================
+ * ★ §6.2 环境叙事 —— 黑板 / 血手印 / 书包 / 校园广播
+ *   触发：靠近（距离检测，once 只触发一次）；纯氛围，不广播
+ * ============================================================ */
+const NARR=[
+ {x:-19.5,z:24.0,r:3.2,once:true,text:'黑板上是颤抖的血字：「别 去 体 育 馆」'},
+ {x:-12.0,z:18.0,r:2.6,once:true,text:'墙上一只血手印，五指拖出长长的痕——有人被拽走了'},
+ {x:-22.0,z:8.0, r:2.6,once:true,text:'又是血手印。走廊尽头传来滴水声，可外面并没有下雨'},
+ {x:-6.0, z:30.0,r:3.0,once:true,text:'一只遗落的书包倒在楼梯口，主人再也没回来过'},
+ {x:6.0,  z:20.0,r:3.0,once:true,text:'散落的课本被踩得稀烂——期末考的日期还停在昨天'},
+ {x:-30.0,z:-6.0,r:3.0,once:true,text:'值日表上最后一个名字被用力划掉了'}
+];
+let narrIdx=0;
+const ANNOUNCES=[
+ '📢 校园广播：「请全体同学立即前往体育馆集合……」',
+ '📢 校园广播：「教学区已封闭，请勿靠近窗户。」',
+ '📢 校园广播：「……重复，不要相信任何『同学』。」',
+ '📢 校园广播：「校方已联系救援，请保持安静，等待通知。」'
+];
+function campusAnnounce(){
+ try{sAnnounce();}catch(_){}
+ const el=document.getElementById('announce');
+ if(!el)return;
+ el.textContent=ANNOUNCES[(Math.random()*ANNOUNCES.length)|0];
+ el.style.opacity='1';
+ clearTimeout(campusAnnounce.__t);
+ campusAnnounce.__t=setTimeout(()=>{el.style.opacity='0';},5200);
+}
+function updateNarrative(){
+ narrIdx=0;
+ for(const n of NARR){
+  if(n.__done){narrIdx++;continue;}
+  const d=Math.hypot(player.pos.x-n.x,player.pos.z-n.z);
+  if(d<=n.r){
+   n.__done=true;narrIdx++;
+   banner(n.text);
+   try{sGrowl(6);}catch(_){}
+  }
+ }
+}
+function buildNarrative(){
+ /* 黑板：1F 教室墙面（黑底 + 粉笔血迹字） */
+ try{
+  const cv=document.createElement('canvas');cv.width=512;cv.height=192;
+  const c=cv.getContext('2d');
+  c.fillStyle='#12160f';c.fillRect(0,0,512,192);
+  c.fillStyle='#2a2f24';for(let i=0;i<40;i++)c.fillRect(Math.random()*512,Math.random()*192,Math.random()*40,1);
+  c.fillStyle='rgba(150,20,16,.85)';c.font='bold 54px system-ui';c.textAlign='center';
+  c.fillText('别 去 体育馆',256,108);
+  const tex=new THREE.CanvasTexture(cv);
+  const bb=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.2),
+    new THREE.MeshStandardMaterial({map:tex,roughness:.95}));
+  bb.position.set(-19.5,2.1,23.6);bb.rotation.y=0;scene.add(bb);
+ }catch(_){}
+ /* 书包 / 课本 */
+ try{
+  const bagMat=new THREE.MeshStandardMaterial({color:0x2b4a7a,roughness:.9});
+  const bookMat=new THREE.MeshStandardMaterial({color:0xd8d2bd,roughness:.95});
+  const spots=[[-6,30],[6,20],[14,-4],[-20,-14],[2,34]];
+  for(const s of spots){
+   const gy=groundAt(s[0],s[1],0);
+   const bag=new THREE.Mesh(new THREE.BoxGeometry(.34,.42,.22),bagMat);
+   bag.position.set(s[0],gy+.21,s[1]);bag.rotation.y=Math.random()*3;scene.add(bag);
+   const bk=new THREE.Mesh(new THREE.BoxGeometry(.30,.03,.22),bookMat);
+   bk.position.set(s[0]+.5,gy+.02,s[1]+.3);bk.rotation.y=Math.random()*3;scene.add(bk);
+  }
+ }catch(_){}
+}
+window.campusAnnounce=campusAnnounce;
+
+/* ★ §6.1 心跳音：低频双击（lub-dub），低血时循环播放 */
+function sHeartbeat(vol){const a=audio();if(!a)return;const t=a.currentTime;
+ const v=Math.max(0.05,Math.min(1,vol||0.7));
+ const beat=(t0,f0,vol0)=>{const o=a.createOscillator();o.type='sine';
+  o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(f0*0.55,t0+0.10);
+  const g=a.createGain();g.gain.setValueAtTime(0.0001,t0);g.gain.linearRampToValueAtTime(vol0,t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+0.16);
+  o.connect(g);g.connect(a.destination);o.start(t0);o.stop(t0+0.18);};
+ beat(t,64,0.30*v); beat(t+0.15,54,0.22*v);}
+/* ★ §6.2 校园广播音：带通"人声感"脉冲 + 短回声 */
+function sAnnounce(){const a=audio();if(!a)return;const t=a.currentTime;
+ for(let i=0;i<5;i++){const t0=t+i*0.16;const n=a.createBufferSource();n.buffer=noiseB;
+  const f=a.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(1000+Math.random()*700,t0);
+  const g=a.createGain();g.gain.setValueAtTime(0.0001,t0);g.gain.linearRampToValueAtTime(0.10,t0+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+0.14);
+  n.connect(f);f.connect(g);g.connect(a.destination);n.start(t0);n.stop(t0+0.15);
+  /* 回声 */
+  const g2=a.createGain();g2.gain.setValueAtTime(0.0001,t0+0.22);g2.gain.linearRampToValueAtTime(0.04,t0+0.26);
+  g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.5);
+  f.connect(g2);g2.connect(a.destination);}}
 function sRoar(){const a=audio();if(!a)return;const t=a.currentTime;
  const o=a.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(48,t);o.frequency.exponentialRampToValueAtTime(150,t+0.5);o.frequency.exponentialRampToValueAtTime(38,t+1.1);
  const lfo=a.createOscillator();lfo.frequency.value=9;const lg=a.createGain();lg.gain.value=14;
@@ -1400,11 +2226,65 @@ function tracer(a,b){const g=new THREE.BufferGeometry().setFromPoints([a,b]);
  const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffe9b0,transparent:true,opacity:0.9}));
  l.layers.set(1);scene.add(l);tracers.push({l,t:0.07});}
 
+/* ★ §1.2 弹壳对象池：开枪时从抛壳口弹出，带自旋/重力/落地弹跳/滚动躺平 */
+const SHELL_MAX=24;
+const shellGeo=new THREE.CylinderGeometry(0.0065,0.0065,0.023,6);
+const shellMat=new THREE.MeshStandardMaterial({color:0xb98a3c,roughness:0.34,metalness:0.9});
+const shells=[];
+for(let i=0;i<SHELL_MAX;i++){
+ const m=new THREE.Mesh(shellGeo,shellMat);m.visible=false;m.frustumCulled=false;
+ scene.add(m);shells.push({m,vx:0,vy:0,vz:0,sx:0,sy:0,sz:0,life:0,bounce:0});}
+let shIdx=0;
+const _shv=new V3();
+/* 在世界坐标 p，沿 dir 方向抛出弹壳 */
+function ejectShell(p,dir){
+ const idx=shIdx;shIdx=(shIdx+1)%SHELL_MAX;
+ const s=shells[idx];
+ s.m.visible=true;
+ s.m.position.copy(p);
+ /* 初速：沿枪身上方偏右 + 随机扰动 + 少量玩家动量 */
+ const sp=2.1+Math.random()*0.9;
+ s.vx=dir.x*sp*0.5+(Math.random()-0.3)*0.9;
+ s.vy=1.5+Math.random()*0.6;
+ s.vz=dir.z*sp*0.5+(Math.random()-0.5)*0.7;
+ /* 随机自旋 */
+ s.sx=(Math.random()-0.5)*22;s.sy=(Math.random()-0.5)*14;s.sz=(Math.random()-0.5)*22;
+ s.life=0.9+Math.random()*0.35;s.bounce=0;
+ s.m.rotation.set(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28);
+}
+function updateShells(dt){
+ for(let i=0;i<SHELL_MAX;i++){const s=shells[i];if(s.life<=0)continue;
+  s.life-=dt;
+  if(s.life<=0){s.m.visible=false;continue;}
+  s.vy-=9.8*dt;
+  s.m.position.x+=s.vx*dt;s.m.position.y+=s.vy*dt;s.m.position.z+=s.vz*dt;
+  s.m.rotation.x+=s.sx*dt;s.m.rotation.y+=s.sy*dt;s.m.rotation.z+=s.sz*dt;
+  /* 落地：弹跳一次后转躺平滚动，快速衰减 */
+  const gy=groundAt(s.m.position.x,s.m.position.z,s.m.position.y);
+  if(s.m.position.y<=gy+0.012){
+   s.m.position.y=gy+0.012;
+   if(s.bounce<1){s.vy=Math.abs(s.vy)*0.32;s.vx*=0.55;s.vz*=0.55;s.sx*=0.5;s.sz*=0.5;s.bounce++;}
+   else{s.vy=0;s.vx*=Math.pow(0.02,dt);s.vz*=Math.pow(0.02,dt);
+    /* 躺平：把圆柱轴转平 */
+    s.m.rotation.x+= (Math.PI/2-s.m.rotation.x)*Math.min(1,dt*6);
+    s.sx*=0.9;s.sz*=0.9;s.life=Math.min(s.life,0.35);}
+  }
+ }
+}
+
 /* 天气（阵雨）已按需求移除 */
 
 /* ---------- 玩家（含竖直物理） ---------- */
-const player={pos:new V3(-18.5,0,25),y:0,vy:0,hp:100,stamina:100,lastHurt:-99};
+const player={pos:new V3(-18.5,0,25),y:0,vy:0,hp:100,maxHp:100,stamina:100,lastHurt:-99,sprint:false,
+ down:false,downT:0,cls:null};                                 // ★ §3 濒死/职业 · §4 maxHp
+/* ★ §3.2 职业加成系数（默认全 1，无加成）；由 __applyClass 按职业写入
+ * ★ M8：新增 hpBonus(壮汉最大生命) / meleeMul(壮汉近战) / hurtMul(壮汉减伤) */
+let CLS={dmgMul:1,ammoMul:1,spdMul:1,nadeBonus:0,radarMul:1,hpBonus:0,meleeMul:1,hurtMul:1};
 let yaw=0,pitch=0,pitchOff=0,shakeT=0,bobT=0,dmgA=0,sprintLock=false;
+window.__dashT=0;                       // ★ §3.2 突击兵「战术突进」剩余时间
+let camLeanT=0,camLeanDir=1;            // ★ §6.1 被咬镜头侧倾（剩余时长 / 方向）
+/* ★ §1.2 头部摆动：camBobY/X 上下+左右位移，camRoll 左右微倾 */
+let camBobY=0,camBobX=0,camRoll=0;
 let keys={},fireDown=false,sprintTouch=false,sprintHeld=false,sprintLocked=false,locked=false;
 let aiming=false,aimTouch=false;
 let joyId=null,lookId=null,joyOrigin={x:0,y:0},joyVec={x:0,y:0},lookLast={x:0,y:0};
@@ -1413,6 +2293,15 @@ function moveSlide(px,pz,dx,dz,r,y,h){
  let nz=pz+dz;if(!hitsAny(px,nz,r,y,h))pz=nz;
  return[px,pz];}
 function updatePlayer(dt){
+ /* ★ §4 商店打开时冻结本地移动（世界仍继续，制造开商店的风险） */
+ if(window.__shopOpenFlag)return;
+ /* ★ §3.1 濒死：禁止移动/开火，保持视角可转动（倒地视角压低） */
+ if(player.down){
+  camRig.position.set(player.pos.x,Math.max(0.35,player.y-0.9),player.pos.z);
+  camPitch.rotation.x=clamp(pitch-0.45,-1.35,1.35);
+  camRig.rotation.y=yaw;
+  return;
+ }
  /* ★ 观战：自己阵亡后自由飞行（穿墙、无视重力与受击），仅保留移动与视角 */
  if(window.MP&&MP.spectating()){
   const spd2=14*dt;
@@ -1444,7 +2333,8 @@ function updatePlayer(dt){
  if(wantSprint&&!sprintLock&&player.stamina>2)sprint=true;
  if(sprint){player.stamina-=8.5*dt;if(player.stamina<=2){player.stamina=2;sprintLock=true;}}
  else{player.stamina=Math.min(100,player.stamina+15*dt);if(player.stamina>25)sprintLock=false;}
- const spd=sprint?7.6:4.3;
+ const dashMul = (window.__dashT>0) ? 1.60 : 1.0;           // ★ §3.2 突击兵战术突进
+ const spd=(sprint?7.6:4.3)*CLS.spdMul*dashMul;            // ★ §3.2 职业移速加成
  const fw=new V3(-Math.sin(yaw),0,-Math.cos(yaw));
  const rt=new V3(Math.cos(yaw),0,-Math.sin(yaw));
  const wx=(fw.x*(-iz)+rt.x*ix)*spd*dt, wz=(fw.z*(-iz)+rt.z*ix)*spd*dt;
@@ -1461,7 +2351,7 @@ function updatePlayer(dt){
    player.y=gh;player.vy=0;}}
  else{player.y=gh;player.vy=0;}
  if(moving)bobT+=dt*(4+spd*1.3);
- camRig.position.set(player.pos.x,player.y,player.pos.z);
+ player.sprint=sprint;                       // ★ §1.2 供 updateGun 计算摆动幅度
  sun.position.set(player.pos.x+45,75,player.pos.z+25);
  sun.target.position.set(player.pos.x,0,player.pos.z);
  sun.target.updateMatrixWorld();
@@ -1686,8 +2576,8 @@ function navPath(sx,sz,sy,tx,tz,ty){
  /* 起终点必须临时挂进路点图里。
     室外本来就只有十来个稀疏路点，不挂的话"离玩家最近的节点"
     可能在七八十米开外、还不在通往玩家的方向上 —— 路径会指向完全错误的地方。 */
- const starts=nearNodes(sx,sz,sy,16);
- const goals =nearNodes(tx,tz,ty,16);
+ const starts=nearNodes(sx,sz,sy,24);
+ const goals =nearNodes(tx,tz,ty,24);
  if(!starts.length||!goals.length)return null;
  const si=NAV.length,ti=si+1,touched=[];
  for(let k=0;k<starts.length;k++){NAV[starts[k]].links.push(si);touched.push(starts[k]);}
@@ -1761,13 +2651,20 @@ const zSkinPool=[],zClothPool=[];
 for(let i=0;i<5;i++){
  zSkinPool.push(new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(0.24+Math.random()*0.06,0.25,0.38+Math.random()*0.1),roughness:.95}));
  zClothPool.push(new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(Math.random(),0.18,0.22+Math.random()*0.12),roughness:1}));}
-const zEyeMat=new THREE.MeshBasicMaterial({color:0xb7ff4d});
+const zEyeMat=new THREE.MeshBasicMaterial({color:NIGHT?0xff3020:0xb7ff4d});   // ★ §5.2 夜战红眼
+const Z_EYE_BASE=zEyeMat.color.getHex();
 /* 三种丧尸 + BOSS 各自的配色 / 体型 */
 const zRunnerCloth=new THREE.MeshStandardMaterial({color:0x7c2c22,roughness:1});
 const zThrowCloth =new THREE.MeshStandardMaterial({color:0x3e5a2b,roughness:1});
 const zBossSkin   =new THREE.MeshStandardMaterial({color:0x6d5847,roughness:.9});
 const zBossCloth  =new THREE.MeshStandardMaterial({color:0x4a1d18,roughness:.95});
 const zBossEye    =new THREE.MeshBasicMaterial({color:0xff5a2b});
+/* ★ §2.1 新增丧尸材质 */
+const zBoomTint   =new THREE.MeshBasicMaterial({color:0xff8a3c});                                  // 自爆者眼/腹发光
+const zSpitMat    =new THREE.MeshStandardMaterial({color:0x9ad84a,emissive:0x3f6a10,emissiveIntensity:0.9,roughness:.6}); // 酸液/鼓腹
+const zPlateMat   =new THREE.MeshStandardMaterial({color:0x555b62,metalness:.6,roughness:.5});      // 装甲板
+const zSummonCloth=new THREE.MeshStandardMaterial({color:0x4a2f6a,roughness:.95});                  // 召唤者紫袍
+const zSpitCloth  =new THREE.MeshStandardMaterial({color:0x4a6a2a,roughness:1});                    // 喷吐者绿袍
 const zTorsoGeo=new THREE.CylinderGeometry(0.27,0.36,1.05,6);
 const zHeadGeo=new THREE.SphereGeometry(0.215,8,6);
 const zEyeGeo=new THREE.SphereGeometry(0.035,6,5);
@@ -1776,21 +2673,57 @@ const zLegGeo=new THREE.BoxGeometry(0.16,0.62,0.16);zLegGeo.translate(0,-0.31,0)
 const zPackGeo=new THREE.BoxGeometry(0.36,0.34,0.24);
 const zSpikeGeo=new THREE.ConeGeometry(0.09,0.30,5);
 const zNadeGeo=new THREE.SphereGeometry(0.09,6,5);
+/* ★ §2.1 新增丧尸几何 */
+const zBellyGeo=new THREE.SphereGeometry(0.34,8,6);          // 自爆者鼓胀腹部
+const zTankGeo =new THREE.CylinderGeometry(0.16,0.16,0.5,6); // 喷吐者背罐
+const zPlateGeo=new THREE.BoxGeometry(0.34,0.30,0.10);       // 装甲丧尸胸/背甲
 
-/* 丧尸类型：普通 / 疾行者 / 投掷者（波数越高比例越高） */
+/* 丧尸类型：普通 / 疾行者 / 投掷者 / ★ §2.1 喷吐者 / 自爆者 / 装甲丧尸 / 召唤者
+   unlock = 该类型开始出现的波数；数值随波数增长（见 spawnZombie） */
 const ZT={
- normal :{hp:58,spd:1.55,cap:3.15,dmg:9},
- runner :{hp:40,spd:3.30,cap:4.70,dmg:7},
- thrower:{hp:72,spd:1.35,cap:2.35,dmg:8}
+ normal :{hp:58, spd:1.55,cap:3.15,dmg:9, unlock:1},
+ runner :{hp:40, spd:3.30,cap:4.70,dmg:7, unlock:2},
+ thrower:{hp:72, spd:1.35,cap:2.35,dmg:8, unlock:2},
+ /* ★ M8 数值对齐需求清单：喷吐 65 / 自爆 30 / 装甲 120 / 召唤 65 */
+ spitter:{hp:65, spd:1.20,cap:2.20,dmg:6, unlock:3},
+ boomer :{hp:30, spd:1.70,cap:2.90,dmg:0, unlock:4},
+ armored:{hp:120,spd:1.15,cap:2.10,dmg:13,unlock:5},
+ summoner:{hp:65,spd:1.30,cap:2.40,dmg:7, unlock:6}
 };
-function pickZType(){
+/* ★ §2.1 减伤表（单独成表，避免污染数值表）；0.30 = 普通弹体只吃 30% 伤害 */
+const ZARMOR={ armored:{bullet:0.30, head:1.0, pierce:1.0, explosive:1.0, melee:1.0} };
+/* ★ §2.1 减伤唯一实现：所有权威伤害结算点调用。
+   opts: {head,melee,explosive,pierce} —— 命中/近战/爆炸/穿透分别绕过减伤 */
+function armorMul(z,opts){
+ if(!z||z.type!=='armored')return 1;
+ const A=ZARMOR.armored;opts=opts||{};
+ if(opts.melee)return A.melee;
+ if(opts.head)return A.head;
+ if(opts.explosive)return A.explosive;
+ if(opts.pierce)return A.pierce;
+ return A.bullet;}
+/* ★ §2.2 精英波：wave%5===0 时精英类（喷吐/自爆/装甲/召唤）权重 ×2 */
+function pickZType(elite){
  if(wave<2)return 'normal';
- const r=Math.random();
- const pr=Math.min(0.30,0.12+wave*0.020);   // 疾行者
- const pt=Math.min(0.24,0.08+wave*0.015);   // 投掷者
- if(r<pr)return 'runner';
- if(r<pr+pt)return 'thrower';
+ const r=Math.random(),w=wave;
+ let pr=Math.min(0.30,0.12+w*0.020);                       // 疾行者
+ let pt=Math.min(0.20,0.08+w*0.015);                       // 投掷者
+ let ps=(w>=3)?Math.min(0.16,0.05+(w-2)*0.018):0;          // ★ 喷吐者
+ let pb=(w>=4)?Math.min(0.14,0.05+(w-3)*0.016):0;          // ★ 自爆者
+ let pa=(w>=5)?Math.min(0.16,0.06+(w-4)*0.018):0;          // ★ 装甲丧尸
+ let pu=(w>=6)?Math.min(0.12,0.05+(w-5)*0.014):0;          // ★ 召唤者
+ if(elite){ ps*=2;pb*=2;pa*=2;pu*=2;                       // ★ 精英权重翻倍
+  const s=ps+pb+pa+pu; if(s>0.6){const k=0.6/s;ps*=k;pb*=k;pa*=k;pu*=k;} }
+ let a=0;
+ if((a+=pr,r)<a)return 'runner';
+ if((a+=pt,r)<a)return 'thrower';
+ if((a+=ps,r)<a)return 'spitter';
+ if((a+=pb,r)<a)return 'boomer';
+ if((a+=pa,r)<a)return 'armored';
+ if((a+=pu,r)<a)return 'summoner';
  return 'normal';}
+/* ★ §2.2 本波是否精英波 */
+function isEliteWave(w){ return w>=3 && w%3===0; }        // ★ §2.2 每 3 波一次精英波
 function fallbackSpawn(){
  let best=SPAWNS[0],bd=-1;
  for(const p of SPAWNS){const d=Math.hypot(p[0]-player.pos.x,p[1]-player.pos.z);if(d>bd){bd=d;best=p;}}
@@ -1811,15 +2744,25 @@ function spawnZombie(opt){
   else{const T=ZT[type]||ZT.normal;
    hp=Math.round(T.hp*(1+k*0.32));
    speed=Math.min(T.spd+k*0.075+Math.random()*0.30,T.cap);
-   dmg=T.dmg+k*1.6;sca=type==='runner'?0.93:(type==='thrower'?1.06:1.0);}
+   dmg=T.dmg+k*1.6;
+   /* ★ §2.1 体型：新类型各自独立 */
+   sca=type==='runner'?0.93:(type==='thrower'?1.06:(type==='boomer'?1.15:(type==='armored'?1.12:(type==='summoner'?1.08:(type==='spitter'?1.04:1.0)))));}
   const z={pos:new V3(s.x,s.y,s.z),vy:0,yaw:0,hp:hp,hpMax:hp,dmg:dmg,
    speed:speed,atkCd:0,dead:false,deadT:0,boss:boss,type:type,
    growlT:rand(1,6),phase:Math.random()*10,runner:type==='runner',
-   throwCd:rand(3,10),throwAnim:0,nav:null,navT:0,stuckT:0,path:null,pi:0,g:null,parts:null};
+   throwCd:rand(3,10),throwAnim:0,nav:null,navT:0,stuckT:0,path:null,pi:0,g:null,parts:null,
+   /* ★ §2.2 尸群行为标签（房主私有运行态，不广播） */
+   behavior:'rush',flankSide:(Math.random()<0.5?-1:1),
+   /* ★ §2.1 类型私有运行态 */
+   fuse:null,sumCd:rand(8,14),spitCd:rand(4,9)};
   const pi=(Math.random()*5)|0;
   let skin=zSkinPool[pi],cloth=zClothPool[pi],eye=zEyeMat;
   if(type==='runner')cloth=zRunnerCloth;
   else if(type==='thrower')cloth=zThrowCloth;
+  else if(type==='spitter')cloth=zSpitCloth;                              // ★ §2.1
+  else if(type==='boomer'){cloth=zClothPool[pi];eye=zBoomTint;}           // ★ §2.1
+  else if(type==='armored')cloth=zPlateMat;                               // ★ §2.1
+  else if(type==='summoner'){cloth=zSummonCloth;eye=zBossEye;}            // ★ §2.1
   else if(boss){skin=zBossSkin;cloth=zBossCloth;eye=zBossEye;}
   const g=new THREE.Group();
   const mk=(geo,mat,x,y2,z2)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y2,z2);g.add(m);return m;};
@@ -1829,6 +2772,13 @@ function spawnZombie(opt){
   mk(zEyeGeo,eye,0.08,2.02,0.17);
   if(type==='thrower'){mk(zPackGeo,zThrowCloth,0,1.30,-0.30);
    mk(zNadeGeo,zThrowCloth,0.36,1.36,0.16);}
+  /* ★ §2.1 新类型外形 */
+  let bellyMesh=null;
+  if(type==='spitter'){mk(zPackGeo,zSpitCloth,0,1.30,-0.30);mk(zTankGeo,zSpitMat,0.30,1.42,-0.22);}
+  else if(type==='boomer'){bellyMesh=mk(zBellyGeo,zSpitMat,0,0.78,0.16);}
+  else if(type==='armored'){mk(zPlateGeo,zPlateMat,0,1.25,0.18);mk(zPlateGeo,zPlateMat,0,1.25,-0.18);}
+  else if(type==='summoner'){const s1=mk(zSpikeGeo,zSummonCloth,-0.30,1.66,0);s1.rotation.z=0.5;
+   const s2=mk(zSpikeGeo,zSummonCloth,0.30,1.66,0);s2.rotation.z=-0.5;}
   if(boss){const sp1=mk(zSpikeGeo,cloth,-0.30,1.66,0);sp1.rotation.z=0.5;
    const sp2=mk(zSpikeGeo,cloth,0.30,1.66,0);sp2.rotation.z=-0.5;}
   const armL=mk(zArmGeo,skin,-0.36,1.62,0);armL.rotation.x=-1.15;
@@ -1838,7 +2788,7 @@ function spawnZombie(opt){
   g.traverse(o=>{if(o.isMesh)o.userData.z=z;});
   g.scale.setScalar(sca);
   g.position.copy(z.pos);zombieRoot.add(g);
-  z.g=g;z.parts={torso,head,armL,armR,legL,legR};
+  z.g=g;z.parts={torso,head,armL,armR,legL,legR,belly:bellyMesh};
   zombies.push(z);
 
   // ★ 注册到联机层（zsync.js 读取 window.__zombies 序列化广播）
@@ -1860,8 +2810,54 @@ function spawnZombie(opt){
 }
 /* 目标点（带楼层高度）：跨层时必须挑"端点就踩在本层地板上"的那一跑楼梯，
    否则会把丧尸引到另一层同 xz 的实心楼板上，在原地打转永远下不来。 */
-function targetFor(z){
- const py=player.y,zy=z.pos.y;
+/* ★ §0.1 候选目标表：本地玩家 + 所有存活的远端玩家。
+   房主侧丧尸 AI 据此挑选"最近且可达"的目标；单机模式下只有本地玩家一项，
+   行为与旧版 targetFor 完全等价。 */
+function collectTargets(){
+ const out=[{ id:'local', x:player.pos.x, z:player.pos.z, y:player.y, local:true }];
+ try{
+  if(window.MP&&typeof MP.peerTargets==='function'){
+   for(const t of MP.peerTargets()){
+    if(!t||t.alive===false)continue;
+    out.push({ id:t.id, x:t.x, z:t.z, y:t.y, local:false });
+   }
+  }
+ }catch(_){}
+ return out;
+}
+/* 旧接口保留：等价于"只盯本地玩家"的 pickTarget，供仍按老签名调用的地方兜底 */
+function targetFor(z){ return pickTarget(z,[{ id:'local', x:player.pos.x, z:player.pos.z, y:player.y, local:true }]); }
+/* 目标点（带楼层高度）：跨层时必须挑"端点就踩在本层地板上"的那一跑楼梯，
+   否则会把丧尸引到另一层同 xz 的实心楼板上，在原地打转永远下不来。
+   ★ §0.1：tgt 为选定目标的世界坐标（可为远端玩家），不再写死本地 player。 */
+/* ★ §0.1 为一具丧尸挑选目标：本地玩家 + 存活远端玩家里"最近且可达"者。
+   粘性：已锁定的目标仍在候选表且差距 ≤3m 时继续追它，避免两玩家距离接近时横跳。
+   可达性：跨层且无视线者降权（排除后再比距离，否则可达的次近目标永远选不上）。 */
+function selectChosen(z){
+ const cands=collectTargets();
+ if(!cands.length)return null;
+ let chosen=null,bd=1e9;
+ for(const t of cands){
+  const d=Math.hypot(t.x-z.pos.x,t.z-z.pos.z);
+  if(chosen&&z.tgtId&&t.id===z.tgtId&&d<bd+3.0){chosen=t;bd=d;continue;}
+  if(d<bd){bd=d;chosen=t;}
+ }
+ const reachable = t => Math.abs(t.y-z.pos.y)<2.2 || clearLine(z.pos.x,z.pos.z,t.x,t.z,z.pos.y);
+ if(chosen&&chosen.id!==z.tgtId&&!reachable(chosen)){
+  let best=null,bd2=1e9;
+  for(const t of cands){
+   if(!reachable(t))continue;
+   const d=Math.hypot(t.x-z.pos.x,t.z-z.pos.z);
+   if(d<bd2){bd2=d;best=t;}
+  }
+  if(best)chosen=best;                          // 全不可达 → 保留原选（兜底不死锁）
+ }
+ if(chosen)z.tgtId=chosen.id;
+ return chosen;
+}
+function pickTarget(z,tgt){
+ if(!tgt)return{x:player.pos.x,z:player.pos.z,y:player.y};   /* ★ 兜底：无有效目标时盯本地玩家，避免空引用 */
+ const py=tgt.y,zy=z.pos.y;
  /* ① 已经踩在某跑楼梯的坡面中段：锁死这跑，一直走到那一端。
       否则 y 卡在两层之间时"本层"判据会在梯底/梯顶之间反复横跳，
       丧尸就在坡上原地抽搐上不去也下不来。 */
@@ -1910,19 +2906,25 @@ function targetFor(z){
    if(dx*dx+dz*dz<2.25)return{x:best.bx,z:best.bz,y:best.y0}; // 到梯顶后沿梯向下
    return{x:best.tx,z:best.tz,y:best.y1};}
  }
- if(!insideBuilding(player.pos.x,player.pos.z))return{x:player.pos.x,z:player.pos.z,y:py};
- if(insideBuilding(z.pos.x,z.pos.z))return{x:player.pos.x,z:player.pos.z,y:py};
+ if(!insideBuilding(tgt.x,tgt.z))return{x:tgt.x,z:tgt.z,y:py};
+ if(insideBuilding(z.pos.x,z.pos.z))return{x:tgt.x,z:tgt.z,y:py};
  let best=null,bd=1e9;
  for(const d of doorPts){const dx=d[0]-z.pos.x,dz=d[1]-z.pos.z,dd=dx*dx+dz*dz;if(dd<bd){bd=dd;best=d;}}
  if(best&&bd>1.2)return{x:best[0],z:best[1],y:0.14};
- return{x:player.pos.x,z:player.pos.z,y:py};}
+ return{x:tgt.x,z:tgt.z,y:py};}
 function updateZombies(dt){
   const isClient = !!(window.ZS && window.ZS.isClient());
+  const packN = isClient ? 0 : zombies.length;   // ★ §2.2 当前尸群规模（单只不包抄）
+  const _packC = isClient ? null : packCentroid(zombies);  // ★ §2.2 尸群质心（regroup 用）
   for(let i=zombies.length-1;i>=0;i--){const z=zombies[i];
     if(z.dead){z.deadT+=dt;
+     /* ★ §2.1 客户端：自爆者死亡首帧补一次橙色特效（爆炸范围伤害以房主口径为准） */
+     if(z.type==='boomer'&&!z.__boomFx){z.__boomFx=true;
+      burst(z.pos.clone().setY(z.pos.y+1.0),0xffa93c,22,3.6);shakeT=Math.max(shakeT,0.5);}
      z.g.rotation.x=-Math.min(z.deadT*3,1)*1.35;
-     if(z.deadT>0.7)z.g.position.y=z.g.position.y-(z.deadT-0.7)*0.6;
-     if(z.deadT>1.6){
+     /* ★ §6.4 倒地后仅下沉一小段即"平躺在地"，尸体残留 5 秒（清单），不再立刻消失 */
+     if(z.deadT>0.7)z.g.position.y=z.g.position.y-Math.min(dt,0.05)*0.6*(z.deadT<1.6?1:0.15);
+     if(z.deadT>5.0){                               /* ★ 清单：尸体残留 5s */
        zombieRoot.remove(z.g);
        zombies.splice(i,1);
        // ★ 死亡动画播完 → 此刻才从联机数组/登记表真正出队（与上面的 killZombie 配套）
@@ -1963,10 +2965,27 @@ function updateZombies(dt){
       continue;
     }
 
-    // ============ 房主 / 单机分支：原逻辑 ============
+    // ============ 房主 / 单机分支 ============
     z.growlT-=dt;if(z.growlT<=0){z.growlT=rand(3,9);sGrowl(z.pos.distanceTo(player.pos));}
+    const chosen=selectChosen(z);
+    /* ★ 清单⑧：BOSS 每 30 秒有概率瞬移到玩家附近 */
+    if(z.boss){
+      z.tpCd=(z.tpCd==null?30:z.tpCd)-dt;
+      if(z.tpCd<=0){ z.tpCd=30;
+        if(Math.random()<0.6){
+          const ang=Math.random()*6.2831853, R=9+Math.random()*7;
+          const nx=player.pos.x+Math.cos(ang)*R, nz=player.pos.z+Math.sin(ang)*R;
+          if(spawnValid(nx,nz,player.y)){
+            z.pos.set(nx,player.y,nz); z.g.position.set(nx,player.y,nz);
+            z.path=null; z.navT=0; z.stuckT=0;
+            burst(z.pos.clone().setY(z.pos.y+1.2),0x9a5cff,18,2.6);
+            shakeT=Math.max(shakeT,0.4); banner('BOSS 瞬移！');
+          } else { z.tpCd=6; }
+        }
+      }
+    }
     /* 目标：优先用路点图找路（能穿门、爬楼梯），直达通畅时直接冲玩家 */
-    const raw=targetFor(z);
+    const raw=pickTarget(z,chosen);
     z.navT-=dt;
     if(!z.path||z.navT<=0){
      z.path=navPath(z.pos.x,z.pos.z,z.pos.y,raw.x,raw.z,raw.y);
@@ -1978,7 +2997,8 @@ function updateZombies(dt){
       for(let k=0;k<z.path.length;k++){const n=z.path[k];
        const d=Math.hypot(n.x-z.pos.x,n.z-z.pos.z)+Math.abs(n.y-z.pos.y)*0.5;
        if(d<bd){bd=d;z.pi=k;}}}
-     z.navT=(z.path?2.4:0.7)+Math.random()*0.7;}
+     z.navT=(z.path?2.4:0.7)+Math.random()*0.7;
+     if(horde.active)z.navT=Math.max(z.navT,1.2);}   // ★ §2.3 尸潮期放宽重算间隔，降低寻路峰值
     /* 拉绳：沿缓存路径往前找"直线还通"的最远路点，方向稳定不抖 */
     let tgt=raw;
     if(z.path&&z.path.length){
@@ -2002,14 +3022,25 @@ function updateZombies(dt){
      z.pi=pick;tgt=z.path[pick];
      if(Math.hypot(tgt.x-z.pos.x,tgt.z-z.pos.z)<1.2)z.pi=Math.min(pick+1,z.path.length-1);
      if(z.pi>=z.path.length-1)z.navT=Math.min(z.navT,0.25);}
-    z.nav=tgt;
-    const dx=tgt.x-z.pos.x,dz=tgt.z-z.pos.z,dist=Math.hypot(dx,dz);
+    /* ★ §2.2 蜂拥 + 分流包抄：对最终目标点做横向偏移（不写回 z.path，无漂移） */
+    /* 与"当前目标"的水平距离（房主侧：可能是远端玩家） */
+    const pdist=chosen?Math.hypot(chosen.x-z.pos.x,chosen.z-z.pos.z)
+                       :Math.hypot(player.pos.x-z.pos.x,player.pos.z-z.pos.z);
+    /* 行为切换：远离(>8m) → 分流侧翼；贴近(<=8m) → 蜂拥直冲
+       ★ §2.2 三段：远场(>22m)且掉队 → regroup 先聚拢 */
+    if(z.type!=='boomer'){
+     if(pdist<=8.0)z.behavior='rush';
+     else if(pdist>22.0&&packN>=4)z.behavior='regroup';
+     else z.behavior='flank';}
+    z.nav=flankOffset(z,tgt,pdist,packN,_packC);
+    if(z.nav!==tgt&&!clearLine(z.pos.x,z.pos.z,z.nav.x,z.nav.z,z.pos.y))z.nav=tgt; // 偏移点被墙挡 → 回退
+    const dx=z.nav.x-z.pos.x,dz=z.nav.z-z.pos.z,dist=Math.hypot(dx,dz);
     const ty=Math.atan2(dx,dz);let dy=ty-z.yaw;while(dy>Math.PI)dy-=6.283;while(dy<-Math.PI)dy+=6.283;
     z.yaw+=dy*Math.min(1,dt*6);
     z.atkCd-=dt;
-    const pdist=Math.hypot(player.pos.x-z.pos.x,player.pos.z-z.pos.z);
     if(dist>1.5||pdist>2.2){
-     const sp=z.speed*dt,nx=dx/(dist||1)*sp,nz=dz/(dist||1)*sp;
+     /* ★ §2.2 rush 蜂拥：近场加速 15%（只改当帧位移，不动 z.speed 本体） */
+     const sp=(pdist>8?1.0:1.15)*z.speed*dt,nx=dx/(dist||1)*sp,nz=dz/(dist||1)*sp;
      const np=moveSlide(z.pos.x,z.pos.z,nx,nz,0.45,z.pos.y,1.9);
      z.pos.x=np[0];z.pos.z=np[1];
      if(dist<35){
@@ -2018,15 +3049,25 @@ function updateZombies(dt){
       z.parts.legR.rotation.x=-Math.sin(z.phase)*0.7;
       z.parts.torso.position.y=1.12+Math.abs(Math.sin(z.phase))*0.04;}
     }
+    /* ★ §2.1 类型行为分发（仅房主/单机） */
+    if(state==='play'){
+     if(z.type==='boomer')updateBoomer(z,dt,chosen,pdist);
+     else if(z.type==='spitter')updateSpitter(z,dt,chosen,pdist);
+     else if(z.type==='summoner')updateSummoner(z,dt,chosen,pdist);
+    }
     /* 投掷者：隔着距离砸玩家，砸完要等 30 秒 */
     if(z.throwAnim>0)z.throwAnim-=dt;
-    if(z.type==='thrower'&&state==='play'){
+    if(z.type==='thrower'&&state==='play'&&chosen&&chosen.local){
      z.throwCd-=dt;
-     if(z.throwCd<=0&&pdist>3.6&&pdist<32&&Math.abs(player.y-z.pos.y)<7&&
+     if(z.throwCd<=0&&pdist>3.6&&pdist<42&&Math.abs(player.y-z.pos.y)<7&&
         clearLine(z.pos.x,z.pos.z,player.pos.x,player.pos.z,z.pos.y)){
       z.throwCd=30;throwAt(z);}}
-    if(pdist<=2.2&&Math.abs(player.y-z.pos.y)<1.6&&z.atkCd<=0&&state==='play'){
-     z.atkCd=1.05;damagePlayer(z.dmg);
+    /* ★ §0.1 咬人：目标若是本地玩家 → 本地扣血；若是远端玩家 → 定向通知对端扣血 */
+    if(chosen&&pdist<=2.2&&Math.abs(chosen.y-z.pos.y)<1.6&&z.atkCd<=0&&state==='play'){
+     z.atkCd=1.05;
+     const hitDmg=z.dmg||(9+wave*1.5);
+     if(chosen.local){damagePlayer(hitDmg);}
+     else if(window.P2P&&typeof P2P.sendHitPlayer==='function'){P2P.sendHitPlayer(chosen.id,hitDmg);}
      z.parts.armL.rotation.x=-2.2;z.parts.armR.rotation.x=-2.2;}
     if(dist<35&&z.throwAnim<=0){
      z.parts.armL.rotation.x+=(-1.15-z.parts.armL.rotation.x)*dt*4;
@@ -2061,11 +3102,35 @@ function updateZombies(dt){
     z.g.rotation.y=z.yaw;
   }
 }
-function killZombie(z,pt){
+function killZombie(z,pt,opts){
   if(z.dead)return;
-  z.dead=true;z.deadT=0;kills++;
+  z.dead=true;z.deadT=0;
+  opts=opts||{};
+  if(!z.__selfDetonate)kills++;   // ★ §2.1 自爆者自爆不算玩家击杀
+  /* ★ §7.1 连杀 & 最常用武器统计（供档案：最高连杀 / 最常用武器） */
+  if(!z.__selfDetonate){
+   const now=performance.now()/1000;
+   if(now-(window.__lastKillT||0)<=3)window.__streak=(window.__streak||0)+1;
+   else window.__streak=1;
+   window.__lastKillT=now;
+   if(window.__streak>(window.__bestStreak||0))window.__bestStreak=window.__streak;
+   if(opts.head)window.__headshots=(window.__headshots||0)+1;
+   const wk=(W&&W.key)||'pistol';
+   window.__wKills=window.__wKills||{};
+   window.__wKills[wk]=(window.__wKills[wk]||0)+1;
+  }
+  /* ★ §4.1 击杀掉落零件（自爆者自爆不给分；__rewarded 去重防房主/客户端双发） */
+  if(!z.__selfDetonate && !z.__rewarded){z.__rewarded=true;
+   addCredits(KILL_REWARD[z.boss?'boss':(z.type||'normal')] || 1);}
   burst(pt||z.pos.clone().setY(z.pos.y+1.2),0x7a1f14,14,2.2);
   sHit(true);
+  /* ★ §6.4 死亡演出：断肢 / 爆头抛出（仅本地表现，不广播） */
+  try{ dismember(z,opts); }catch(_){}
+  /* ★ §2.1 自爆者：被击杀也会引爆（避免"打死不炸"） */
+  if(z.type==='boomer'&&!z.__selfDetonate&&!z.__detonated){
+   z.__detonated=true;z.__selfDetonate=true;
+   try{ boomAt(z.pos.clone().setY(z.pos.y+1.0),5.0,d=>Math.round(95*(1-d/5.0*0.5)),40); }catch(_){}
+  }
   if(z.boss){
    bossLive=false;bossRef=null;bossCd=rand(45,95);
    burst(z.pos.clone().setY(z.pos.y+1.6),0xff7a3c,30,3.6);
@@ -2084,28 +3149,233 @@ function killZombie(z,pt){
   }
 }
 
+/* ★ §6.4 死亡演出 —— 断肢 / 爆头抛出
+ *   复用丧尸已有 Mesh（不新建几何）；抛出物最多同屏 8 个，超出回收最早。
+ *   纯本地视觉表现，不参与联机同步（不影响玩法）。 */
+const GIB_MAX = 8, giblets = [];
+function dismember(z,opts){
+  if(!z||!z.g||!z.parts)return;
+  opts=opts||{};
+  const g=z.g;
+  const pickHead = !!opts.head;
+  /* 致死方向：优先用玩家朝向（枪击/近战），无则用丧尸朝向 */
+  let dx=0,dz=1;
+  try{ const d=camera.getWorldDirection(new V3()); dx=d.x;dz=d.z;
+       const L=Math.hypot(dx,dz)||1; dx/=L;dz/=L; }catch(_){}
+  const spawnGib=(mesh,power)=>{
+    if(!mesh)return;
+    const wp=new V3(); try{ mesh.getWorldPosition(wp); }catch(_){ wp.copy(z.pos).setY(z.pos.y+1.2); }
+    let mat=null; try{ mat=mesh.material; }catch(_){}
+    if(!mat)return;
+    const gib=new THREE.Mesh(mesh.geometry,mat);
+    gib.position.copy(wp);
+    gib.scale.copy(g.scale);
+    scene.add(gib);
+    giblets.push({m:gib,v:new V3(dx*power+(Math.random()-0.5)*1.2,2.4+Math.random()*1.4,dz*power+(Math.random()-0.5)*1.2),
+      rot:new V3((Math.random()-0.5)*7,(Math.random()-0.5)*7,(Math.random()-0.5)*7),life:5,spin:0});
+    while(giblets.length>GIB_MAX){const old=giblets.shift();if(old&&old.m&&old.m.parent)old.m.parent.remove(old.m);}
+  };
+  if(pickHead){
+    spawnGib(z.parts.head,3.2);                      // 爆头：头部飞得更远
+    try{ burst(z.pos.clone().setY(z.pos.y+2.0),0xb51f14,26,3.2); }catch(_){}
+  }else{
+    const arm=(Math.random()<0.5)?z.parts.armL:z.parts.armR;
+    spawnGib(arm,2.2);
+    if(Math.random()<0.42) spawnGib(z.parts.legL||z.parts.armL,1.8);
+  }
+}
+function updateGiblets(dt){
+  for(let i=giblets.length-1;i>=0;i--){const b=giblets[i];const m=b.m;
+   if(!m||!m.parent){giblets.splice(i,1);continue;}
+   b.v.y-=22*dt;
+   m.position.x+=b.v.x*dt;m.position.y+=b.v.y*dt;m.position.z+=b.v.z*dt;
+   m.rotation.x+=b.rot.x*dt;m.rotation.y+=b.rot.y*dt;m.rotation.z+=b.rot.z*dt;
+   const gh=groundAt(m.position.x,m.position.z,m.position.y);
+   if(m.position.y-0.10<=gh){
+    m.position.y=gh+0.10;
+    b.v.set(b.v.x*0.4,0,b.v.z*0.4);b.rot.multiplyScalar(0.82);b.spin=1;
+   }
+   b.life-=dt;
+   if(b.life<=0.8){ m.scale.multiplyScalar(Math.max(0,1-dt*2.2)); }  // 尾段渐隐（缩小代替透明，避免污染材质）
+   if(b.life<=0){ if(m.parent)m.parent.remove(m); giblets.splice(i,1); }
+  }
+}
+
+
+/* ★ §2.2 尸群三段行为：返回丧尸这一帧"实际朝哪走"的目标点。
+ *   rush   （近场 <=8m）  ：直冲玩家
+ *   flank  （中远 8~22m）：沿"丧尸→目标"连线的法线横移到侧翼包抄
+ *   regroup（远场 >22m 且掉队）：先朝尸群质心聚拢，避免零散送死
+ *   pack = 同伴数量：单只丧尸(bd 小)不包抄，避免"孤零零绕圈"。
+ *   纯函数（不读写场景），便于 Node 沙箱单测。 */
+function flankOffset(z,tgt,pdist,pack,centroid){
+ if(!tgt)return tgt;
+ if(z.type==='boomer')return tgt;                 // 自爆者直冲贴脸，不绕路
+ /* ★ regroup：远场掉队者先向尸群质心靠拢 */
+ if(z.behavior==='regroup'&&centroid&&pack>=4){
+  const cx=centroid.x,cz=centroid.z;
+  const d=Math.hypot(cx-z.pos.x,cz-z.pos.z);
+  if(d>1.0)return {x:cx,z:cz,y:tgt.y};
+  return tgt;                                     // 已聚拢 → 转直冲
+ }
+ if(z.behavior!=='flank')return tgt;              // rush：直冲
+ if(!pack||pack<2)return tgt;                     // 没有同伴可配合 → 直冲
+ const dxx=tgt.x-z.pos.x,dzz=tgt.z-z.pos.z,L=Math.hypot(dxx,dzz)||1;
+ const nx=-dzz/L,nz=dxx/L;                        // 连线法线（左/右）
+ const fd=Math.min(3.5,1.2+pdist*0.06);           // 越远偏得越多，上限 3.5m
+ return {x:tgt.x+nx*z.flankSide*fd,z:tgt.z+nz*z.flankSide*fd,y:tgt.y};}
+
+/* ★ §2.2 尸群质心（纯函数，供 regroup 判定） */
+function packCentroid(list){
+ let sx=0,sz=0,n=0;
+ for(const z of (list||[])){ if(!z||z.dead)continue; sx+=z.pos.x;sz+=z.pos.z;n++; }
+ return n?{x:sx/n,z:sz/n,n:n}:null;
+}
+
+/* ★ §2.1 自爆者：进距离即引爆（房主权威）
+ *   清单语义"进距离爆炸"：贴脸 2.6m 内 0.35s 引信后自爆 */
+function updateBoomer(z,dt,chosen,pdist){
+ const dy=chosen?Math.abs(chosen.y-z.pos.y):Math.abs(player.y-z.pos.y);
+ if(z.fuse==null){
+  if(pdist<=2.6&&dy<1.8){
+   z.fuse=0.35;
+   if(z.parts&&z.parts.belly&&z.parts.belly.material)z.parts.belly.material.emissiveIntensity=2.4;
+   sGrowl(0);}
+ }else{
+  z.fuse-=dt;
+  if(z.fuse<=0){
+   z.__detonated=true;
+   boomAt(z.pos.clone().setY(z.pos.y+1.0),5.0,d=>Math.round(95*(1-d/5.0*0.5)),40);
+   z.__selfDetonate=true;
+   killZombie(z,z.pos.clone().setY(z.pos.y+1.2));}}}
+
+/* ★ §2.1 喷吐者：远程吐酸液（沿用 thrower 的"只对本地玩家"口径） */
+function updateSpitter(z,dt,chosen,pdist){
+ if(!chosen||!chosen.local)return;
+ z.spitCd-=dt;
+ if(z.spitCd<=0&&pdist>4.0&&pdist<36&&Math.abs(player.y-z.pos.y)<6&&
+    clearLine(z.pos.x,z.pos.z,player.pos.x,player.pos.z,z.pos.y)){
+  z.spitCd=rand(6,10);spitAt(z);}}
+/* ★ §2.1 召唤者：周期召唤普通丧尸（★ 归波：补进本波待刷队列，必须清掉才算波清）
+ *   硬上限保护（ZMAX）保留，避免爆量 */
+function updateSummoner(z,dt,chosen,pdist){
+ z.sumCd-=dt;
+ if(z.sumCd>0)return;
+ z.sumCd=rand(12,18);
+ if(aliveCount()<ZMAX-3&&zombies.length<ZMAX+2){
+  const n=1+(wave>=9?1:0);
+  for(let k=0;k<n;k++){
+   const a=Math.random()*Math.PI*2,r=2.5+Math.random()*2.0;
+   const sx=z.pos.x+Math.cos(a)*r,sz=z.pos.z+Math.sin(a)*r;
+   if(!spawnValid(sx,sz,z.pos.y))continue;
+   spawnZombie({type:'normal',minion:true,at:{x:sx,z:sz,y:z.pos.y}});
+   spawnQueue++;                                  // ★ 归波：召唤物计入本波待清数量
+  }
+  burst(z.pos.clone().setY(z.pos.y+1.6),0x9a5aff,16,2.2);}}
+
 /* ---------- 波次 ---------- */
 let state='menu',wave=1,kills=0,spawnQueue=0,spawnT=0,interT=5,timeS=0;
-function startWave(){spawnQueue=4+wave*3;spawnT=0.5;banner('第 '+wave+' 波');}
+/* ★ §5.1 关卡模式：MODE_KIND/NIGHT 已在建场景处解析（见上） */
+/* 有限防守：随机 5~15 波；其余模式 0 = 无限 */
+const LIMIT_WAVES = MODE_KIND==='defense' ? (5+Math.floor(Math.random()*11)) : 0;
+function startWave(){
+ /* ★ §2.2 精英波：每 5 波精英权重翻倍 + 数量 +30% */
+ const elite=isEliteWave(wave);
+ spawnQueue=Math.round((4+wave*3)*(elite?1.3:1));
+ spawnT=0.5;
+ banner(elite?('第 '+wave+' 波 · 精英波'):('第 '+wave+' 波'));
+ window.__eliteWave=elite;
+ /* ★ §2.3 每 3 波触发一次尸潮（清单） */
+ if(wave%3===0)hordeStart();
+ /* ★ §6.2 环境叙事：每波 20% 概率播放校园广播 */
+ if(Math.random()<0.2){try{campusAnnounce();}catch(_){}}}
 function aliveCount(){let n=0;for(const z of zombies)if(!z.dead)n++;return n;}
+/* ★ §2.3 尸潮事件：定时大波爆发（★ 清单：每 3 波），三阶段 warn→burst→clear */
+let horde={active:false,phase:'idle',t:0,queue:0,dirs:[],n:0,spawned:0};
+let hordeCap=0;                                  // 尸潮期的临时刷怪上限（0=未启用）
+function hordeStart(){
+ horde.active=true;horde.phase='warn';horde.t=3.0;horde.spawned=0;
+ horde.n=Math.min(30,20+((wave/3-1)|0)*3);       // 20/23/26/29…上限 30（按每 3 波换算）
+ const nd=4+((wave/3)|0)%3;horde.dirs=[];        // 4~6 个方向
+ for(let i=0;i<nd;i++)horde.dirs.push(i/nd*Math.PI*2);
+ hordeCap=ZMAX+10;
+ banner('⚠ 尸 潮 来 袭 ⚠');
+ try{sRoar();}catch(_){}
+ /* 联机：广播预警（有则用，无则忽略） */
+ try{if(window.MP&&typeof MP.broadcastHorde==='function')MP.broadcastHorde();}catch(_){}}
+function updateHorde(dt){
+ if(!horde.active)return;
+ if(horde.phase==='warn'){horde.t-=dt;
+  if(horde.t<=0){horde.phase='burst';horde.queue=horde.n;banner('尸 潮 爆 发');}
+  return;}
+ if(horde.phase==='burst'){
+  horde.t-=dt;
+  if(horde.queue>0&&horde.t<=0){horde.t=0.25;
+   const ang=horde.dirs[(horde.spawned++)%horde.dirs.length];
+   const r=28+Math.random()*8;
+   const sx=player.pos.x+Math.cos(ang)*r,sz=player.pos.z+Math.sin(ang)*r;
+   if(aliveCount()<hordeCap&&spawnValid(sx,sz,0))spawnZombie({type:pickZType(),at:{x:sx,z:sz,y:0}});
+   horde.queue--;}
+  if(horde.queue<=0)horde.phase='clear';
+  return;}
+ if(horde.phase==='clear'){                      // 自然清场 + 奖励
+  if(aliveCount()===0&&zombies.length===0){
+   horde.active=false;horde.phase='idle';hordeCap=0;
+   player.hp=Math.min(player.maxHp,player.hp+40);
+   if(typeof ammo!=='undefined'&&typeof ammoCap==='function')ammo=Math.min(ammoCap(),ammo+60);
+   addCredits(8+wave*2);                        // ★ §4.1 尸潮清场奖励（配合新物价）
+   banner('尸潮已清 · 获得奖励 +'+(8+wave*2)+' 零件');}}}
+/* ★ §7 档案：一局结束（死亡/胜利）时写入本机长期战绩。
+   每局仅记一次：__runRecorded 防重复（联机 local-dead 与 all-dead 可能先后触发）。
+   §7.1 新增：爆头数 / 最高连杀 / 武器击杀计数一并上报。 */
+function recordProfile(victory){
+ if(window.__runRecorded)return;
+ window.__runRecorded=true;
+ if(window.Profile&&Profile.recordRun){
+  try{Profile.recordRun({
+   map:'map1',kills:kills,wave:wave,timeS:timeS,victory:!!victory,
+   headshots:(window.__headshots|0)||0,
+   bestStreak:(window.__bestStreak|0)||0,
+   wKills:window.__wKills||{}
+  });}catch(e){}
+ }
+}
+window.__recordProfile=recordProfile;         // ★ §7 供 mp-bridge 在联机落幕时调用
+/* ★ §5.1 有限防守：胜利结算（房主权威；联机广播给客户端） */
+function triggerVictory(){
+ if(state!=='play')return;
+ state='victory';
+ banner('🏆 防守成功 · 坚守 '+LIMIT_WAVES+' 波');
+ recordProfile(true);                                   // ★ §7 记入档案
+ /* 联机房主广播；客户端由 mp-bridge 弹面板 */
+ if(window.MP&&MP.broadcastVictory){try{MP.broadcastVictory(LIMIT_WAVES);}catch(e){}}
+ if(window.MP&&MP.showVictory){try{MP.showVictory(LIMIT_WAVES);}catch(e){}}
+ else{const v=$('victoryBox');if(v)v.style.display='flex';}
+}
 function updateWaves(dt){
   // ★ 客户端不推进波次（房主权威）
   if (window.ZS && window.ZS.isClient()) return;
 
-  /* BOSS：第 2 波起不定时（45~95 秒）刷一只，场上同时最多一只 */
-  if(state==='play'&&wave>=2){
+  /* BOSS：第 2 波起不定时（45~95 秒）刷一只，场上同时最多一只；尸潮期间冻结 */
+  if(state==='play'&&wave>=2&&!horde.active){
    if(bossLive){if(!bossRef||bossRef.dead){bossLive=false;bossRef=null;}}
    else{bossCd-=dt;
     if(bossCd<=0&&aliveCount()<ZMAX+4){spawnZombie({boss:true});if(!bossLive)bossCd=rand(45,95);}}
   }
   if(spawnQueue>0){spawnT-=dt;
    if(spawnT<=0&&aliveCount()<ZMAX){spawnZombie();spawnQueue--;spawnT=Math.max(0.5,1.3-0.06*wave);}}
-  else if(aliveCount()===0&&zombies.length===0){interT-=dt;
-   if(interT<=0){wave++;player.hp=Math.min(100,player.hp+18);startWave();interT=5;}}}
+  else if(aliveCount()===0&&zombies.length===0){
+   /* ★ §5.1 有限防守：打满目标波数且本机存活 → 胜利 */
+   if(LIMIT_WAVES&&wave>=LIMIT_WAVES){triggerVictory();return;}
+   interT-=dt;
+   if(interT<=0){addCredits(5+wave);wave++;player.hp=Math.min(player.maxHp,player.hp+18);startWave();interT=5;}}
+  /* ★ §2.3 尸潮三阶段推进（客户端已在上方 early-return） */
+  updateHorde(dt);}
    
 /* ---------- 投掷物栏位：手雷（10 颗） ---------- */
 const NADE_MAX=10;
-let nadeCount=NADE_MAX;
+function nadeMax(){ return NADE_MAX + (CLS.nadeBonus||0); }   // ★ §3.2 工程师额外手雷
+let nadeCount=nadeMax();
 const liveNades=[],tosses=[];
 const nadeGeo=new THREE.SphereGeometry(0.115,8,6);
 const nadeMat=new THREE.MeshStandardMaterial({color:0x39432c,roughness:.62,metalness:.35});
@@ -2129,6 +3399,49 @@ function throwAt(z){
  const m=new THREE.Mesh(tossGeo,tossMat);m.position.copy(from);scene.add(m);
  tosses.push({m:m,v:v,life:5});
  z.parts.armR.rotation.x=-2.6;z.throwAnim=0.45;}
+/* ★ §2.1 喷吐者：酸液球（复制 throwAt 模板，改颜色/速度/伤害标签） */
+const spitPoolGeo=new THREE.CircleGeometry(2.2,18);
+const spitPoolMat=new THREE.MeshBasicMaterial({color:0x9ad84a,transparent:true,opacity:0.34,
+  side:THREE.DoubleSide,depthWrite:false});
+const spitPools=[];                       // {m,t,dur,dps,r}
+const SPIT_POOL_MAX=6;
+function dropSpitPool(p){
+ const m=new THREE.Mesh(spitPoolGeo,spitPoolMat.clone());
+ m.rotation.x=-Math.PI/2;
+ const gy=groundAt(p.x,p.z,p.y);
+ m.position.set(p.x,gy+0.045,p.z);
+ scene.add(m);
+ spitPools.push({m:m,t:0,dur:6,dps:3.0,r:2.2});
+ while(spitPools.length>SPIT_POOL_MAX){const old=spitPools.shift();if(old&&old.m&&old.m.parent)old.m.parent.remove(old.m);}
+}
+function updateSpitPools(dt){
+ for(let i=spitPools.length-1;i>=0;i--){const s=spitPools[i];
+  s.t+=dt;
+  const k=1-s.t/s.dur;
+  if(s.m&&s.m.material)s.m.material.opacity=0.34*Math.max(0,k);
+  /* 仅对本地玩家结算（与 spit 球口径一致）；丧尸不受影响 */
+  if(state==='play'&&player.hp>0){
+   const d=Math.hypot(player.pos.x-s.m.position.x,player.pos.z-s.m.position.z);
+   if(d<=s.r&&Math.abs(player.y-s.m.position.y)<1.6){
+    if(!player.__spitTick||performance.now()-player.__spitTick>=1000){
+     player.__spitTick=performance.now();
+     damagePlayer(s.dps);
+    }
+   }
+  }
+  if(s.t>=s.dur){ if(s.m&&s.m.parent)s.m.parent.remove(s.m); spitPools.splice(i,1); }
+ }
+}
+function spitAt(z){
+ const from=new V3(z.pos.x,z.pos.y+1.70,z.pos.z);
+ const to=new V3(player.pos.x,player.pos.y+1.0,player.pos.z);
+ const d=new V3().subVectors(to,from);const dist=d.length()||1;
+ const spd=14,t=dist/spd;
+ const v=new V3(d.x/t,d.y/t+0.5*11*t,d.z/t);
+ const m=new THREE.Mesh(tossGeo,zSpitMat);m.position.copy(from);scene.add(m);
+ /* kind/dmg/aoe：结算段据此走"酸液溅射"而非"投掷者砸击" */
+ tosses.push({m:m,v:v,life:6,kind:'spit',dmg:Math.round(14+wave*1.6),aoe:2.2});
+ z.parts.armR.rotation.x=-2.6;z.throwAnim=0.45;}
 function updateProjectiles(dt){
  for(let i=liveNades.length-1;i>=0;i--){const n=liveNades[i];
   n.fuse-=dt;n.v.y-=23*dt;
@@ -2146,59 +3459,306 @@ function updateProjectiles(dt){
   s.life-=dt;s.v.y-=11*dt;
   const p=s.m.position;p.addScaledVector(s.v,dt);
   s.m.rotation.x+=dt*9;s.m.rotation.y+=dt*7;
+  /* ★ §2.1 酸液球：绿色 + 溅射伤害；其余（投掷者）维持原石弹逻辑 */
+  const spit=s.kind==='spit';
+  const col=spit?0x9ad84a:0x8fbf4a;
   const dx=player.pos.x-p.x,dy=(player.y+1.0)-p.y,dz=player.pos.z-p.z;
-  if(dx*dx+dy*dy+dz*dz<1.0){
-   damagePlayer(11+wave*1.4);burst(p.clone(),0x8fbf4a,10,2.0);
+  const pd2=Math.hypot(dx,dy,dz);
+  if(pd2<(spit?s.aoe:1.0)){
+   damagePlayer(spit?s.dmg:(11+wave*1.4));burst(p.clone(),col,spit?12:10,spit?2.4:2.0);
+   if(spit)dropSpitPool(p);                       // ★ §2.1 酸液地面持续伤害池
    scene.remove(s.m);tosses.splice(i,1);continue;}
   if(s.life<=0||hitsAny(p.x,p.z,0.16,p.y-0.16,0.34)||p.y<groundAt(p.x,p.z,p.y)-0.35){
-   burst(p.clone(),0x8fbf4a,8,1.6);scene.remove(s.m);tosses.splice(i,1);}}
+   burst(p.clone(),col,spit?10:8,spit?2.0:1.6);
+   if(spit)dropSpitPool(p);                       // ★ §2.1 落地也留酸液池
+   scene.remove(s.m);tosses.splice(i,1);}}
+ updateSpitPools(dt);                             // ★ §2.1 酸液池推进
 }
-function boom(p){
+/* ★ §2.1 通用爆炸内核：R=半径，zDmgFn(d)=按距离算丧尸伤害，playerDmg=玩家基础伤害（近距按比例） */
+function boomAt(p,R,zDmgFn,playerDmg){
  burst(p,0xffa93c,30,4.2);
  burst(p.clone().setY(p.y+0.7),0x8a8a80,16,3.0);
  sBoom();
  const pd=Math.hypot(player.pos.x-p.x,player.pos.z-p.z,(player.y+1.0)-p.y);
  shakeT=Math.max(shakeT,clamp(3.2/(1+pd*0.25),0.1,0.9));
- const R=6.5,isClient=!!(window.ZS&&window.ZS.isClient());
+ const isClient=!!(window.ZS&&window.ZS.isClient());
  for(const z of zombies){if(z.dead)continue;
   const d=Math.hypot(z.pos.x-p.x,z.pos.z-p.z,(z.pos.y+1.1)-p.y);
   if(d>R)continue;
-  const dmg=Math.round(60+170*(1-d/R));
+  const dmg=Math.round(zDmgFn(d));
   if(isClient){const zid=window.ZS&&ZS.idOf?ZS.idOf(z.g):null;
    if(zid&&window.P2P)P2P.sendHitZombie(zid,dmg);}
   else{z.hp-=dmg;if(z.hp<=0)killZombie(z,z.pos.clone().setY(z.pos.y+1.2));}}
- if(pd<R*0.75)damagePlayer(Math.round(34*(1-pd/(R*0.75))));}
+ if(pd<R*0.75)damagePlayer(Math.round(playerDmg*(1-pd/(R*0.75))));}
+function boom(p){ boomAt(p,6.5,d=>Math.round(60+170*(1-d/6.5)),34); }   // 手雷：行为与旧版等价
 
 /* ---------- 射击（含开镜散布 / 双武器栏位） ---------- */
+/* ============================================================
+   ★ §1.1 武器库：6 个槽位，对应数字键 1~6
+   ------------------------------------------------------------
+   槽位映射（用户确认）：
+     1 = 手枪        （弹药无限补，不消耗共享弹药池）
+     2 = AK-47       （自动步枪）
+     3 = 霰弹枪      （8 弹丸，近距离秒杀）
+     4 = SMG         （高射速压制）
+     5 = 狙击枪      （穿透 2~3 只非 BOSS，一枪必杀）
+     6 = 近战槽      （棒球棍 / 斧头 轮换；不消耗弹药）
+   共享弹药池：所有【枪械】共用一个 ammo 数字，换枪不换弹药数。
+   初始解锁：仅手枪 + 棒球棍（其余由 §4 商店解锁）。
+   ============================================================ */
+const MELEE_SUB = ['棒球棍', '斧头'];      // 槽 6 内部轮换
 const WEAPONS=[
- {name:'AK-47', mag:30, cd:0.115, rel:2.2, dmg:42, pellets:1, spread:0.011, kick:1.0, far:140, auto:true},
- {name:'霰弹枪', mag:6,  cd:0.78,  rel:3.2, dmg:24, pellets:8, spread:0.076, kick:2.6, far:60,  auto:false}
+ /* 0 */ {key:'pistol', name:'手枪',   mag:12, cd:0.22, rel:1.4, dmg:12.5, pellets:1, spread:0.020, kick:0.7, far:80,  auto:false, gun:true,  usesAmmo:false, tag:'无限补'},
+ /* 1 */ {key:'ak',     name:'AK-47',  mag:30, cd:0.115,rel:2.2, dmg:42, pellets:1, spread:0.011, kick:1.0, far:140, auto:true,  gun:true,  usesAmmo:true,  tag:'全自动'},
+ /* 2 */ {key:'shotgun',name:'霰弹枪', mag:6,  cd:0.78, rel:3.2, dmg:24, pellets:8, spread:0.076, kick:2.6, far:60,  auto:false, gun:true,  usesAmmo:true,  tag:'×8 弹丸'},
+ /* 3 */ {key:'smg',    name:'SMG',    mag:35, cd:0.068,rel:1.9, dmg:19, pellets:1, spread:0.024, kick:0.5, far:90,  auto:true,  gun:true,  usesAmmo:true,  tag:'高射速'},
+ /* 4 */ {key:'sniper', name:'狙击枪', mag:5,  cd:1.15, rel:2.8, dmg:160,pellets:1, spread:0.002, kick:3.0, far:320, auto:false, gun:true,  usesAmmo:true,  tag:'穿透 ×3'},
+ /* 5 */ {key:'melee',  name:'棒球棍', mag:0,  cd:0.55, rel:0,   dmg:999,pellets:1, spread:0,     kick:1.2, far:5.4, auto:false, gun:false, usesAmmo:false, tag:'近战秒杀'}
 ];
 let wIdx=0,W=WEAPONS[0];
-const wState=WEAPONS.map(w=>({ammo:w.mag,cd:0,reloading:0,recoil:0,flashT:0}));
+/* ★ 共享弹药池：所有枪械共用一个 ammo 数字 */
+const AMMO_MAX_BASE = 100;                  // 基础上限（§4 背包等级会提升，此处留接口）
+let ammo = AMMO_MAX_BASE;                   // 当前共享弹药数（初始 100）
+function ammoCap(){ return Math.round((window.__ammoCap || AMMO_MAX_BASE) * CLS.ammoMul); }  // ★ §3.2 突击兵弹药上限
+/* ★ 解锁状态：初始仅手枪 + 近战（棒球棍）。
+   ★ 清单：解锁仅限一局游戏内（商店购买），退出 / 重开即丢失，不做全局持久化 */
+const wpUnlocked = { pistol:true, melee:true };
+
+/* ============================================================
+ * ★ §4 局内经济 —— 零件（信用点）/ 价格表 / 升级等级
+ *   各人独立，纯本地，不跨端同步
+ * ============================================================ */
+let credits = 0;                                   // 零件余额
+/* ★ §4.1 击杀掉落档位（清单：普通 1 / 精英 2 / Boss 10；精英 = 自爆者/装甲/召唤者/喷吐者不算） */
+const KILL_REWARD = { normal:1, runner:1, thrower:1, spitter:1,
+                      boomer:2, armored:2, summoner:2, boss:10 };
+/* 武器解锁固定价（★ 清单价格表：AK 100 / 霰弹 70 / SMG 120 / 狙击 200） */
+const WPN_PRICE = { ak:100, shotgun:70, smg:120, sniper:200 };
+/* 消耗品固定价（★ 清单：弹药 4 / 治疗包 10 / 手雷 2） */
+const PRICE_AMMO_REFILL = 4;      // 补满弹药
+const PRICE_MED_REFILL  = 10;     // 治疗包（回 50 HP）
+const PRICE_NADE_REFILL = 2;      // 补手雷 +3（实际一次补 3 颗）
+/* ★ §7.2 武器升级（每把 3 级：I→II 伤害 +20% / II→III 弹匣 +50%）价格 */
+const WPN_LVL_PRICE = { 2: 120, 3: 260 };
+/* 升级：价格随购买次数递增 */
+const UPGRADE = {
+ ammoCap: { base:100, mul:1.5, lvl:0, step:50, max:8, label:'弹药上限 +50' },
+ maxHp:   { base:150, mul:1.5, lvl:0, step:25, max:8, label:'最大生命 +25' }
+};
+const buyLog = [];                                 // 购买记录（调试/测试）
+function upgradePrice(u){ return Math.round(u.base * Math.pow(u.mul, u.lvl) / 10) * 10; }
+function addCredits(n){ credits += n; }
+/* 武器解锁跨局持久标记（重开保留）：记录初始解锁，重开时还原 */
+const WPN_INIT = Object.assign({}, wpUnlocked);
+
+/* ★ §4.2/4.3 购买：统一入口，返回 {ok,msg}；失败不改状态、不扣款 */
+function buyItem(id){
+ const fail=m=>({ok:false,msg:m});
+ /* 1) 武器解锁（固定价，一次性） */
+ if(WPN_PRICE[id]!==undefined){
+  if(wpUnlocked[id])return fail('已拥有');
+  const cost=WPN_PRICE[id];
+  if(credits<cost)return fail('零件不足');
+  credits-=cost;wpUnlocked[id]=true;updSlots();
+  buyLog.push({id:cost,t:timeS});
+  const w=WEAPONS.find(x=>x.key===id);
+  banner('已解锁 · '+(w?w.name:id));
+  return {ok:true,msg:'已解锁'};
+ }
+ /* 2) 补满弹药（固定价，只补到本机上限） */
+ if(id==='ammo'){
+  const cap=ammoCap();
+  if(ammo>=cap)return fail('弹药已满');
+  if(credits<PRICE_AMMO_REFILL)return fail('零件不足');
+  credits-=PRICE_AMMO_REFILL;ammo=cap;updAmmo();
+  buyLog.push({id:'ammo',cost:PRICE_AMMO_REFILL,t:timeS});
+  return {ok:true,msg:'弹药已补满'};
+ }
+ /* 3) 补手雷 +3（固定价） */
+ if(id==='nade'){
+  const cap=nadeMax();
+  if(nadeCount>=cap)return fail('手雷已满');
+  if(credits<PRICE_NADE_REFILL)return fail('零件不足');
+  credits-=PRICE_NADE_REFILL;nadeCount=Math.min(cap,nadeCount+3);updAmmo();
+  buyLog.push({id:'nade',cost:PRICE_NADE_REFILL,t:timeS});
+  return {ok:true,msg:'手雷 +3'};
+ }
+ /* 3.5) ★ §4.3 治疗包（回 50 HP，清单价格 10） */
+ if(id==='med'){
+  if(player.hp>=player.maxHp)return fail('生命值已满');
+  if(credits<PRICE_MED_REFILL)return fail('零件不足');
+  credits-=PRICE_MED_REFILL;
+  player.hp=Math.min(player.maxHp,player.hp+50);
+  if(window.MP)MP.setHP(player.hp);
+  buyLog.push({id:'med',cost:PRICE_MED_REFILL,t:timeS});
+  return {ok:true,msg:'生命 +50'};
+ }
+ /* 4) 弹药上限升级（价格递增） */
+ if(id==='uAmmo'){
+  const u=UPGRADE.ammoCap,cost=upgradePrice(u);
+  if(u.lvl>=u.max)return fail('已达上限');
+  if(credits<cost)return fail('零件不足');
+  credits-=cost;u.lvl++;
+  window.__ammoCap=AMMO_MAX_BASE+u.lvl*u.step;
+  ammo=Math.min(ammoCap(),ammo+u.step);
+  updAmmo();
+  buyLog.push({id:'uAmmo',cost,t:timeS});
+  return {ok:true,msg:'弹药上限 +'+u.step};
+ }
+ /* 5) 生命上限升级（价格递增） */
+ if(id==='uHp'){
+  const u=UPGRADE.maxHp,cost=upgradePrice(u);
+  if(u.lvl>=u.max)return fail('已达上限');
+  if(credits<cost)return fail('零件不足');
+  credits-=cost;u.lvl++;
+  player.maxHp=100+u.lvl*u.step;
+  player.hp=Math.min(player.maxHp,player.hp+u.step);
+  if(window.MP)MP.setHP(player.hp);
+  buyLog.push({id:'uHp',cost,t:timeS});
+  return {ok:true,msg:'最大生命 +'+u.step};
+ }
+ return fail('未知商品');
+}
+/* ★ §7.2 武器升级购买：id 形如 'lvl:ak'（把该武器升到下一级，I→II→III） */
+function buyWeaponLevel(key){
+ const fail=m=>({ok:false,msg:m});
+ const w=WEAPONS.find(x=>x.key===key);
+ if(!w)return fail('未知武器');
+ if(!wpUnlocked[key])return fail('需先解锁该武器');
+ const cur=wpnLevelOf(key);
+ if(cur>=3)return fail('已满级');
+ const cost=WPN_LVL_PRICE[cur+1]||9999;
+ if(credits<cost)return fail('零件不足');
+ credits-=cost;
+ setWpnLevel(key,cur+1);
+ applyWeaponLevel(key);
+ buyLog.push({id:'lvl:'+key,cost,t:timeS});
+ banner('武器升级 · '+w.name+' '+romanLvl(cur+1));
+ return {ok:true,msg:'已升至 '+romanLvl(cur+1)};
+}
+/* ★ §7.2 本地武器等级缓存（进图读取档案，局内可升级） */
+let WPN_LEVEL = (window.Profile&&Profile.wpnLevels)?Profile.wpnLevels():{};
+function wpnLevelOf(key){ return Math.max(1,Math.min(3,WPN_LEVEL[key]||1)); }
+function setWpnLevel(key,lv){
+ WPN_LEVEL[key]=lv;
+ if(window.Profile&&Profile.setWpnLevel){try{Profile.setWpnLevel(key,lv);}catch(_){}}
+}
+function romanLvl(l){ return l>=3?'III':(l===2?'II':'I'); }
+/* ★ §7.2 武器等级应用：II 伤害 +20%；III 弹匣 +50%（近战：攻击范围 +30%） */
+const WPN_BASE = WEAPONS.map(w=>({dmg:w.dmg,mag:w.mag,far:w.far}));
+function applyWeaponLevel(key){
+ const i=WEAPONS.findIndex(x=>x.key===key);
+ if(i<0)return;
+ const lv=wpnLevelOf(key),w=WEAPONS[i],b=WPN_BASE[i];
+ if(w.gun){
+  w.mag=(lv>=3)?Math.round(b.mag*1.5):b.mag;
+  w.dmg=(lv>=2)?Math.round(b.dmg*1.2):b.dmg;
+ }else{
+  w.far=(lv>=3)?b.far*1.3:b.far;                 // 近战：范围 +30%
+  w.dmg=(lv>=2)?Math.round(b.dmg*1.2):b.dmg;
+ }
+ if(W===w)updAmmo();
+}
+function applyAllWeaponLevels(){ WEAPONS.forEach(w=>applyWeaponLevel(w.key)); }
+/* ★ §7.2 当前武器显示名（带罗马数字等级） */
+function wDisplayName(w){ w=w||W; return w.name+' '+romanLvl(wpnLevelOf(w.key)); }
+/* ★ §4.2 商店数据契约：供 mp-bridge 的商店 UI 读写
+ *   字段：id/name/desc/price/group/owned/rebuy/maxed
+ *   group: unlock(武器解锁) | supply(弹药补给) | upgrade(上限升级) */
+window.__shop = {
+ balance:()=>credits,
+ items:()=>{
+  const ua=UPGRADE.ammoCap, uh=UPGRADE.maxHp;
+  const lvItems=WEAPONS.filter(w=>w.gun&&wpUnlocked[w.key]).map(w=>{
+   const lv=wpnLevelOf(w.key);
+   return {id:'lvl:'+w.key, name:'升级 '+w.name+' '+romanLvl(Math.min(3,lv+1)),
+     price:lv<3?(WPN_LVL_PRICE[lv+1]||9999):0, group:'upgrade',
+     maxed:lv>=3, desc:'当前 '+romanLvl(lv)+' → '+romanLvl(Math.min(3,lv+1))
+       +' · '+(lv<2?'伤害 +20%':'弹匣 +50%')};
+  });
+  return [
+   {id:'ak',     name:'AK-47',  price:WPN_PRICE.ak,      group:'unlock', owned:wpUnlocked.ak,      desc:'全自动 · 伤害 42 · 高射速'},
+   {id:'shotgun',name:'霰弹枪', price:WPN_PRICE.shotgun, group:'unlock', owned:wpUnlocked.shotgun, desc:'×8 弹丸 · 近距离爆发'},
+   {id:'smg',    name:'SMG',    price:WPN_PRICE.smg,     group:'unlock', owned:wpUnlocked.smg,     desc:'极高射速 · 压制走位'},
+   {id:'sniper', name:'狙击枪', price:WPN_PRICE.sniper,  group:'unlock', owned:wpUnlocked.sniper,  desc:'穿透 ×3 · 单发高伤'},
+   {id:'ammo',   name:'补满弹药',price:PRICE_AMMO_REFILL, group:'supply', rebuy:true, owned:false, canBuy:ammo<ammoCap(), desc:'共享弹药池补至上限 · 当前 '+ammo+' / '+ammoCap()},
+   {id:'med',    name:'治疗包',  price:PRICE_MED_REFILL, group:'supply', rebuy:true, owned:false, canBuy:player.hp<player.maxHp, desc:'立即回复 50 点生命 · 当前 '+Math.round(player.hp)+' / '+player.maxHp},
+   {id:'nade',   name:'补手雷 +3',price:PRICE_NADE_REFILL,group:'supply', rebuy:true, owned:false, canBuy:nadeCount<nadeMax(), desc:'手雷 +3 颗 · 当前 '+nadeCount+' / '+nadeMax()},
+   {id:'uAmmo',  name:'弹药上限 +50',price:upgradePrice(ua),group:'upgrade', maxed:ua.lvl>=ua.max, desc:'Lv.'+ua.lvl+' / '+ua.max+' · 当前上限 '+ammoCap()},
+   {id:'uHp',    name:'最大生命 +25',price:upgradePrice(uh),group:'upgrade', maxed:uh.lvl>=uh.max, desc:'Lv.'+uh.lvl+' / '+uh.max+' · 当前上限 '+player.maxHp}
+  ].concat(lvItems);
+ },
+ buy:id=>{ if(typeof id==='string'&&id.startsWith('lvl:'))return buyWeaponLevel(id.slice(4)); return buyItem(id); }
+};
+/* 每把枪的独立冷却/换弹计时 + 当前弹匣余弹（mag）。手枪/近战 usesAmmo=false，不消耗也不换弹 */
+const wState=WEAPONS.map(w=>({cd:0,reloading:0,recoil:0,flashT:0,mag:w.mag}));
 let gun=wState[0];
+let meleeSub=0;                             // 槽 6 当前显示的近战武器（0=棒球棍 1=斧头）
+let meleeSwingT=0;                          // ★ 近战挥击动画计时（>0 表示正在挥击）
+const MELEE_SWING_DUR=0.28;                 // ★ 一次挥击时长（秒）
 const raycaster=new THREE.Raycaster(),_v2=new THREE.Vector2(0,0);
-function updAmmo(){$('ammo').textContent=W.name+' · '+gun.ammo+' / '+W.mag;
- $('uiNade').textContent=nadeCount;}
+/* ★ §1.1 刷新 6 个槽位徽标：当前槽高亮，未解锁槽以虚线+暗色标注 */
+function updSlots(){
+ for(let k=0;k<6;k++){const el=$('ws'+k);if(!el)continue;
+  el.classList.toggle('on',k===wIdx);
+  el.classList.toggle('lock',!wpUnlocked[WEAPONS[k].key]);}
+}
+/* ★ §1.1 HUD：显示当前武器名(+特性标签) 与【共享弹药】。近战显示"∞"。 */
+function updAmmo(){
+ const sub=(wIdx===5)?(' · '+MELEE_SUB[meleeSub]):'';
+ /* ★ §7.2 HUD 武器名带罗马数字等级（I / II / III） */
+ $('ammo').textContent=W.name+' '+romanLvl(wpnLevelOf(W.key))+sub+' · '+(W.usesAmmo?(gun.mag+' / '+ammo):'∞');
+ const tagEl=$('wtag'); if(tagEl)tagEl.textContent=W.tag||'';
+ $('uiNade').textContent=nadeCount;
+}
+/* ★ §1.1 切换武器：支持 6 个槽位；未解锁槽位拒绝切换并提示 */
 function switchWeapon(i){
- if(i===wIdx||!WEAPONS[i])return;
+ if(!WEAPONS[i])return;
+ /* 近战槽特殊：已在该槽时再按 → 槽内轮换（棒球棍↔斧头） */
+ if(i===5&&wIdx===5){cycleMelee();return;}
+ if(i===wIdx)return;                        // 其他槽已在当前 → 忽略
+ if(!wpUnlocked[WEAPONS[i].key]){banner('未解锁 · '+WEAPONS[i].name+'（商店购买）');return;}
  wIdx=i;W=WEAPONS[i];gun=wState[i];
- if(rifle)rifle.visible=(i===0);
- if(shotgun)shotgun.visible=(i===1);
- $('ws0').classList.toggle('on',i===0);$('ws1').classList.toggle('on',i===1);
+ if(i===5)W.name=MELEE_SUB[meleeSub];       // 近战槽显示具体武器名
+ showWeaponModel(i);updSlots();
  gun.cd=Math.max(gun.cd,0.30);gun.reloading=0;gun.recoil=0;
  updAmmo();sReload();}
-function startReload(){if(gun.reloading>0||gun.ammo===W.mag)return;gun.reloading=W.rel;sReload();}
+/* 近战槽内轮换棒球棍 ↔ 斧头 */
+function cycleMelee(){
+ if(wIdx!==5)return;
+ meleeSub=(meleeSub+1)%MELEE_SUB.length;
+ W.name=MELEE_SUB[meleeSub];
+ showWeaponModel(5);
+ updAmmo();sReload();}
+/* ★ §1.1 换弹：打空弹匣后，从共享储备 ammo 补满当前弹匣；储备空则"空仓"提示 */
+function startReload(){
+ if(!W.usesAmmo||W.gun===false)return;      // 手枪/近战不换弹
+ if(gun.reloading>0)return;
+ if(gun.mag>=W.mag)return;                   // 弹匣已满，无需换
+ if(ammo<=0){sEmpty();return;}              // 储备耗尽：空仓提示
+ gun.reloading=W.rel;sReload();}
 let fireEdge=false;
 function tryFire(){
  if(state!=='play'||gun.cd>0||gun.reloading>0)return;
- if(gun.ammo<=0){startReload();return;}
+ if(player.down)return;                       // ★ §3.1 濒死不可开火
  const w=W,isClient=!!(window.ZS&&window.ZS.isClient());
- gun.ammo--;gun.cd=w.cd;gun.recoil=w.kick;gun.flashT=1;
+ const isMelee=(w.gun===false);              // ★ 近战判定提前到函数顶层（原先在命中分支内声明，导致未命中时 ReferenceError）
+ /* ★ §1.1 每把枪独立弹匣：仅枪械消耗弹匣余弹；弹匣打空自动换弹；手枪/近战无限 */
+ if(w.usesAmmo){
+  if(gun.mag<=0){startReload();return;}
+  gun.mag--;
+ }
+ gun.cd=w.cd;gun.recoil=w.kick;gun.flashT=1;
  pitchOff+=(0.011-0.006*aimBlend)*w.kick;
- sShot();updAmmo();
- const mp=muzzleWorld();
- burst(mp,0xffc27a,3,1.2);
+ /* ★ §1.1 按武器类型分档音效 */
+ if(w.gun===false)sMelee(); else sShot(w.key);
+ updAmmo();
+ /* ★ 近战：不做枪口火光 / 曳光，改为挥击动画（棒球棍不做"开枪"表现） */
+ if(isMelee)meleeSwingT=MELEE_SWING_DUR; else {const mp=muzzleWorld();burst(mp,0xffc27a,3,1.2);
+  /* ★ §1.2 弹壳抛出（近战不抛壳） */
+  ejectShell(ejectPortWorld(),ejectDirWorld());}
+ /* ★ §1.2 开火脉冲：准星瞬间扩散 */
+ crossSpread+=1.6+w.kick*1.5;
  raycaster.setFromCamera(_v2,camera);raycaster.far=w.far;
  const base=raycaster.ray.direction.clone();
  const sp=0.002+w.spread*(1-0.7*aimBlend);
@@ -2210,30 +3770,71 @@ function tryFire(){
   const zHits=raycaster.intersectObjects(zombieRoot.children,true);
   const sHits=raycaster.intersectObjects(raySolids,false);
   const zh=zHits.length?zHits[0]:null,sh=sHits.length?sHits[0]:null;
-  let end;
+  let end=null, hitAny=false;
   if(zh&&(!sh||zh.distance<sh.distance)){
    end=zh.point;const z=zh.object.userData.z;
    if(z&&!z.dead){
+    hitAny=true;
     burst(end,0x7a1f14,8,1.8);
     const head=!!zh.object.userData.head;
-    const dmg=head?w.dmg*3:w.dmg;
+    /* 近战：一击必杀（非 BOSS）；伤害用极大值。★ §3.2 突击兵伤害 +15% / 壮汉近战 ×2
+     * ★ §1.1 清单：手枪爆头 ×4（其余枪械 ×3） */
+    const meleeMul = isMelee ? (CLS.meleeMul||1) : 1;
+    const headMul = (w.key==='pistol') ? 2 : 3;   // ★ 清单④：手枪爆头倍率 4→2（减半）
+    const dmg=isMelee?(9999*meleeMul):(head?w.dmg*headMul:w.dmg)*CLS.dmgMul;
     if(isClient){
      const zid=window.ZS&&ZS.idOf?ZS.idOf(z.g):null;
-     if(zid&&window.P2P){P2P.sendHitZombie(zid,head?999:Math.round(w.dmg));sHit(head);}
+     /* ★ 清单③：爆头上报真实加成伤害（不再 999 秒杀） */
+     if(zid&&window.P2P){P2P.sendHitZombie(zid, isMelee?999:Math.round(dmg));sHit(head);}
     }else{
-     if(head&&!z.boss)killZombie(z,end);
-     else{z.hp-=dmg;sHit(head);if(z.hp<=0)killZombie(z,end);}}}}
+     if(isMelee&&!z.boss){                         // 近战仍一击必杀（非 BOSS）
+      sHit(true,true);killZombie(z,end,{head:false,melee:true});
+     } else if(head&&!z.boss){                      // ★ 清单③：爆头改为加成伤害，不再秒杀
+      const eff=dmg*armorMul(z,{head:true,melee:false});
+      z.hp-=eff;sHit(true,z.hp<=0);if(z.hp<=0)killZombie(z,end,{head:true});
+     } else {                                        // 躯干 / BOSS：装甲减伤
+      const eff=dmg*armorMul(z,{head:head,melee:isMelee});
+      if(z.type==='armored'&&!head&&!isMelee){
+       burst(end,0xbfc7d0,7,1.6);
+       if(!window.__armorHintShown){window.__armorHintShown=true;
+        banner('🛡 装甲丧尸 · 正面减伤：打头或绕背才有效');}
+      }
+      z.hp-=eff;sHit(head,z.hp<=0);if(z.hp<=0)killZombie(z,end);}}
+    /* ★ §1.1 狙击枪穿透：命中非 BOSS 后继续向前穿 2 只（共 3 只） */
+    if(w.key==='sniper'&&!isClient){
+     const pierce=raycaster.intersectObjects(zombieRoot.children,true);
+     let cnt=1;
+     for(const h of pierce){
+      if(cnt>=3)break;
+      const oz=h.object.userData.z;
+      if(!oz||oz.dead||oz===z||oz.boss)continue;
+      burst(h.point,0x7a1f14,8,1.8);oz.hp-=dmg;
+      if(oz.hp<=0)killZombie(oz,h.point);cnt++;}}}}
   else if(sh){end=sh.point;if(!p)burst(end,0x9a9a90,5,1.2);}
   else{end=camera.getWorldPosition(new V3()).add(dir.clone().multiplyScalar(w.far));}
-  if(!p)tracer(mp,end);}
+  /* 近战挥空也要有个落点，避免 tracer 画到无限远 */
+  if(isMelee&&!hitAny&&!end){end=camera.getWorldPosition(new V3()).add(dir.clone().multiplyScalar(w.far));}
+  /* ★ 近战不画弹道曳光，只保留枪械曳光 */
+  if(!isMelee&&!p)tracer(muzzleWorld(),end);}
 }
 
 /* ---------- 枪动画（腰射 ↔ 开镜插值） ---------- */
 let swayX=0,swayY=0;
+/* ★ 近战挥击偏移：由 meleeSwingT 驱动，返回 {rx,ry,rz,dx,dy,dz} 供 gunRig 叠加 */
+function meleeSwingOffset(){
+ if(meleeSwingT<=0)return null;
+ const k=1-meleeSwingT/MELEE_SWING_DUR;      // 0→1
+ const s=Math.sin(k*Math.PI);                 // 0→1→0 弧线
+ return { rx:-s*0.95, ry:s*0.55, rz:s*1.25, dx:-s*0.05, dy:-s*0.10, dz:-s*0.34 };
+}
 function updateGun(dt){
  gun.cd=Math.max(0,gun.cd-dt);
+ if(meleeSwingT>0)meleeSwingT=Math.max(0,meleeSwingT-dt);   // ★ 近战挥击计时
  if(gun.reloading>0){gun.reloading-=dt;
-  if(gun.reloading<=0){gun.reloading=0;gun.ammo=W.mag;updAmmo();}}
+  if(gun.reloading<=0){gun.reloading=0;
+   /* ★ §1.1 换弹完成：从共享储备补满当前弹匣 */
+   const need=Math.min(W.mag-gun.mag,ammo); gun.mag+=need; ammo-=need;
+   updAmmo();}}
  if(state==='play'&&(fireEdge||(W.auto&&fireDown)))tryFire();
  fireEdge=false;
  gun.recoil*=Math.pow(0.002,dt);
@@ -2251,20 +3852,50 @@ function updateGun(dt){
  const spd=Math.hypot(joyVec.x,joyVec.y)+(Keys.anyDown()?1:0);
  const moving=Math.min(1,spd);
  const bobY=-Math.abs(Math.cos(bobT))*0.014*moving*mv;
+ /* ★ §1.2 头部摆动（克制）：走路≈3cm、疾跑≈5cm 上下 + 左右微倾；开镜时 mv 已≈0.15 自动衰减 */
+ if(!(window.MP&&MP.spectating())){
+  const bobAmp=(player.sprint?0.052:0.032)*moving*mv;
+  camBobY=-Math.abs(Math.cos(bobT))*bobAmp;
+  camBobX=Math.sin(bobT*0.5)*bobAmp*0.35;
+  camRoll=Math.sin(bobT*0.5)*0.011*moving*mv;
+ }else{camBobY=0;camBobX=0;camRoll=0;}
+ /* ★ §1.2 准星扩散：静止收拢 + 移动/疾跑外扩 + 开火脉冲，开镜强收敛 */
+ updateCrosshair(dt,moving,ab);
  const p=gun.reloading>0?1-gun.reloading/2.2:0;
  const dip=Math.sin(p*Math.PI)*mv;
+ /* ★ 近战挥击偏移（无挥击时为 null，行为与枪一致） */
+ const sw=meleeSwingOffset();
+ const swx=sw?sw.dx:0, swy=sw?sw.dy:0, swz=sw?sw.dz:0;
+ const swrx=sw?sw.rx:0, swry=sw?sw.ry:0, swrz=sw?sw.rz:0;
  gunRig.position.set(
-  HIP.x+(ADS.x-HIP.x)*ab+swayX*0.6*mv,
-  HIP.y+(ADS.y-HIP.y)*ab+bobY+swayY*0.6*mv-dip*0.16,
-  HIP.z+(ADS.z-HIP.z)*ab+gun.recoil*0.055);
+  HIP.x+(ADS.x-HIP.x)*ab+swayX*0.6*mv+swx,
+  HIP.y+(ADS.y-HIP.y)*ab+bobY+swayY*0.6*mv-dip*0.16+swy,
+  HIP.z+(ADS.z-HIP.z)*ab+gun.recoil*0.055+swz);
  gunRig.rotation.set(
-  -0.05*(1-ab)-gun.recoil*0.10-dip*0.45,
-  0.06*(1-ab)+swayX*0.4*mv,
-  dip*0.3);
+  -0.05*(1-ab)-gun.recoil*0.10-dip*0.45+swrx,
+  0.06*(1-ab)+swayX*0.4*mv+swry,
+  dip*0.3+swrz);
  swayX*=Math.pow(0.01,dt);swayY*=Math.pow(0.01,dt);
  pitchOff*=Math.pow(0.05,dt);shakeT=Math.max(0,shakeT-dt);
+ /* ★ §6.1 被咬镜头侧倾：damagePlayer 触发，0.55s 内保持后回正 */
+ if(camLeanT>0)camLeanT=Math.max(0,camLeanT-dt);
+ const leanAmt=camLeanT>0?(camLeanDir*0.10*Math.min(1,camLeanT/0.4)):0;
  camPitch.rotation.x=clamp(pitch,-1.35,1.35)+pitchOff+(Math.random()-0.5)*shakeT*0.12;
  camRig.rotation.y=yaw+(Math.random()-0.5)*shakeT*0.06;
+ /* ★ §1.2 摄像机本体摆动（含左右微倾） */
+ camRig.position.set(player.pos.x+camBobX,player.y+camBobY,player.pos.z);
+ camPitch.rotation.z=camRoll+leanAmt;                 // ★ §6.1 叠加被咬侧倾
+}
+
+/* ★ §1.2 准星扩散：drive CSS 变量 --sp（四线十字外扩距离）
+   目标 = 静止基准 + 移动外扩 + 疾跑附加 - 开镜收敛；
+   开火时 crossSpread 被瞬间抬高（见 tryFire），随后逐帧回落，形成"炸开→收拢"的脉冲。 */
+function updateCrosshair(dt,moving,ads){
+ const base=4;                                  // 静止基准
+ const target=Math.max(1.5, base+moving*7+(player.sprint?5:0)*moving-ads*4.5);
+ crossSpread+=(target-crossSpread)*Math.min(1,dt*9);   // 平滑逼近目标
+ if(crossSpread>target+0.01)crossSpread=Math.max(target,crossSpread-dt*22); // 脉冲快速回落
+ if(crossEl)crossEl.style.setProperty('--sp',crossSpread.toFixed(2)+'px');
 }
 
 /* ---------- 特效 / 天气 ---------- */
@@ -2289,9 +3920,13 @@ function updateHUD(dt){
  hudAcc+=dt;if(hudAcc<0.12)return;hudAcc=0;
  $('uiWave').textContent=wave;$('uiKills').textContent=kills;$('uiZom').textContent=aliveCount();
  $('uiHP').textContent=Math.max(0,Math.round(player.hp));
- $('hpBar').firstElementChild.style.width=Math.max(0,player.hp)+'%';
+ $('hpBar').firstElementChild.style.width=Math.max(0,Math.min(100,player.hp/player.maxHp*100))+'%';
  $('uiST').textContent=Math.round(player.stamina);
  $('stBar').firstElementChild.style.width=player.stamina+'%';
+ const credEl=$('uiCredits');if(credEl)credEl.textContent=credits;   // ★ §4.1 零件显示
+ /* ★ §5.1 目标提示（有限防守模式） */
+ const chipEl=$('uiModeChip');
+ if(chipEl){ if(LIMIT_WAVES){chipEl.style.display='';const g=$('uiModeGoal');if(g)g.textContent=wave+' / '+LIMIT_WAVES+' 波';}else chipEl.style.display='none'; }
  const bb=$('bossBox');
  if(bossLive&&bossRef&&!bossRef.dead){
   bb.style.display='block';
@@ -2299,9 +3934,16 @@ function updateHUD(dt){
  else bb.style.display='none';
  $('dmgFx').style.opacity=dmgA;}
 function damagePlayer(d){if(state!=='play')return;
+ d = d * (CLS.hurtMul||1);                          // ★ §3.2 壮汉受击伤害 −20%
  player.hp-=d;player.lastHurt=timeS;dmgA=0.85;shakeT=0.35;sBite();
+ camLeanT=0.55;camLeanDir=(Math.random()<0.5?-1:1);  // ★ §6.1 被咬镜头侧倾
  if (window.MP) MP.setHP(Math.max(0, player.hp));   // ★ 上报血量给队友血条
  if(player.hp<=0){player.hp=0;
+  /* ★ §3.1 联机救援：优先尝试进入「濒死」而非立即阵亡（无队友/未联机会自动返回 false） */
+  if(window.MP&&MP.tryEnterDown&&MP.tryEnterDown()){
+   player.down=true;player.downT=30;
+   return;
+  }
   /* ★ 联机：改为「上报阵亡 + 进入观战」，不再各自弹本机结算；
      单机模式保持原有死亡界面 */
   if(window.P2P&&P2P.inGame()){
@@ -2309,13 +3951,195 @@ function damagePlayer(d){if(state!=='play')return;
    state='spectate';
    if(document.exitPointerLock)document.exitPointerLock();
   }else{
-   state='dead';
-   $('deathStats').textContent='击杀 '+kills+' · 抵达第 '+wave+' 波';
-   $('death').style.display='flex';
+   /* ★ §6.1 单人：hp 归零先进入 1.5s「濒死演出」（慢放 + 灰度）再弹死亡面板，
+      让单人也能看到视听反馈（联机由 tryEnterDown 走真正的濒死流程）。 */
+   state='dying';window.__dyingT=1.5;
    if(document.exitPointerLock)document.exitPointerLock();}}}
+/* ★ §6.1 单人濒死演出推进：走完再进死亡面板 */
+function tickDying(dt){
+ if(state!=='dying')return;
+ window.__slowmo=true;
+ window.__dyingT=(window.__dyingT||0)-dt;
+ if(window.__dyingT<=0){
+  window.__slowmo=false;
+  state='dead';
+  const ds=$('deathStats');if(ds)ds.textContent='击杀 '+kills+' · 抵达第 '+wave+' 波';
+  const dEl=$('death');if(dEl)dEl.style.display='flex';
+  recordProfile(false);                                 // ★ §7 记入档案（单机阵亡）
+ }}
+
+/* ★ §6.1 低血心跳 + 红边：HP ≤ 30% 时红边脉动（约 72 BPM）+ 心跳音 */
+let hbPhase=0,hbSound=0;
+function updateLowHpFx(dt){
+ const el=document.getElementById('lowhpFx');
+ const ratio=player.maxHp>0?player.hp/player.maxHp:1;
+ const low=ratio<=0.30&&player.hp>0&&(state==='play'||state==='dying');
+ if(!el)return;
+ if(!low){ if(el.style.opacity!=='0')el.style.opacity='0'; hbPhase=0; return; }
+ hbPhase+=dt*7.4;                                     // ~72 BPM
+ const pulse=0.45+0.55*Math.max(0,Math.sin(hbPhase));
+ const sev=Math.min(1,(0.30-ratio)/0.30);
+ el.style.opacity=(0.25+0.6*sev)*pulse;
+ hbSound-=dt;
+ if(hbSound<=0){ hbSound=0.83; try{sHeartbeat(0.5+0.5*sev);}catch(_){} }
+}
+
+/* ★ §0.1 房主咬中"本机（客户端）玩家"时，mp-bridge 收到 hit-player 会调用此钩子。
+   与 damagePlayer 同路：扣血 + 血条上报 + 死亡判定，保证被咬与本地表现一致。 */
+window.__playerHurt = function(dmg){ try { damagePlayer(+dmg || 0); } catch(_){} };
+
+/* ★ §2.3 尸潮预警：房主广播后，客户端弹横幅提示 */
+window.__hordeWarn = function(){ try { banner('⚠ 尸 潮 来 袭 ⚠'); } catch(_){} };
+
+/* ============================================================
+ * ★ §3 联机协作 —— 地图页对 mp-bridge 的钩子
+ * ============================================================ */
+
+/* §3.1 被队友救起：恢复血量、退出濒死、回到可操作状态 */
+window.__revived = function(ratio){
+ try{
+  const r=(typeof ratio==='number'&&ratio>0)?ratio:0.4;
+  player.down=false;player.downT=0;
+  player.hp=Math.max(player.hp,Math.round(100*r));
+  if(window.MP)MP.setHP(player.hp);
+  if(state==='spectate')state='play';
+  banner('✔ 已被队友救起');
+ }catch(_){}
+};
+/* §3.1 濒死表现：屏幕泛红闪烁（由 mp-bridge 在进入濒死时调用） */
+window.__downedFx = function(){ try{ dmgA=1;shakeT=0.5; }catch(_){} };
+/* §3.1 救起队友成功特效 */
+window.__reviveFx = function(){ try{ sBite();banner('✔ 救援成功'); }catch(_){} };
+
+/* §3.1 暴露本地战斗位姿给 mp-bridge（救援判定 / 雷达） */
+window.__getLocalCombat = function(){
+ try{ return { x:player.pos.x, y:player.y, z:player.pos.z, ry:yaw,
+   hp:Math.max(0,Math.round(player.hp)), alive:!player.down&&state!=='spectate',
+   down:!!player.down, downT:player.downT||0 }; }catch(_){ return null; }
+};
+
+/* §3.2 应用职业加成：写入 CLS 系数（供伤害/移速/弹药/手雷使用）
+ * ★ M8：补齐 3 职业新字段 —— hpBonus(壮汉最大生命) / meleeMul(壮汉近战) / hurtMul(壮汉减伤) */
+window.__applyClass = function(cls,info){
+ try{
+  info=info||{};
+  CLS={dmgMul:1,ammoMul:1,spdMul:1,nadeBonus:0,radarMul:1,
+       hpBonus:0,meleeMul:1,hurtMul:1};
+  Object.assign(CLS,info);
+  player.cls=cls||null;
+  /* 壮汉：最大生命加成（相对基础 100） */
+  const base = 100 + (UPGRADE&&UPGRADE.maxHp? UPGRADE.maxHp.lvl*UPGRADE.maxHp.step : 0);
+  const newMax = base + (CLS.hpBonus||0);
+  if(player.maxHp!==newMax){
+   const ratio = player.maxHp>0 ? player.hp/player.maxHp : 1;
+   player.maxHp=newMax;
+   player.hp=Math.min(newMax,Math.max(1,Math.round(newMax*ratio)));
+   if(window.MP)MP.setHP(player.hp);
+  }
+  /* 手雷上限变化：补足到新上限（不削减已持有的） */
+  if(typeof nadeMax==='function')nadeCount=Math.min(nadeMax(),Math.max(nadeCount,nadeMax()));
+  banner('职业：'+((info&&info.name)||cls||''));
+ }catch(_){}
+};
+
+/* ★ §3.2 主动技能（由 mp-bridge 在按下 V 时调用；返回 false = 本次未释放、不进入 CD）
+ *   突击兵 · 战术突进：3s 内移速 +60%，无视拖拽
+ *   医疗兵 · 急救包  ：自身回 60%，6m 内队友回 40%
+ *   壮汉   · 怒吼冲撞：正面 5m 击退 + 80 伤害 */
+window.__classSkill = function(cls,info){
+ try{
+  if(state!=='play')return false;
+  const C=info||CLS;
+  const act=C.active||{};
+  if(cls==='medic'){
+   let healed=false;
+   if(player.hp<player.maxHp){player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*0.60));healed=true;}
+   /* 治疗附近队友（联机）：仅提示，各端自行结算（房主权威口径下由对端调用自己的 __classSkill） */
+   if(window.P2P&&typeof P2P.eachRemote==='function'){
+    try{P2P.eachRemote((s,id)=>{ if(!s||s.down)return;
+      const d=Math.hypot((s.x||0)-player.pos.x,(s.z||0)-player.pos.z);
+      if(d<=6.0&&window.P2P.sendHeal)window.P2P.sendHeal(id,40); });}catch(_){}
+   }
+   if(window.MP)MP.setHP(player.hp);
+   banner(healed?'💉 急救包 · 自身生命已恢复':'💉 急救包 · 已为队友治疗');
+   return true;
+  }
+  if(cls==='brute'){
+   /* 正面锥形击退（自身朝向 ±60°）：从相机前方取方向 */
+   const dir=camera.getWorldDirection(new V3());dir.y=0;
+   const L=Math.hypot(dir.x,dir.z)||1;const fx=dir.x/L,fz=dir.z/L;
+   let n=0;
+   for(const z of zombies){
+    if(z.dead)continue;
+    const dx=z.pos.x-player.pos.x,dz=z.pos.z-player.pos.z;
+    const d=Math.hypot(dx,dz);
+    if(d>5.0||d<0.001)continue;
+    const dot=(dx/d)*fx+(dz/d)*fz;
+    if(dot<0.5)continue;                                  // 仅正面 ±60°
+    if(Math.abs(z.pos.y-player.y)>1.8)continue;
+    n++;
+    const kb=1.6;                                          // 击退位移（米）
+    const nx=z.pos.x+(dx/d)*kb,nz=z.pos.z+(dz/d)*kb;
+    const np=moveSlide(z.pos.x,z.pos.z,nx-z.pos.x,nz-z.pos.z,0.45,z.pos.y,1.9);
+    z.pos.x=np[0];z.pos.z=np[1];z.path=null;z.navT=0;
+    damageZombie(z,80,false,null);
+   }
+   burst(player.pos.clone().setY(player.y+1.2),0xffd166,26,3.4);
+   shakeT=Math.max(shakeT,0.45);sRoar();
+   banner(n>0?('💪 怒吼冲撞 · 击退 '+n+' 只丧尸'):'💪 怒吼冲撞 · 前方无目标');
+   return true;
+  }
+  /* 默认（突击兵）：战术突进 */
+  window.__dashT = 3.0;
+  banner('⚡ 战术突进 · 移速提升 3 秒');
+  return true;
+ }catch(_){ return false; }
+};
+
+/* ★ §3.2 暴露当前游戏 state 给 mp-bridge（用于"开局弹职业面板"检测） */
+window.__gameState = function(){ try{ return state; }catch(_){ return null; } };
+
+/* §3.4 打开聊天时暂停移动 / 释放鼠标锁 */
+window.__pauseForInput = function(on){
+ try{
+  if(on){ locked=false; if(document.exitPointerLock)document.exitPointerLock(); }
+ }catch(_){}
+};
+
+/* §3.3 雷达数据源：返回丧尸的平面坐标（含 BOSS 标记） */
+window.__radarData = function(){
+ try{
+  const out=[];
+  for(const z of zombies){ if(z.dead)continue; out.push({x:z.pos.x,z:z.pos.z,boss:!!z.boss}); }
+  return out;
+ }catch(_){ return []; }
+};
+
+/* §3.1 濒死倒计时由地图页驱动（每帧）；倒计时归零 → 真死亡进观战 */
+window.__tickDown = function(dt){
+ try{
+  if(!player.down)return;
+  player.downT=Math.max(0,(player.downT||0)-dt);
+  if(player.downT<=0){
+   player.down=false;
+   if(window.P2P&&P2P.inGame()){
+    if(window.MP)MP.reportDeath();
+    state='spectate';
+    if(document.exitPointerLock)document.exitPointerLock();
+   }else{
+    state='dead';
+    $('deathStats').textContent='击杀 '+kills+' · 抵达第 '+wave+' 波';
+    $('death').style.display='flex';
+    recordProfile(false);                               // ★ §7 记入档案（濒死归零）
+    if(document.exitPointerLock)document.exitPointerLock();
+   }
+  }
+ }catch(_){}
+};
 
 /* ★ 联机：统一重开（房主广播 restart 时由 mp-bridge 调用） */
 window.resetMatch=function(){
+ window.__runRecorded=false;                   // ★ §7 复位本局档案写入标记
  for(const z of zombies)zombieRoot.remove(z.g);zombies.length=0;
  if(window.__zombies)window.__zombies.length=0;
  if(window.ZS&&ZS.byId)ZS.byId.clear();
@@ -2323,15 +4147,39 @@ window.resetMatch=function(){
  for(const s of tosses)scene.remove(s.m);tosses.length=0;
  wave=1;kills=0;player.hp=100;player.stamina=100;
  player.pos.set(-18.5,0,25);player.y=0;player.vy=0;
+ /* ★ §4 经济重置：清余额与升级，保留武器解锁（避免每局重买太肝） */
+ credits=0;buyLog.length=0;
+ UPGRADE.ammoCap.lvl=0;UPGRADE.maxHp.lvl=0;window.__ammoCap=null;
+ player.maxHp=100+(CLS.hpBonus||0);player.down=false;player.downT=0;   // ★ §3.2 壮汉生命加成
  yaw=0;pitch=0;
- wIdx=0;W=WEAPONS[0];gun=wState[0];
- wState.forEach((s,i)=>{s.ammo=WEAPONS[i].mag;s.cd=0;s.reloading=0;s.recoil=0;s.flashT=0;});
- if(rifle)rifle.visible=true;if(shotgun)shotgun.visible=false;
- $('ws0').classList.add('on');$('ws1').classList.remove('on');
- nadeCount=NADE_MAX;bossLive=false;bossRef=null;bossCd=rand(50,90);
+ wIdx=0;W=WEAPONS[0];gun=wState[0];meleeSub=0;
+ ammo=AMMO_MAX_BASE;                          // ★ §1.1 共享储备重置
+ wState.forEach((s,i)=>{s.cd=0;s.reloading=0;s.recoil=0;s.flashT=0;s.mag=WEAPONS[i].mag;});  // 弹匣重置为满
+ /* ★ 清单：解锁仅局内 → 新一局重置为仅手枪 + 近战（商店购买的解锁丢失） */
+ for(const k of Object.keys(wpUnlocked)){ if(k!=='pistol'&&k!=='melee') delete wpUnlocked[k]; }
+ W.name=WEAPONS[0].name;
+ showWeaponModel(0);
+ for(let k=0;k<6;k++){const el=$('ws'+k);if(el){el.classList.toggle('on',k===0);
+  el.classList.toggle('lock',!wpUnlocked[WEAPONS[k].key]);}}
+ nadeCount=nadeMax();bossLive=false;bossRef=null;bossCd=rand(50,90);
+ /* ★ M8 重置：断肢 / 酸液池 / 环境叙事 / 低血特效 / 慢放 / 连杀统计 */
+ for(const b of giblets){if(b.m&&b.m.parent)b.m.parent.remove(b.m);}giblets.length=0;
+ for(const s of spitPools){if(s.m&&s.m.parent)s.m.parent.remove(s.m);}spitPools.length=0;
+ for(const n of NARR)n.__done=false;
+ window.__slowmo=false;window.__dashT=0;
+ window.__headshots=0;window.__bestStreak=0;window.__streak=0;window.__lastKillT=0;window.__wKills={};
+ window.__armorHintShown=false;
+ camLeanT=0;
+ const lh=$('lowhpFx');if(lh)lh.style.opacity='0';
+ /* ★ §7.2 重置后重新套用武器等级（等级是长期属性，不随局重置） */
+ applyAllWeaponLevels();
  $('bossBox').style.display='none';updAmmo();
  $('death').style.display='none';
+ const vb=$('victoryBox');if(vb)vb.style.display='none';   // ★ §5.1 关闭胜利面板
+ if(window.MP&&MP.hideVictory){try{MP.hideVictory();}catch(e){}}
  state='play';startWave();
+ /* ★ §3.2 新一局 → 解锁职业选择（弹开局面板） */
+ try{if(window.MP&&MP.resetClassRound)MP.resetClassRound();}catch(e){}
  if(!isTouch&&canvas.requestPointerLock){try{canvas.requestPointerLock();}catch(err){}}};
 
 /* ---------- 输入（统一走 Keys 键位表，支持设置页改键） ---------- */
@@ -2339,9 +4187,24 @@ Keys.bindInput();
 Keys.onDown('fire',  ()=>{ if(!isTouch&&!locked&&state==='play'&&!(window.MP&&MP.spectating())){try{canvas.requestPointerLock();}catch(e){}} fireDown=true;fireEdge=true; });
 Keys.onUp('fire',    ()=>{ fireDown=false; });
 Keys.onDown('reload',()=>startReload());
+/* ★ §7.3：六把武器对应数字键 1~6；近战槽（6）重复按可在棒球棍/斧头间轮换 */
 Keys.onDown('w1',    ()=>switchWeapon(0));
 Keys.onDown('w2',    ()=>switchWeapon(1));
+Keys.onDown('w3',    ()=>switchWeapon(2));
+Keys.onDown('w4',    ()=>switchWeapon(3));
+Keys.onDown('w5',    ()=>switchWeapon(4));
+Keys.onDown('w6',    ()=>switchWeapon(5));
 Keys.onDown('nade',  ()=>throwNade());
+/* ★ §4.2 商店：B 键随时开关（战斗中也可，打开时冻结本地移动） */
+window.addEventListener('keydown',e=>{
+ if(e.code==='KeyB'&&(state==='play'||state==='spectate')){
+  if(typeof window.__shop==='undefined')return;   /* 未实现商店则忽略 */
+  if(e.__shopHandled)return;                      /* 联机时 mp-bridge 已处理 */
+  e.__shopHandled=true;
+  e.preventDefault();
+  if(window.__shopToggle&&!window.__shopOpenFlag)window.__shopToggle();}
+});
+updSlots();
 
 canvas.addEventListener('mousedown',e=>{
  audio();
@@ -2428,14 +4291,21 @@ bindBtn('bRel',()=>startReload());
 })();
 bindBtn('bAim',()=>{aimTouch=!aimTouch;$('bAim').classList.toggle('on',aimTouch);});
 bindBtn('bNade',()=>throwNade());
-bindBtn('bSwap',()=>switchWeapon(wIdx===0?1:0));
+/* ★ §1.1 触摸端"换枪"：在当前可切换的槽位间循环（跳过未解锁），近战槽内轮换 */
+bindBtn('bSwap',()=>{
+ let n=wIdx;
+ for(let k=1;k<=6;k++){const j=(wIdx+k)%6;
+  if(WEAPONS[j]&&wpUnlocked[WEAPONS[j].key]){n=j;break;}}
+ if(n===wIdx)cycleMelee(); else switchWeapon(n);});
 if(isTouch){$('panel').style.display='none';
  ['bFire','bRun','bRel','bAim','bNade','bSwap'].forEach(id=>$(id).style.display='flex');}
 
 $('bStart').addEventListener('click',()=>{audio();state='play';startWave();
+ showWeaponModel(wIdx);updSlots();updAmmo();   // ★ 清单⑥：开局即正确显示默认武器模型
  $('loader').style.display='none';
  if(!isTouch&&canvas.requestPointerLock){try{canvas.requestPointerLock();}catch(err){}}});
 $('bRe').addEventListener('click',()=>window.resetMatch());
+$('bReWin').addEventListener('click',()=>window.resetMatch());
 
 /* ---------- 尺寸 / 主循环 ---------- */
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
@@ -2446,13 +4316,22 @@ let fpsAcc=0,fpsFrames=0,lastFps=60,qCheck=0;
 function frame(now){
  requestAnimationFrame(frame);
  
- const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;timeS+=dt;
+ let dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+ /* ★ §6.1 濒死慢放 0.6×（联机濒死 / 单人濒死演出窗口） */
+ if(window.__slowmo)dt*=0.6;
+ timeS+=dt;
  frameTick++;
+ if(window.__dashT>0)window.__dashT=Math.max(0,window.__dashT-dt);   // ★ §3.2 战术突进计时
+ if(window.__tickDown)window.__tickDown(dt);              // ★ §3.1 濒死倒计时
  if(state==='play'){updatePlayer(dt);updateZombies(dt);updateWaves(dt);updateProjectiles(dt);}
+ else if(state==='dying'){tickDying(dt);updateZombies(dt);updateParticles(dt);}
  else if(state==='menu'){camRig.rotation.y+=dt*0.05;
   sun.position.set(camRig.position.x+45,75,camRig.position.z+25);
   sun.target.position.set(camRig.position.x,0,camRig.position.z);sun.target.updateMatrixWorld();}
- updateGun(dt);updateParticles(dt);
+ updateGun(dt);updateParticles(dt);updateShells(dt);updateGiblets(dt);   // ★ §6.4 断肢
+ updateLowHpFx(dt);                                                       // ★ §6.1 低血心跳+红边
+ if(state==='play')updateNarrative();                                     // ★ §6.2 环境叙事触发
+ try{ if(window.BGM)BGM.set(state!=='play'?'calm':(horde.active?'horde':((player.down)?'down':'combat'))); }catch(_){}
  if(frameTick%shadowEvery===0)renderer.shadowMap.needsUpdate=true;
  renderer.render(scene,camera);
  updateHUD(dt);
@@ -2504,16 +4383,10 @@ setTimeout(()=>{$('bStart').textContent='点击进入操场';},700);
 })();
 </script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script>
-/* 内联自 p2p.js · 自动生成，勿手工编辑 */
-/* ============================================================
- * p2p.js v5 — 生化·校园突围 联机核心
+<script>/* ============================================================
+ * p2p.js v4 — 生化·校园突围 联机核心
  *
- * 相对 v4 的关键修复：
- *   1. 【P1】ZB_EVERY 2 → 1：丧尸快照由 10Hz 提到 20Hz。
- *      10Hz + 客户端 0.25 插值系数会让位移明显发涩甚至看着"钉住不动"。
- *
- * 相对 v3 的关键修复（保留）：
+ * 相对 v3 的关键修复：
  *   1. 丧尸快照带稳定 id + 类型 + boss + dead 标记（不再用数组下标）
  *   2. 命中改按【丧尸稳定 id】上报结算，房主查表 → 不再打错目标
  *   3. 新增团队生命协议：dead / aliveMap / all-dead / restart
@@ -2527,7 +4400,7 @@ const P2P = (() => {
   'use strict';
   const OPTS = { host: '0.peerjs.com', port: 443, secure: true, debug: 1 };
   const TICK_MS   = 1000 / 20;  // 玩家状态 20Hz
-  const ZB_EVERY  = 1;          // ★ v5：每 tick 都广播丧尸快照 → 20Hz（原 2 = 10Hz，位移看着像卡住）
+  const ZB_EVERY  = 2;          // 每 2 个 tick 广播一次丧尸 → 10Hz
   const GS_EVERY  = 40;         // 全局状态（波次/击杀）每 40 tick → 0.5Hz
   const CODE_RE   = /^[A-Z0-9]{6}$/;
   const RESTART_DELAY = 3000;   // 全员阵亡 → 结算显示 3 秒后统一重开
@@ -2577,6 +4450,8 @@ const P2P = (() => {
     if (id !== except && c.conn.open) try { c.conn.send(m); } catch (_) {}
   });
   const toHost = m => { if (hostConn && hostConn.open) try { hostConn.send(m); } catch (_) {} };
+  /* 定向发送给某个客户端（房主专用）：§0.1 咬中某玩家时只发给被咬者 */
+  const sendTo = (id, m) => { const c = conns.get(id); if (c && c.conn.open) try { c.conn.send(m); } catch (_) {} };
 
   /* ---------------- 大厅 ---------------- */
   const lobbyRoster = () => {
@@ -2641,19 +4516,22 @@ const P2P = (() => {
   }
 
   /* ---------------- 对局 ---------------- */
-  /* 队伍名册：含存活标记 */
+  /* 队伍名册：含存活标记、职业、濒死标记 */
   const gameRoster = () => {
     const r = [{
       id: myId, name: myName, isHost: true,
-      hp: local ? local.hp : 100, alive: localAlive
+      hp: local ? local.hp : 100, alive: localAlive,
+      cls: local ? local.cls : null, down: !!(local && local.down)
     }];
     conns.forEach(c => r.push({
       id: c.id, name: c.name || '…', isHost: false,
-      hp: c.hp == null ? 100 : c.hp, alive: c.alive !== false
+      hp: c.hp == null ? 100 : c.hp, alive: c.alive !== false,
+      cls: c.cls || null, down: !!c.down
     }));
     return r;
   };
   const aliveCount = () => {
+    /* ★ §3.1 濒死不等于死亡：down==true 仍算存活（等待被救） */
     let n = localAlive ? 1 : 0;
     conns.forEach(c => { if (c.alive !== false) n++; });
     return n;
@@ -2744,15 +4622,57 @@ const P2P = (() => {
         // 客户端命中丧尸（按稳定 id）→ 房主结算；结果随下一帧 zb 快照广播给全员
         emit('hit-zombie', d);
         break;
+      case 'hs-player':
+        // 客户端上报"咬中了远端玩家"→ 房主定向转发给被咬者
+        if (d && d.id) sendTo(d.id, { t: 'hit-player', id: d.id, dmg: +d.dmg || 0 });
+        break;
       case 'dead': {
         const c = conns.get(conn.peer);
         if (c && c.alive !== false) {
           c.alive = false;
+          c.down = false;
           emit('players', gameRoster());
           /* 立刻通知其他客户端刷新存活显示 */
           bcast({ t: 'team', roster: gameRoster() }, conn.peer);
           checkAllDead();
         }
+        break;
+      }
+      /* ★ §3.1 濒死：进入濒死仍算存活，房主记录并广播（供血条/名单显示倒地） */
+      case 'down': {
+        const c = conns.get(conn.peer);
+        if (c) c.down = true;
+        emit('players', gameRoster());
+        bcast({ t: 'team', roster: gameRoster() }, conn.peer);
+        break;
+      }
+      /* ★ §3.4 聊天：客户端发言 → 广播全员（含发言者回显） */
+      case 'chat': {
+        const c = conns.get(conn.peer);
+        emit('chat', {
+          t: 'chat', id: conn.peer, name: (c && c.name) || '玩家',
+          text: String(d.text || '').slice(0, 80), quick: !!d.quick
+        });
+        break;
+      }
+      /* ★ §3.1 救援进度上报：救援者 → 房主 → 定向转发给被救者 */
+      case 'revive': {
+        const c = conns.get(conn.peer);
+        if (c) c.cls = d.cls || c.cls;          // 顺带补职业标识
+        if (d && d.target) {
+          /* ★ 目标是房主（'__host'）→ 房主给自己派发本机 revive 事件 */
+          if (d.target === '__host' || d.target === myId) {
+            emit('revive', { target: d.target, by: conn.peer, p: +d.p || 0, done: !!d.done });
+          } else {
+            sendTo(d.target, { t: 'revive', target: d.target, by: conn.peer, p: +d.p || 0, done: !!d.done });
+          }
+        }
+        break;
+      }
+      /* ★ §3.2 职业选择同步 */
+      case 'cls': {
+        const c = conns.get(conn.peer);
+        if (c) { c.cls = d.cls || null; emit('players', gameRoster()); bcast({ t: 'team', roster: gameRoster() }, conn.peer); }
         break;
       }
       case 'client-restart-req':
@@ -2765,12 +4685,19 @@ const P2P = (() => {
     if (!d) return;
     switch (d.t) {
       case 'you': myId = d.id; break;
+      /* ★ §0.1 房主咬中本机玩家 → 交给地图页本地结算掉血 */
+      case 'hit-player': emit('hit-player', d); break;
       case 'ps': remotes.set(d.id, Object.assign({}, d.s, { id: d.id, t: performance.now() })); break;
       case 'left': remotes.delete(d.id); break;
       case 'shot': emit('shot', d); break;
       case 'zb': emit('zombies', d.z); break;
       case 'gs': emit('game-state', d.s); break;
       case 'team': emit('players', d.roster); break;
+      case 'horde': emit('horde', d); break;
+      /* ★ §3.4 聊天（房主广播） */
+      case 'chat': emit('chat', d); break;
+      /* ★ §3.1 被队友救起：本机恢复 */
+      case 'revive': emit('revive', d); break;
       case 'all-dead':
         matchOver = true;
         emit('all-dead', {});
@@ -2787,6 +4714,13 @@ const P2P = (() => {
     tickN++;
     if (isHost) {
       if (local) bcast({ t: 'ps', id: myId, s: Object.assign({}, local, { alive: localAlive }) });
+      /* ★ §3.1 房主把自己也写进 remotes（特殊 id '__host'）：
+         让客户端在 tickRevive 里能"看到并救起"濒死的房主 */
+      if (local) {
+        remotes.set('__host', Object.assign({}, local, {
+          id: '__host', isHost: true, t: performance.now()
+        }));
+      }
       if (zbGet && tickN % ZB_EVERY === 0) {
         const z = zbGet();
         if (z && z.list) bcast({ t: 'zb', z });
@@ -2847,7 +4781,49 @@ const P2P = (() => {
 
     /* 命中：按丧尸稳定 id 上报（房主自行结算） */
     sendHitZombie: (id, dmg) => { if (!isHost) toHost({ t: 'hs', i: id, dmg }); },
+    /* ★ §0.1 房主咬中某客户端玩家 → 定向发 hit-player，让对端本地掉血 */
+    sendHitPlayer: (peerId, dmg) => {
+      if (!isHost) return;
+      if (peerId == null || !(dmg > 0)) return;
+      sendTo(peerId, { t: 'hit-player', id: peerId, dmg: +dmg });
+    },
     sendShot: s => { isHost ? bcast({ t: 'shot', s, id: myId }) : toHost({ t: 'shot', s }); },
+    /* ★ §2.3 尸潮预警：房主广播给所有客户端 */
+    broadcastHorde: () => { if (isHost) bcast({ t: 'horde' }); },
+
+    /* ★ §3.1 濒死上报：进入濒死仍算存活（≠ reportDeath） */
+    reportDowned: () => {
+      if (local) local.down = true;
+      if (isHost) {
+        emit('players', gameRoster());
+        /* ★ 房主濒死 → 广播全队，客户端才知道该去救房主 */
+        bcast({ t: 'team', roster: gameRoster() });
+      } else toHost({ t: 'down' });
+    },
+    /* ★ §3.1 救援者上报进度：ok=正在救, done=救起 */
+    notifyRevive: (targetId, p, done) => {
+      if (targetId == null) return;
+      const msg = { t: 'revive', target: targetId, p: +p || 0, done: !!done, cls: local ? local.cls : null };
+      isHost ? sendTo(targetId, { t: 'revive', target: targetId, by: myId, p: +p || 0, done: !!done })
+             : toHost(msg);
+    },
+    /* ★ §3.2 上报职业 */
+    reportClass: cls => {
+      if (local) local.cls = cls || null;
+      if (!isHost) toHost({ t: 'cls', cls: cls || null });
+      else { emit('players', gameRoster()); bcast({ t: 'team', roster: gameRoster() }); }
+    },
+    /* ★ §3.4 聊天：客户端→房主→广播；房主直发 */
+    sendChat: (text, quick) => {
+      const t = String(text || '').slice(0, 80);
+      if (!t) return;
+      if (isHost) {
+        const msg = { t: 'chat', id: myId, name: myName, text: t, quick: !!quick };
+        bcast(msg); emit('chat', msg);
+      } else {
+        toHost({ t: 'chat', text: t, quick: !!quick });
+      }
+    },
 
     hostZombies:   fn => { zbGet = fn; },
     hostGameState: fn => { gsGet = fn; },
@@ -2866,10 +4842,8 @@ const P2P = (() => {
   };
 })();
 window.P2P = P2P;
-
 </script>
 <script>
-/* 内联自 mp-bridge.js · 自动生成，勿手工编辑 */
 /* ============================================================
  * mp-bridge.js v5 — 地图页联机桥
  *
@@ -2900,7 +4874,430 @@ window.MP = (() => {
   let spectating = false;                         // 本地是否处于观战（自己已阵亡）
   let hud = null;                                 // 地图页可选注入的 UI 句柄
 
-  /* ---------- 右上角联机徽标 ---------- */
+  /* ============================================================
+   * ★ §3 联机协作：职业 / 救援 / 雷达 / 聊天
+   * ============================================================ */
+
+  /* ---------- §3.2 职业定义表（★ 对齐需求清单：3 职业 · 各 1 被动 + 1 主动） ----------
+   *   被动（passive）：常驻加成，写入地图页 CLS 系数
+   *   主动（active） ：按 V 释放，带 CD；实际效果由地图页 window.__classSkill 执行
+   *   —— 弃用旧版的 engineer / scout（清单只有 突击兵 / 医疗兵 / 壮汉） */
+  const CLASSES = {
+    assault: {
+      name: '突击兵', icon: '🔫', color: '#ff8c42',
+      passive: '伤害 +15% · 弹药上限 +20%',
+      desc: '伤害 +15% · 弹药上限 +20%',
+      dmgMul: 1.15, ammoMul: 1.20, spdMul: 1, nadeBonus: 0, radarMul: 1, hpBonus: 0,
+      active: { id: 'dash', name: '战术突进', cd: 25, desc: '3 秒内移速 +60%，无视丧尸拖拽，便于突围或抢占制高点' }
+    },
+    medic: {
+      name: '医疗兵', icon: '➕', color: '#4dd0e1',
+      passive: '脱战缓慢回血 3/s · 救援仅需 3 秒（他人 10 秒）',
+      desc: '缓慢回血 · 救援 3 秒',
+      dmgMul: 1, ammoMul: 1, spdMul: 1, nadeBonus: 0, radarMul: 1, hpBonus: 0, regen: true,
+      active: { id: 'aid', name: '急救包', cd: 35, desc: '立刻回复自身 60% 生命，并治疗 6 米内队友各 40% 生命' }
+    },
+    brute: {
+      name: '壮汉', icon: '💪', color: '#ffd166',
+      passive: '最大生命 +50 · 近战伤害 ×2 · 受击伤害 −20%',
+      desc: '生命 +50 · 近战强化 · 减伤',
+      dmgMul: 1, ammoMul: 1, spdMul: 1, nadeBonus: 0, radarMul: 1, hpBonus: 50,
+      meleeMul: 2, hurtMul: 0.8, armored: true,
+      active: { id: 'roar', name: '怒吼冲撞', cd: 30, desc: '正面 5 米内丧尸被击退并受到 80 点伤害，短暂清出安全区' }
+    }
+  };
+  let myClass = 'assault';                        // 默认突击兵
+  let classPicked = false;                        // ★ 本局是否已在开局面板选定职业
+  let skillCd = 0;                                // ★ 主动技能剩余冷却
+  let clsApplied = null;
+  const CLASS_CSS = cls => (CLASSES[cls] || CLASSES.assault);
+
+  /* ---------- §3.1 救援状态 ---------- */
+  const DOWN_TIME = 30;                           // 濒死倒计时（秒）
+  const REVIVE_RANGE = 2.5;                       // 救援距离
+  const REVIVE_TIME = 10;                         // ★ 救援所需时长（秒，清单：10 秒）
+  const MEDIC_REVIVE_TIME = 3;                    // ★ 医疗兵专用救援时长（清单：3 秒）
+  let downed = false;                             // 本地是否濒死
+  let downT = 0;                                  // 本地濒死剩余
+  let reviving = 0;                               // 本地救援他人进度 0~1
+  let reviveTarget = null;                        // 正在救的目标 id
+  let heldKey = false;                            // 是否按住交互键（F）
+  let hostLost = false;                           // 房主掉线标记（禁用濒死）
+  const _lastPos = { x: null, z: null };          // 上一帧位置（判定移动打断）
+
+  /* ---------- §3.3 雷达 ---------- */
+  const RADAR_R = 40;                             // ★ 雷达世界半径（米，清单：40 米）
+  const RADAR_SIZE = 168;                         // 画布尺寸 px
+
+  /* ---------- §3.4 聊天 ---------- */
+  let chatOpen = false;
+  const chatCool = {};                            // 快捷指令冷却
+  const QUICKS = [
+    { id: 'gather', txt: '📣 集合到我这里！', cool: 5 },
+    { id: 'retreat', txt: '🏃 撤退！', cool: 5 },
+    { id: 'help', txt: '🆘 救我！我倒了！', cool: 5 },
+    { id: 'incoming', txt: '⚠ 敌人来袭！', cool: 5 }
+  ];
+
+
+/* ============================================================
+ * ★ §3 / §4 本地 UI 工厂（单人 + 联机共用）
+ *   —— 解决「单人也必须有小地图 / 商店 / 职业」这一硬需求：
+ *      这些 UI 不再依赖 MODE/CODE（联机参数），进图即构建。
+ * ============================================================ */
+
+/* ---------- ★ §3.3(新增) 雷达可见性（收起 / 展开，持久化） ---------- */
+const RADAR_LS = 'zs_radar';
+let radarCollapsed = false;
+try {
+  const r = JSON.parse(localStorage.getItem(RADAR_LS) || '{}');
+  radarCollapsed = !!r.collapsed;
+} catch (_) {}
+function saveRadarState() {
+  try { localStorage.setItem(RADAR_LS, JSON.stringify({ collapsed: radarCollapsed })); } catch (_) {}
+}
+/* 统一入口：折叠按钮与 M 键共用 */
+function setRadarCollapsed(v) {
+  radarCollapsed = !!v;
+  saveRadarState();
+  const c = document.getElementById('mp-radar');
+  if (c) c.style.display = radarCollapsed ? 'none' : '';
+  const b = document.getElementById('mp-radar-toggle');
+  if (b) {
+    b.textContent = radarCollapsed ? '🗺' : '▸';
+    b.title = radarCollapsed ? '展开小地图 (M)' : '收起小地图 (M)';
+    b.style.right = radarCollapsed ? '14px' : 'calc(14px + ' + RADAR_SIZE + 'px)';
+  }
+}
+function toggleRadar() { setRadarCollapsed(!radarCollapsed); }
+
+/* ---------- ★ §3.3 雷达底盘 + 折叠按钮 ---------- */
+function buildRadarUi() {
+  getRadarCanvas();
+  let b = document.getElementById('mp-radar-toggle');
+  if (!b) {
+    b = document.createElement('button');
+    b.id = 'mp-radar-toggle';
+    b.style.cssText = 'position:fixed;right:14px;top:46px;z-index:99990;cursor:pointer;'
+      + 'width:30px;height:30px;border-radius:50%;border:1px solid rgba(90,200,150,.4);'
+      + 'background:rgba(10,14,20,.78);color:#9fe8c1;font:700 13px system-ui;line-height:1;'
+      + 'padding:0;backdrop-filter:blur(4px)';
+    b.textContent = '▸';
+    b.title = '收起小地图 (M)';
+    b.addEventListener('click', e => { e.preventDefault(); toggleRadar(); });
+    document.body.appendChild(b);
+  }
+  setRadarCollapsed(radarCollapsed);
+}
+
+/* ---------- ★ §3.2 职业 HUD（当前职业 + 主动技能 CD） ---------- */
+function buildClassHud() {
+  let el = document.getElementById('mp-class-hud');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mp-class-hud';
+    el.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:99990;display:none;'
+      + 'align-items:center;gap:10px;font:600 12px system-ui;padding:6px 10px;border-radius:12px;'
+      + 'background:rgba(10,14,20,.72);border:1px solid rgba(120,200,160,.25);pointer-events:none;'
+      + 'backdrop-filter:blur(4px)';
+    el.innerHTML = '<span id="mp-class-name">—</span>'
+      + '<span id="mp-skill" style="display:flex;align-items:center;gap:6px;opacity:.6">'
+      + '<b id="mp-skill-key" style="color:#ffd166">V</b>'
+      + '<span id="mp-skill-name">主动技能</span>'
+      + '<span id="mp-skill-cd" style="color:#8fd"></span></span>';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function refreshClassHud() {
+  const el = document.getElementById('mp-class-hud');
+  if (!el) return;
+  const c = CLASS_CSS(myClass);
+  el.style.display = classPicked ? 'flex' : 'none';
+  const nm = el.querySelector('#mp-class-name');
+  if (nm) { nm.textContent = c.icon + ' ' + c.name; nm.style.color = c.color; }
+  const sn = el.querySelector('#mp-skill-name');
+  if (sn) sn.textContent = (c.active && c.active.name) || '主动技能';
+  const box = el.querySelector('#mp-skill');
+  if (box) box.style.opacity = skillCd > 0 ? '0.55' : '1';
+  const cdEl = el.querySelector('#mp-skill-cd');
+  if (cdEl) cdEl.textContent = skillCd > 0 ? '冷却 ' + Math.ceil(skillCd) + 's' : '就绪';
+}
+
+/* ---------- ★ §15.10 移动端顶部按钮栏（含桌面唤出） ---------- */
+function topbarWanted() {
+  try { if (window.matchMedia && matchMedia('(hover:none) and (pointer:coarse)').matches) return true; } catch (_) {}
+  return window.innerWidth < 820;
+}
+function buildTopbar() {
+  let el = document.getElementById('mp-topbar');
+  if (el) { el.style.display = topbarWanted() || el.__forced ? 'flex' : 'none'; return el; }
+  el = document.createElement('div');
+  el.id = 'mp-topbar';
+  el.style.cssText = 'position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:99991;'
+    + 'display:flex;gap:6px;padding:5px 7px;border-radius:16px;background:rgba(10,14,20,.78);'
+    + 'border:1px solid rgba(120,200,160,.28);backdrop-filter:blur(6px)';
+  const B = (id, label, title) =>
+    '<button data-tb="' + id + '" title="' + title + '" style="cursor:pointer;min-width:44px;height:36px;'
+    + 'border-radius:11px;border:1px solid rgba(120,200,160,.25);background:rgba(20,30,26,.7);'
+    + 'color:#dff;font:700 11px system-ui;padding:0 9px;white-space:nowrap">' + label + '</button>';
+  el.innerHTML = B('shop', '🛒 商店', '补给站 (B)')
+    + B('radar', '🗺 地图', '小地图收起/展开 (M)')
+    + B('skill', '⚡ 技能', '释放职业主动技能 (V)')
+    + B('class', '👤 职业', '查看职业与技能说明')
+    + '<span id="mp-tb-chat">' + B('chat', '💬 聊天', '队伍聊天 (T)') + '</span>';
+  document.body.appendChild(el);
+  el.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('button[data-tb]');
+    if (!b) return;
+    const k = b.getAttribute('data-tb');
+    try {
+      if (k === 'shop') toggleShop();
+      else if (k === 'radar') toggleRadar();
+      else if (k === 'skill') useSkill();
+      else if (k === 'class') showClassInfo();
+      else if (k === 'chat') openChat();
+    } catch (_) {}
+    refreshTopbarState();
+  });
+  el.style.display = topbarWanted() ? 'flex' : 'none';
+  return el;
+}
+function refreshTopbarState() {
+  const el = document.getElementById('mp-topbar');
+  if (!el) return;
+  /* 聊天仅联机可用（列表目标硬需求） */
+  const chatBox = el.querySelector('#mp-tb-chat');
+  if (chatBox) chatBox.style.display = state.active ? '' : 'none';
+  const skillBtn = el.querySelector('button[data-tb="skill"]');
+  if (skillBtn) {
+    const ready = classPicked && skillCd <= 0;
+    skillBtn.style.opacity = ready ? '1' : '0.5';
+    const c = CLASS_CSS(myClass);
+    skillBtn.textContent = skillCd > 0 ? ('⚡ ' + Math.ceil(skillCd) + 's') : '⚡ 技能';
+    skillBtn.title = '释放「' + ((c.active && c.active.name) || '技能') + '」(V)';
+  }
+  const classBtn = el.querySelector('button[data-tb="class"]');
+  if (classBtn) classBtn.textContent = classPicked ? ('👤 ' + CLASS_CSS(myClass).name) : '👤 选择职业';
+}
+/* 桌面端手动唤出/隐藏顶部栏 */
+function mountTopbarToggle() {
+  if (document.getElementById('mp-topbar-handle')) return;
+  const h = document.createElement('button');
+  h.id = 'mp-topbar-handle';
+  h.textContent = '☰';
+  h.title = '显示/隐藏顶部按钮栏';
+  h.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99992;cursor:pointer;width:34px;height:34px;'
+    + 'border-radius:10px;border:1px solid rgba(120,200,160,.3);background:rgba(10,14,20,.78);'
+    + 'color:#9fe8c1;font:700 15px system-ui;padding:0;backdrop-filter:blur(4px)';
+  h.addEventListener('click', e => {
+    e.preventDefault();
+    openGameMenu();
+  });
+  document.body.appendChild(h);
+}
+
+/* ============================================================
+ * ★ 左上角三条杠 → 游戏菜单（回到游戏 / 返回主菜单）
+ *   需求：点击菜单【不暂停游戏】——联机 / 单人主循环继续跑。
+ *   仅做覆盖显示 + 释放鼠标锁；不改 state、不清 P2P.timer。
+ * ============================================================ */
+let gameMenuOpen = false;
+
+function ensureGameMenu() {
+  let el = document.getElementById('mp-game-menu');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'mp-game-menu';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;'
+    + 'background:rgba(4,8,12,.6);backdrop-filter:blur(5px)';
+  el.innerHTML = ''
+    + '<div style="width:min(360px,88vw);border-radius:18px;border:1px solid rgba(120,200,160,.32);'
+    + 'background:linear-gradient(160deg,rgba(14,20,28,.97),rgba(10,14,20,.97));'
+    + 'box-shadow:0 22px 70px rgba(0,0,0,.65);padding:22px 22px 20px;text-align:center">'
+    + '  <div style="font:800 21px system-ui;color:#9fe8c1;letter-spacing:2px;margin-bottom:4px">游戏菜单</div>'
+    + '  <div id="mp-game-menu-sub" style="font:500 12px system-ui;color:#8a93a3;margin-bottom:18px"></div>'
+    + '  <button id="mp-menu-resume" style="cursor:pointer;display:block;width:100%;margin-bottom:10px;'
+    + '    padding:13px 0;border-radius:12px;border:1px solid rgba(46,194,126,.55);background:rgba(30,70,50,.7);'
+    + '    color:#eafff4;font:800 15px system-ui;letter-spacing:1px">回到游戏</button>'
+    + '  <button id="mp-menu-topbar" style="cursor:pointer;display:block;width:100%;margin-bottom:10px;'
+    + '    padding:11px 0;border-radius:12px;border:1px solid rgba(120,200,160,.35);background:rgba(20,30,26,.6);'
+    + '    color:#cfe8dc;font:700 13px system-ui">显示 / 隐藏顶部按钮栏</button>'
+    + '  <button id="mp-menu-quit" style="cursor:pointer;display:block;width:100%;'
+    + '    padding:13px 0;border-radius:12px;border:1px solid rgba(255,120,120,.45);background:rgba(60,20,20,.55);'
+    + '    color:#ffb3b3;font:800 15px system-ui;letter-spacing:1px">返回主菜单</button>'
+    + '  <div id="mp-menu-tip" style="font:500 11.5px system-ui;color:#6f7a86;margin-top:14px;line-height:1.6"></div>'
+    + '</div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { if (e.target === el) closeGameMenu(); });
+  const rb = el.querySelector('#mp-menu-resume');
+  if (rb) rb.addEventListener('click', () => closeGameMenu());
+  const tb = el.querySelector('#mp-menu-topbar');
+  if (tb) tb.addEventListener('click', () => {
+    const bar = document.getElementById('mp-topbar');
+    if (!bar) return;
+    bar.__forced = !bar.__forced;
+    bar.style.display = (bar.__forced || topbarWanted()) ? 'flex' : 'none';
+    refreshTopbarState();
+  });
+  const qb = el.querySelector('#mp-menu-quit');
+  if (qb) qb.addEventListener('click', () => returnToMainMenu());
+  return el;
+}
+
+function openGameMenu() {
+  if (gameMenuOpen) return;
+  /* 其它模态（聊天 / 商店）打开时先收起，避免叠层 */
+  try { if (chatOpen) closeChat(); } catch (_) {}
+  try { if (shopOpen) closeShop(); } catch (_) {}
+  gameMenuOpen = true;
+  const el = ensureGameMenu();
+  const sub = el.querySelector('#mp-game-menu-sub');
+  if (sub) {
+    sub.textContent = state.active
+      ? ('联机 · ' + (state.mode === 'host' ? '房主' : '玩家') + ' · ' + state.code + ' · 游戏继续进行中')
+      : '游戏继续进行中';
+  }
+  const tip = el.querySelector('#mp-menu-tip');
+  if (tip) {
+    tip.textContent = state.active
+      ? '提示：菜单不暂停对局，「返回主菜单」会先离开房间。'
+      : '提示：菜单不暂停对局。';
+  }
+  el.style.display = 'flex';
+  /* 释放鼠标锁，让鼠标能点按钮；不改变游戏 state */
+  try { if (document.exitPointerLock) document.exitPointerLock(); } catch (_) {}
+}
+
+function closeGameMenu() {
+  if (!gameMenuOpen) return;
+  gameMenuOpen = false;
+  const el = document.getElementById('mp-game-menu');
+  if (el) el.style.display = 'none';
+}
+
+/* 返回主菜单：联机先退房，再跳回 index.html */
+function returnToMainMenu() {
+  try {
+    if (window.P2P && P2P.inGame && P2P.inGame() && P2P.shutdown) P2P.shutdown();
+  } catch (_) {}
+  try {
+    if (window.MP && MP.state) MP.state.active = false;
+  } catch (_) {}
+  location.href = 'index.html';
+}
+
+/* ---------- ★ §3.2 职业信息卡（只读，点顶栏「职业」或已锁定后查看） ---------- */
+function showClassInfo() {
+  let el = document.getElementById('mp-class-info');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mp-class-info';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99997;display:none;align-items:center;justify-content:center;'
+      + 'background:rgba(6,10,14,.7);backdrop-filter:blur(4px)';
+    document.body.appendChild(el);
+    el.addEventListener('click', e => { if (e.target === el) el.style.display = 'none'; });
+  }
+  const rows = Object.keys(CLASSES).map(k => {
+    const c = CLASSES[k];
+    const on = k === myClass;
+    return '<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 14px;border-radius:12px;'
+      + 'border:1px solid ' + (on ? c.color : 'rgba(120,200,160,.18)') + ';'
+      + 'background:' + (on ? 'rgba(30,60,45,.7)' : 'rgba(10,14,20,.55)') + ';margin-bottom:8px">'
+      + '<div style="font:700 30px system-ui;line-height:1">' + c.icon + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font:800 15px system-ui;color:' + c.color + '">' + c.name
+      + (on ? ' <span style="font:600 11px system-ui;color:#9fe8c1">· 当前</span>' : '') + '</div>'
+      + '<div style="font:500 12px system-ui;color:#b8c8d0;margin-top:5px"><b style="color:#8fd">被动</b>　' + c.passive + '</div>'
+      + '<div style="font:500 12px system-ui;color:#b8c8d0;margin-top:3px"><b style="color:#ffd166">主动 V</b>　' + c.active.name
+      + '（CD ' + c.active.cd + 's）　—　' + c.active.desc + '</div>'
+      + '</div></div>';
+  }).join('');
+  el.innerHTML = '<div style="width:min(600px,92vw);max-height:86vh;overflow:auto;border-radius:16px;'
+    + 'border:1px solid rgba(120,200,160,.32);background:linear-gradient(160deg,rgba(14,20,28,.97),rgba(10,14,20,.97));'
+    + 'box-shadow:0 18px 60px rgba(0,0,0,.6);padding:18px 20px 20px;font:500 13px system-ui;color:#dff">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<div style="font:800 19px system-ui;color:#9fe8c1;letter-spacing:1px">职业与技能</div>'
+    + '<button id="mp-class-info-x" style="cursor:pointer;border:1px solid rgba(255,120,120,.4);'
+    + 'background:rgba(60,20,20,.5);color:#ffb3b3;border-radius:8px;padding:4px 10px;font:600 12px system-ui">关闭</button>'
+    + '</div>' + rows
+    + '<div style="font:500 11.5px system-ui;color:#8a93a3;margin-top:8px">'
+    + '职业在开局时选定，一局只选一次；主动技能按 V 释放（或点顶栏 ⚡）。</div></div>';
+  el.style.display = 'flex';
+  const x = el.querySelector('#mp-class-info-x');
+  if (x) x.addEventListener('click', () => { el.style.display = 'none'; });
+}
+
+/* ---------- ★ §3.2 主动技能释放（CD 由本模块统一维护） ---------- */
+function useSkill() {
+  if (!classPicked) { toast('请先选择职业'); return; }
+  if (skillCd > 0) { toast('技能冷却中 · ' + Math.ceil(skillCd) + 's'); return; }
+  const c = CLASS_CSS(myClass);
+  if (!c.active) return;
+  let ok = true;
+  if (typeof window.__classSkill === 'function') {
+    try { ok = window.__classSkill(myClass, c) !== false; } catch (_) { ok = false; }
+  }
+  if (ok === false) { toast('当前无法释放技能'); return; }
+  skillCd = c.active.cd;
+  refreshClassHud(); refreshTopbarState();
+}
+function tickSkillCd(dt) {
+  if (skillCd <= 0) return;
+  const before = Math.ceil(skillCd);
+  skillCd = Math.max(0, skillCd - dt);
+  if (Math.ceil(skillCd) !== before) { refreshClassHud(); refreshTopbarState(); }
+}
+
+function toast(msg) {
+  const b = document.getElementById('banner');
+  if (b) { b.textContent = msg; b.style.opacity = 1; return; }
+  let t = document.getElementById('mp-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'mp-toast';
+    t.style.cssText = 'position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:99998;'
+      + 'font:700 15px system-ui;color:#ffd166;background:rgba(10,14,20,.82);padding:8px 18px;'
+      + 'border-radius:12px;border:1px solid rgba(255,209,102,.4);pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  clearTimeout(toast.__t);
+  toast.__t = setTimeout(() => { t.style.display = 'none'; }, 1600);
+  t.style.display = '';
+}
+
+/* ---------- ★ 本地 UI 装配（单人 + 联机共用，必须在 boot 早退之前调用） ---------- */
+function initLocalUi() {
+  mountTopbarToggle();
+  ensureGameMenu();
+  mountReviveBtn();
+  buildTopbar();
+  buildRadarUi();
+  buildClassHud();
+  bindShopKeys();
+  bindLocalKeys();
+  refreshTopbarState();
+  refreshClassHud();
+}
+/* 单人也要能用的键（B / M / V）；联机额外还有 T / Q / F 等（bindSquadKeys） */
+function bindLocalKeys() {
+  if (bindLocalKeys.done) return; bindLocalKeys.done = true;
+  window.addEventListener('keydown', e => {
+    if (e.__localKeysHandled) return;
+    if (e.code === 'KeyM') { e.__localKeysHandled = true; e.preventDefault(); toggleRadar(); refreshTopbarState(); }
+    else if (e.code === 'KeyV') { e.__localKeysHandled = true; e.preventDefault(); useSkill(); }
+    else if (e.code === 'Escape') {
+      /* 聊天 / 商店打开时 Esc 交给各自处理；已开菜单时 Esc 关闭 */
+      if (chatOpen || shopOpen) return;
+      e.__localKeysHandled = true;
+      if (gameMenuOpen) closeGameMenu(); else openGameMenu();
+    }
+  });
+  window.addEventListener('resize', () => { try { buildTopbar(); } catch (_) {} });
+}
+
+/* ---------- 右上角联机徽标 ---------- */
   function badge(txt, warn) {
     let el = document.getElementById('mp-badge');
     if (!el) {
@@ -3185,6 +5582,7 @@ window.MP = (() => {
 
   function readLocalPose() {
     if (!camera) return null;
+    /* 世界坐标：优先用相机的世界位置（自动兼容 camRig 结构） */
     let x = 0, y = 0, z = 0;
     try {
       if (_wp) {
@@ -3196,6 +5594,7 @@ window.MP = (() => {
     } catch (_) {
       const p = camera.position; x = p.x; y = p.y; z = p.z;
     }
+    /* 朝向：用相机世界前向量的水平分量反推 yaw，避免依赖某一层 rotation */
     let ry = 0;
     try {
       if (_fwd && camera.getWorldDirection) {
@@ -3208,24 +5607,709 @@ window.MP = (() => {
     } catch (_) {
       ry = camera.rotation.y;
     }
-    /* y 归一化：相机世界 y = camRig.y + 眼高，减去眼高还原到脚底高度 */
+    /* y 归一化：地图把"脚底高度"存在 camRig.position.y，
+       相机世界 y = camRig.y + camPitch.y(1.62)，减去眼高还原到脚底 */
     const EYE = 1.62;
     return {
       x: +x.toFixed(2),
       y: +(y - EYE).toFixed(2),
       z: +z.toFixed(2),
       ry: +ry.toFixed(2),
-      hp, alive: !spectating, name: state.name, source: 'cameraWorld'
+      hp, alive: !spectating, name: state.name, source: 'cameraWorld',
+      cls: myClass, down: downed, downT: +downT.toFixed(1), prog: +reviving.toFixed(2)
     };
   }
 
+  /* ============================================================
+   * §3.1 队友救援 — 濒死状态机
+   *   alive → downed(downT=30) → reviving(prog 0→1) → alive / dead
+   *   防单机卡死：无队友 / 未联机 / 房主掉线 → 不走濒死，直接原死亡逻辑
+   * ============================================================ */
+
+  /* 是否允许进入濒死（硬规则）
+   *   ★ #6 需求：房主与普通玩家【都可以】倒地待救（全员救援机制）；
+   *   ★ #8 需求：只剩自己一人时（无存活队友）直接真死，不弹“等待救助”。 */
+  function canGoDown() {
+    if (!state.active || !window.P2P || !P2P.inGame()) return false;
+    /* ★ 用【存活数】而非连接数判断：队友已死但连接仍在时不应误判“还有人来救” */
+    let alive = 1;
+    try {
+      if (P2P.aliveCount) alive = P2P.aliveCount();
+      else if (P2P.totalCount) alive = P2P.totalCount();
+    } catch (_) {}
+    if (alive <= 1) return false;                  // 只剩自己 → 无人可救
+    if (hostLost) return false;
+    return true;
+  }
+
+  /* 地图页在 HP 归零时调用：返回 true=已接管为濒死 */
+  function tryEnterDown() {
+    if (!canGoDown()) return false;
+    if (downed || spectating) return false;
+    downed = true; downT = DOWN_TIME;
+    reviving = 0; reviveTarget = null;
+    try { if (window.P2P && P2P.reportDowned) P2P.reportDowned(); } catch (_) {}
+    if (hud && typeof hud.onDown === 'function') { try { hud.onDown(); } catch (_) {} }
+    showDownHint();
+    if (window.__downedFx) try { window.__downedFx(); } catch (_) {}
+    return true;
+  }
+
+  /* 濒死倒计时推进（房主权威：本地倒计时由地图页每帧驱动；联机各自维护自己的） */
+  function tickDown(dt) {
+    if (!downed) return;
+    downT -= dt;
+    if (downT <= 0) {
+      downT = 0; downed = false;
+      hideDownHint();
+      if (window.__playerHurt === undefined) { /* noop */ }
+      /* 倒计时归零 → 真死亡 */
+      if (window.P2P) { try { P2P.reportDeath(); } catch (_) {} }
+      if (hud && typeof hud.onDownExpire === 'function') { try { hud.onDownExpire(); } catch (_) {} }
+    }
+  }
+
+  /* 被救起 */
+  function onRevived(ratio) {
+    if (!downed) return;
+    downed = false; downT = 0;
+    hideDownHint();
+    if (window.__revived) { try { window.__revived(typeof ratio === 'number' ? ratio : 0.4); return; } catch (_) {} }
+    hp = Math.max(hp, 100 * (typeof ratio === 'number' ? ratio : 0.4));
+  }
+
+  /* 找最近的可救目标（远端队友 / 房主）→ { id, x, z } */
+  function findReviveTarget() {
+    const me = localPos();
+    let best = null, bestD = REVIVE_RANGE;
+    try {
+      P2P.eachRemote((s, id) => {
+        if (!s || !s.down) return;
+        if (s.alive === false) return;
+        const d = Math.hypot((s.x || 0) - me.x, (s.z || 0) - me.z);
+        if (d <= bestD) { bestD = d; best = { id: (id != null ? id : s.id), x: s.x, z: s.z }; }
+      });
+    } catch (_) {}
+    return best;
+  }
+
+  /* 每帧更新"救援他人"进度 */
+  function tickRevive(dt) {
+    if (!state.active || spectating || downed) { reviving = 0; reviveTarget = null; return; }
+    if (!heldKey) { reviving = 0; reviveTarget = null; return; }
+    /* 找最近的可救目标（★ 已含房主：房主快照以 id '__host' 存入远端表并被广播） */
+    const best = findReviveTarget();
+    if (!best) { reviving = 0; reviveTarget = null; return; }
+    const me = localPos();
+    if (reviveTarget !== best.id) { reviving = 0; reviveTarget = best.id; }
+    /* 移动打断 */
+    if (_lastPos.x != null) {
+      const moved = Math.hypot(me.x - _lastPos.x, me.z - _lastPos.z);
+      if (moved > 0.045) { reviving = 0; return; }   // 本帧移动超过阈值 → 中断
+    }
+    /* ★ §3.1 清单：救援基底 10 秒；医疗兵专用 3 秒（直接覆盖，非乘法） */
+    const need = (myClass === 'medic') ? MEDIC_REVIVE_TIME : REVIVE_TIME;
+    reviving += dt / need;
+    try { P2P.notifyRevive(best.id, Math.min(1, reviving), false); } catch (_) {}
+    if (reviving >= 1) {
+      try { P2P.notifyRevive(best.id, 1, true); } catch (_) {}
+      reviving = 0; reviveTarget = null;
+      if (window.__reviveFx) try { window.__reviveFx(); } catch (_) {}
+    }
+  }
+
+  function localPos() {
+    if (window.__getLocalCombat) { try { const c = window.__getLocalCombat(); if (c) return c; } catch (_) {} }
+    return { x: 0, z: 0 };
+  }
+
+  /* ---------- ★ #7 移动端救助按钮（替代键盘 F，按住即救援） ---------- */
+  function mountReviveBtn() {
+    if (document.getElementById('mp-revive-btn')) return;
+    const b = document.createElement('button');
+    b.id = 'mp-revive-btn';
+    b.textContent = '救助';
+    b.title = '靠近倒地队友按住救助';
+    b.style.cssText = 'position:fixed;right:18px;bottom:110px;z-index:99993;display:none;'
+      + 'width:78px;height:78px;border-radius:50%;cursor:pointer;padding:0;'
+      + 'border:2px solid rgba(255,159,67,.75);background:rgba(80,40,10,.72);color:#ffd8a8;'
+      + 'font:800 16px system-ui;letter-spacing:1px;backdrop-filter:blur(4px);'
+      + 'box-shadow:0 4px 18px rgba(0,0,0,.45);touch-action:none;user-select:none';
+    const start = e => {
+      e.preventDefault(); e.stopPropagation();
+      heldKey = true;
+      b.style.background = 'rgba(120,60,10,.9)';
+    };
+    const end = e => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      heldKey = false;
+      b.style.background = 'rgba(80,40,10,.72)';
+    };
+    b.addEventListener('pointerdown', start);
+    b.addEventListener('pointerup', end);
+    b.addEventListener('pointercancel', end);
+    b.addEventListener('pointerleave', end);
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    document.body.appendChild(b);
+  }
+  /* 每帧刷新：附近有倒地队友时显示（单人 / 自己濒死 / 观战时隐藏） */
+  function updateReviveBtn() {
+    const b = document.getElementById('mp-revive-btn');
+    if (!b) return;
+    let show = false;
+    if (state.active && !spectating && !downed) {
+      try { show = !!findReviveTarget(); } catch (_) { show = false; }
+    }
+    b.style.display = show ? 'block' : 'none';
+    if (!show && heldKey) { heldKey = false; }   // 目标消失 → 松开，避免卡住 heldKey
+  }
+
+  function showDownHint() {
+    let el = document.getElementById('mp-down');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mp-down';
+      el.style.cssText = 'position:fixed;left:50%;bottom:20%;transform:translateX(-50%);z-index:99992;'
+        + 'font:800 18px system-ui;padding:12px 26px;border-radius:14px;text-align:center;'
+        + 'background:rgba(60,8,8,.82);color:#ffb3b3;border:1px solid rgba(255,90,90,.5);'
+        + 'pointer-events:none;letter-spacing:1px';
+      document.body.appendChild(el);
+    }
+    el.style.display = '';
+  }
+  function hideDownHint() { const el = document.getElementById('mp-down'); if (el) el.style.display = 'none'; }
+  function updateDownHint() {
+    const el = document.getElementById('mp-down');
+    if (!el || !downed) return;
+    el.innerHTML = '倒地！等待救援 · <span style="color:#ff6b6b">' + Math.ceil(downT) + 's</span>'
+      + '<div style="font-size:12px;font-weight:500;color:#e0b0b0;margin-top:4px">队友靠近按住 F 可救起（医疗兵仅需 3 秒）</div>';
+  }
+
+  /* ============================================================
+   * §3.3 小地图（圆形雷达）
+   * ============================================================ */
+  /* 纯函数：把世界相对偏移映射到雷达画布坐标（可单测） */
+  function radarPoint(dx, dz, R) {
+    const d = Math.hypot(dx, dz);
+    if (d <= R || d < 1e-6) return { x: dx / R, y: dz / R, edge: false };
+    /* 超出范围 → 贴边 */
+    return { x: (dx / d) * 1.0, y: (dz / d) * 1.0, edge: true };
+  }
+  function getRadarCanvas() {
+    let c = document.getElementById('mp-radar');
+    if (!c) {
+      c = document.createElement('canvas');
+      c.id = 'mp-radar';
+      c.width = RADAR_SIZE; c.height = RADAR_SIZE;
+      c.style.cssText = 'position:fixed;right:14px;top:46px;z-index:99989;border-radius:50%;'
+        + 'background:rgba(8,12,16,.55);border:2px solid rgba(90,200,150,.35);'
+        + 'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+  function drawRadar() {
+    /* ★ §3.3 单人也要有小地图：只判"收起"与"已开始"，不再要求 state.active */
+    if (radarCollapsed) return;
+    const c = getRadarCanvas();
+    if (!c) return;
+    if (c.style.display === 'none') return;
+    const g = c.getContext('2d');
+    if (!g) return;
+    const S = RADAR_SIZE, cx = S / 2, cy = S / 2, rPx = S / 2 - 6;
+    g.clearRect(0, 0, S, S);
+    /* 底盘网格 */
+    g.strokeStyle = 'rgba(120,220,170,.14)'; g.lineWidth = 1;
+    for (let rr = 1; rr <= 3; rr++) { g.beginPath(); g.arc(cx, cy, rPx * rr / 3, 0, Math.PI * 2); g.stroke(); }
+    g.beginPath(); g.moveTo(cx, cy - rPx); g.lineTo(cx, cy + rPx); g.stroke();
+    g.beginPath(); g.moveTo(cx - rPx, cy); g.lineTo(cx + rPx, cy); g.stroke();
+
+    const R = RADAR_R * (CLASS_CSS(myClass).radarMul || 1);
+    const me = localPos();
+    const rot = (me.ry || 0);                      // 跟随视角旋转（顺时针转视角→怪物点逆时针，已校正）
+    const cos = Math.cos(rot), sin = Math.sin(rot);
+
+    const plot = (dx, dz) => {
+      const p = radarPoint(dx, dz, R);
+      const rx = p.x, ry = p.y;
+      const wx = rx * cos - ry * sin, wz = rx * sin + ry * cos;
+      return { x: cx + wx * rPx, y: cy + wz * rPx, edge: p.edge };
+    };
+
+    /* 取丧尸列表（单机 / 房主为本地数组；客户端为本地镜像） */
+    let zs = null;
+    if (window.__radarData) { try { zs = window.__radarData(); } catch (_) {} }
+    if (!Array.isArray(zs)) zs = [];
+
+    /* ★ §3.3 密度热力：8×8 网格统计丧尸数 → 半透明红块（底盘之后、点之前） */
+    if (zs.length) {
+      const G = 8;
+      const grid = new Array(G * G).fill(0);
+      for (const z of zs) {
+        const p = radarPoint((z.x || 0) - me.x, (z.z || 0) - me.z, R);
+        const gx = Math.max(0, Math.min(G - 1, Math.floor((p.x * 0.5 + 0.5) * G)));
+        const gy = Math.max(0, Math.min(G - 1, Math.floor((p.y * 0.5 + 0.5) * G)));
+        grid[gy * G + gx]++;
+      }
+      const cell = (rPx * 2) / G;
+      for (let i = 0; i < grid.length; i++) {
+        const n = grid[i]; if (!n) continue;
+        const gx = i % G, gy = (i / G) | 0;
+        const a = Math.min(0.42, 0.09 * n);
+        g.fillStyle = 'rgba(255,60,60,' + a.toFixed(3) + ')';
+        g.fillRect(cx - rPx + gx * cell, cy - rPx + gy * cell, cell, cell);
+      }
+    }
+
+    /* 丧尸（普通红点 / BOSS 大红点）—— 清单：Boss 为红点 */
+    for (const z of zs) {
+      const p = plot((z.x || 0) - me.x, (z.z || 0) - me.z);
+      if (z.boss) {
+        g.fillStyle = '#ff2d2d';
+        g.beginPath(); g.arc(p.x, p.y, 5, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.2;
+        g.beginPath(); g.arc(p.x, p.y, 6.5, 0, Math.PI * 2); g.stroke();
+      } else {
+        g.fillStyle = 'rgba(255,80,80,.72)';
+        g.beginPath(); g.arc(p.x, p.y, 2.4, 0, Math.PI * 2); g.fill();
+      }
+    }
+    /* 队友（★ 清单：蓝点 + 血量环；濒死橙点） */
+    try {
+      if (window.P2P && P2P.eachRemote) P2P.eachRemote((s, id) => {
+        if (!s) return;
+        const p = plot((s.x || 0) - me.x, (s.z || 0) - me.z);
+        const alive = s.alive !== false && !s.down;
+        g.fillStyle = s.down ? '#ff9f43' : (alive ? '#4d96ff' : '#888');
+        g.beginPath(); g.arc(p.x, p.y, 3.4, 0, Math.PI * 2); g.fill();
+        if (alive && typeof s.hp === 'number') {
+          g.strokeStyle = 'rgba(120,170,255,.75)'; g.lineWidth = 1.6;
+          g.beginPath(); g.arc(p.x, p.y, 5.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, s.hp / 100))); g.stroke();
+        }
+      });
+    } catch (_) {}
+    /* 自己居中（白点 + 朝向） */
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, 3.4, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy - 8); g.stroke();
+    /* 濒死边框提示 */
+    if (downed) { g.strokeStyle = 'rgba(255,80,80,.9)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, rPx, 0, Math.PI * 2); g.stroke(); }
+  }
+
+  /* ============================================================
+   * §3.4 聊天框（文本 + 快捷指令）
+   * ============================================================ */
+  const chatLog = [];                             // { name, text, t, quick, self }
+  function getChatBox() {
+    let wrap = document.getElementById('mp-chat');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'mp-chat';
+      wrap.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:99993;width:300px;max-width:calc(100vw - 28px);'
+        + 'font:500 13px system-ui;pointer-events:none;display:flex;flex-direction:column;gap:4px';
+      wrap.innerHTML = '<div id="mp-chat-log" style="display:flex;flex-direction:column;gap:3px"></div>'
+        + '<div id="mp-chat-row" style="display:none;gap:6px;align-items:stretch">'
+        + '  <input id="mp-chat-input" maxlength="80" placeholder="说点什么…（Enter 发送）" '
+        + '    style="flex:1;min-width:0;pointer-events:auto;padding:7px 10px;border-radius:8px;border:1px solid rgba(120,200,160,.4);'
+        + '    background:rgba(10,14,20,.9);color:#dff;outline:none;font:500 13px system-ui"/>'
+        + '  <button id="mp-chat-send" style="pointer-events:auto;white-space:nowrap;cursor:pointer;padding:0 14px;'
+        + '    border-radius:8px;border:1px solid rgba(46,194,126,.55);background:rgba(30,70,50,.75);'
+        + '    color:#eafff4;font:700 13px system-ui">发送</button>'
+        + '</div>';
+      document.body.appendChild(wrap);
+      const btn = wrap.querySelector('#mp-chat-send');
+      if (btn) btn.addEventListener('click', e => {
+        e.preventDefault();
+        const inp = wrap.querySelector('#mp-chat-input');
+        const v = (inp && inp.value || '').trim();
+        if (v) sendChatText(v, false);
+        closeChat();
+      });
+    }
+    return wrap;
+  }
+  function openChat() {
+    /* ★ §3.4 清单：聊天仅联机可用 */
+    if (!state.active) { toast('队伍聊天仅在联机时可用'); return; }
+    if (chatOpen || spectating) return;
+    chatOpen = true;
+    const wrap = getChatBox();
+    const row = wrap.querySelector('#mp-chat-row');
+    const inp = wrap.querySelector('#mp-chat-input');
+    if (row) row.style.display = 'flex';
+    inp.style.display = ''; inp.value = '';
+    if (window.__pauseForInput) { try { window.__pauseForInput(true); } catch (_) {} }
+    setTimeout(() => { try { inp.focus(); } catch (_) {} }, 0);
+  }
+  function closeChat() {
+    if (!chatOpen) return;
+    chatOpen = false;
+    const wrap = getChatBox();
+    const row = wrap.querySelector('#mp-chat-row');
+    const inp = wrap.querySelector('#mp-chat-input');
+    inp.style.display = 'none';
+    if (row) row.style.display = 'none';
+    if (window.__pauseForInput) { try { window.__pauseForInput(false); } catch (_) {} }
+  }
+  function sendChatText(text, quick) {
+    if (!text) return;
+    try { if (window.P2P && P2P.sendChat) P2P.sendChat(text, quick); } catch (_) {}
+  }
+  function pushChat(msg) {
+    chatLog.push(Object.assign({ t: performance.now() }, msg));
+    while (chatLog.length > 8) chatLog.shift();
+    renderChat();
+  }
+  function renderChat() {
+    const wrap = getChatBox();
+    const log = wrap.querySelector('#mp-chat-log');
+    const now = performance.now();
+    log.innerHTML = chatLog.map(m => {
+      const age = (now - m.t) / 1000;
+      /* ★ §3.4 清单：消息 10 秒后开始淡出（原 6 秒） */
+      const op = age > 10 ? Math.max(0, 1 - (age - 10) / 1.5) : 1;
+      if (op <= 0) return '';
+      const cls = CLASS_CSS(m.cls);
+      const nm = m.quick ? '' : '<b style="color:' + (m.self ? '#9fe8c1' : cls.color) + '">' + esc(m.name || '玩家') + '：</b>';
+      return '<div style="opacity:' + op.toFixed(2) + ';background:rgba(8,12,16,.5);padding:2px 7px;border-radius:6px;'
+        + 'color:' + (m.quick ? '#ffd166' : '#dff') + '">' + nm + esc(m.text) + '</div>';
+    }).join('');
+  }
+  function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function pushQuick(idx) {
+    const q = QUICKS[idx]; if (!q) return;
+    const now = performance.now();
+    if (chatCool[q.id] && now < chatCool[q.id]) return;
+    chatCool[q.id] = now + q.cool * 1000;
+    sendChatText(q.txt, true);
+  }
+
+  /* ---------- 键盘绑定（聊天 / 交互 / 快捷指令） ---------- */
+  function bindSquadKeys() {
+    if (bindSquadKeys.done) return; bindSquadKeys.done = true;
+    window.addEventListener('keydown', e => {
+      /* 聊天打开时：Enter 发送、Esc 取消、其余不拦截 */
+      if (chatOpen) {
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+          const inp = getChatBox().querySelector('#mp-chat-input');
+          const v = (inp.value || '').trim();
+          if (v) sendChatText(v, false);
+          closeChat(); e.preventDefault();
+        } else if (e.code === 'Escape') { closeChat(); e.preventDefault(); }
+        return;
+      }
+      if (!state.active || state.mode == null) return;
+      if (shopOpen) return;                       /* §4 商店打开时：不响应场景热键 */
+      if (e.code === 'KeyT') { openChat(); e.preventDefault(); }
+      else if (e.code === 'KeyQ') { pushQuick((quickIdx = (quickIdx + 1) % QUICKS.length)); e.preventDefault(); }
+      else if (e.code === 'KeyF') { heldKey = true; }    /* ★ §3.1 清单：救援/交互键 = F */
+    });
+    window.addEventListener('keyup', e => {
+      if (e.code === 'KeyF') heldKey = false;
+    });
+  }
+  let quickIdx = -1;
+
+  /* ============================================================
+   * ★ §3.2 开局面板 —— 职业一局只选一次（含被动 / 主动技能说明）
+   *   需求：职业选择"只在开局时选一次，要说明每个职业的技能"
+   * ============================================================ */
+  function buildClassStartPanel() {
+    let el = document.getElementById('mp-class-start');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mp-class-start';
+      el.style.cssText = 'position:fixed;inset:0;z-index:99998;display:none;align-items:center;justify-content:center;'
+        + 'background:rgba(6,10,14,.82);backdrop-filter:blur(5px)';
+      document.body.appendChild(el);
+    }
+    const cards = Object.keys(CLASSES).map(k => {
+      const c = CLASSES[k];
+      return '<button data-cls="' + k + '" style="cursor:pointer;text-align:left;display:block;width:100%;'
+        + 'padding:14px 16px;border-radius:14px;border:1px solid rgba(120,200,160,.28);'
+        + 'background:rgba(14,20,28,.9);color:#dff;font:500 13px system-ui;margin-bottom:10px;transition:.15s">'
+        + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">'
+        + '  <span style="font:700 28px system-ui;line-height:1">' + c.icon + '</span>'
+        + '  <span style="font:800 17px system-ui;color:' + c.color + ';letter-spacing:1px">' + c.name + '</span>'
+        + '</div>'
+        + '<div style="font:500 12.5px system-ui;color:#b8c8d0;line-height:1.7">'
+        + '  <div><b style="color:#8fd">被动</b>　' + c.passive + '</div>'
+        + '  <div><b style="color:#ffd166">主动（V）</b>　' + c.active.name + ' · CD ' + c.active.cd + 's</div>'
+        + '  <div style="color:#93a3ad;padding-left:2px">' + c.active.desc + '</div>'
+        + '</div></button>';
+    }).join('');
+    el.innerHTML = '<div style="width:min(540px,92vw);max-height:88vh;overflow:auto;border-radius:18px;'
+      + 'border:1px solid rgba(120,200,160,.34);background:linear-gradient(160deg,rgba(14,20,28,.98),rgba(10,14,20,.98));'
+      + 'box-shadow:0 20px 70px rgba(0,0,0,.7);padding:22px 22px 20px">'
+      + '<div style="text-align:center;margin-bottom:4px;font:800 22px system-ui;color:#9fe8c1;letter-spacing:2px">选择你的职业</div>'
+      + '<div style="text-align:center;font:500 12.5px system-ui;color:#8a93a3;margin-bottom:16px">'
+      + '一局只选一次 · 每个职业各有 1 个被动与 1 个主动技能（V 键释放）</div>'
+      + cards
+      + '<div style="text-align:center;font:500 11.5px system-ui;color:#6f7a86;margin-top:4px">'
+      + '选定后不可更换；随时可点顶栏「👤 职业」查看技能说明</div></div>';
+    if (!el.__wired) {
+      el.__wired = true;
+      el.addEventListener('click', e => {
+        const b = e.target.closest && e.target.closest('button[data-cls]');
+        if (!b) return;
+        pickClass(b.getAttribute('data-cls'));
+      });
+    }
+    return el;
+  }
+  /* 弹出开局面板（若已选过则跳过） */
+  function maybePromptClass() {
+    if (classPicked) return;
+    const el = buildClassStartPanel();
+    el.style.display = 'flex';
+  }
+  /* 玩家选定职业：应用加成、锁定本局、关面板 */
+  function pickClass(cls) {
+    if (!CLASSES[cls]) return;
+    setClass(cls);
+    classPicked = true;
+    const el = document.getElementById('mp-class-start');
+    if (el) el.style.display = 'none';
+    refreshClassHud(); refreshTopbarState();
+    try { if (window.banner) banner('职业已选定 · ' + CLASS_CSS(cls).name); } catch (_) {}
+  }
+  /* 每帧检测：开局（state 变 play）时若未选职业 → 弹面板。
+     单机与联机共用；地图页通过 window.__gameState 暴露当前 state。 */
+  function tickClassPrompt() {
+    if (classPicked) return;
+    if (chatOpen || shopOpen) return;
+    let st = null;
+    try { if (typeof window.__gameState === 'function') st = window.__gameState(); } catch (_) {}
+    if (st === 'play') maybePromptClass();
+  }
+
+  /* ---------- §3.2 职业选择（旧接口保留：侧边卡片已移除，仅用于程序化切换） ---------- */
+  function buildClassPanel() { /* ★ 清单：不再提供局内随时切换的侧边卡片 */ }
+  function refreshClassPanel() { refreshClassHud(); }
+  function setClass(cls) {
+    if (!CLASSES[cls]) return;
+    myClass = cls; clsApplied = null;
+    skillCd = 0;
+    try { if (window.P2P && P2P.reportClass) P2P.reportClass(cls); } catch (_) {}
+    applyClassNow();
+    refreshClassHud();
+  }
+  function applyClassNow() {
+    if (clsApplied === myClass) return;
+    const c = CLASS_CSS(myClass);
+    if (window.__applyClass) { try { window.__applyClass(myClass, c); clsApplied = myClass; return; } catch (_) {} }
+    clsApplied = myClass;
+  }
+
+  /* ============================================================
+   * §4 局内经济与商店（零件 / 解锁 / 补给 / 上限升级）
+   *
+   * 契约：地图页暴露 window.__shop = { balance(), items(), buy(id) }
+   *   - balance() → number（当前零件数）
+   *   - items()   → [{ id, name, desc, price, owned, canBuy, group }]
+   *   - buy(id)   → { ok:boolean, msg:string }
+   * 未实现 __shop 的地图（如 map3 旧版）自动降级：不渲染、不响应 B 键。
+   * ============================================================ */
+  let shopOpen = false;
+
+  /* 分组显示顺序与标题 */
+  const SHOP_GROUPS = [
+    { key: 'unlock',  label: '武器解锁' },
+    { key: 'supply',  label: '弹药补给' },
+    { key: 'upgrade', label: '上限升级' }
+  ];
+
+  function shopAvailable() {
+    return !!(window.__shop && typeof window.__shop.buy === 'function' && typeof window.__shop.items === 'function');
+  }
+
+  function buildShopUi() {
+    let el = document.getElementById('mp-shop');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'mp-shop';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99996;display:none;align-items:center;justify-content:center;'
+      + 'background:rgba(6,10,14,.66);backdrop-filter:blur(4px)';
+    el.innerHTML = ''
+      + '<div id="mp-shop-panel" style="width:min(560px,92vw);max-height:82vh;overflow:auto;border-radius:16px;'
+      + 'border:1px solid rgba(120,200,160,.32);background:linear-gradient(160deg,rgba(14,20,28,.96),rgba(10,14,20,.96));'
+      + 'box-shadow:0 18px 60px rgba(0,0,0,.6);padding:18px 20px 20px;font:500 13px system-ui;color:#dff">'
+      + '  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      + '    <div style="font:800 20px system-ui;color:#9fe8c1;letter-spacing:1px">🛒 补给站</div>'
+      + '    <div style="display:flex;align-items:center;gap:12px">'
+      + '      <div style="font:700 16px system-ui;color:#ffd166">🔧 零件 <b id="mp-shop-bal">0</b></div>'
+      + '      <button id="mp-shop-close" style="cursor:pointer;border:1px solid rgba(255,120,120,.4);'
+      + '        background:rgba(60,20,20,.5);color:#ffb3b3;border-radius:8px;padding:4px 10px;font:600 12px system-ui">关闭 (Esc)</button>'
+      + '    </div>'
+      + '  </div>'
+      + '  <div id="mp-shop-hint" style="font-size:12px;color:#8a93a3;margin-bottom:10px">'
+      + '    击杀丧尸掉落零件 · 每清一波额外奖励 · 战斗中随时可按 B 打开</div>'
+      + '  <div id="mp-shop-list"></div>'
+      + '  <div id="mp-shop-toast" style="min-height:18px;font:600 12px system-ui;color:#ffd166;margin-top:10px;'
+      + '    transition:opacity .2s;opacity:0"></div>'
+      + '</div>';
+    document.body.appendChild(el);
+    el.addEventListener('click', e => { if (e.target === el) closeShop(); });
+    const closeBtn = el.querySelector('#mp-shop-close');
+    if (closeBtn) closeBtn.addEventListener('click', () => closeShop());
+    return el;
+  }
+
+  function refreshShop() {
+    const el = document.getElementById('mp-shop');
+    if (!el || !shopAvailable()) return;
+    const balEl = el.querySelector('#mp-shop-bal');
+    let bal = 0;
+    try { bal = +window.__shop.balance() || 0; } catch (_) {}
+    if (balEl) balEl.textContent = String(bal);
+
+    let items = [];
+    try { items = window.__shop.items() || []; } catch (_) {}
+    const priceOf = it => (+it.price > 0 ? +it.price : 0);
+    const list = el.querySelector('#mp-shop-list');
+    if (!list) return;
+
+    let html = '';
+    SHOP_GROUPS.forEach(g => {
+      const rows = items.filter(it => (it.group || 'misc') === g.key);
+      if (!rows.length) return;
+      html += '<div style="font:700 12px system-ui;color:#8fd;opacity:.75;margin:12px 0 6px;letter-spacing:1px">'
+        + g.label + '</div>';
+      html += rows.map(it => {
+        const cost = priceOf(it);
+        const owned = !!it.owned;
+        const maxed = !!it.maxed;
+        const canBuy = (it.canBuy !== false) && !maxed && bal >= cost;
+        const stateTxt = maxed ? '已满级' : (owned ? '已拥有' : '');
+        const btnTxt = maxed ? '满级' : (owned && it.rebuy ? '补给 ' + cost : (owned ? '已解锁' : '购买 ' + cost));
+        const disabled = maxed || (owned && !it.rebuy) || !canBuy;
+        const bcol = disabled ? 'rgba(120,200,160,.18)' : 'rgba(46,194,126,.55)';
+        const fcol = disabled ? '#7d8a94' : '#dff';
+        const bg = disabled ? 'rgba(20,28,24,.5)' : 'rgba(30,70,50,.6)';
+        return '<div style="display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;'
+          + 'border:1px solid rgba(120,200,160,.16);background:rgba(10,14,20,.5);margin-bottom:6px">'
+          + '  <div style="flex:1;min-width:0">'
+          + '    <div style="font:700 13px system-ui;color:#eafff4">' + esc(it.name || it.id)
+          + (stateTxt ? ' <span style="font:600 11px system-ui;color:#8fd;opacity:.8">· ' + stateTxt + '</span>' : '') + '</div>'
+          + '    <div style="font:500 11.5px system-ui;color:#93a3ad;margin-top:2px">' + esc(it.desc || '') + '</div>'
+          + '  </div>'
+          + '  <button data-buy="' + esc(it.id) + '" ' + (disabled ? 'disabled ' : '')
+          + '    style="cursor:' + (disabled ? 'not-allowed' : 'pointer') + ';white-space:nowrap;'
+          + '    border:1px solid ' + bcol + ';background:' + bg + ';color:' + fcol + ';'
+          + '    border-radius:8px;padding:6px 12px;font:700 12px system-ui">' + btnTxt + '</button>'
+          + '</div>';
+      }).join('');
+    });
+    list.innerHTML = html || '<div style="color:#8a93a3;font-size:12px">暂无可购买项</div>';
+  }
+
+  function shopToast(msg, warn) {
+    const el = document.getElementById('mp-shop');
+    if (!el) return;
+    const t = el.querySelector('#mp-shop-toast');
+    if (!t) return;
+    t.textContent = msg || '';
+    t.style.color = warn ? '#ff9f8f' : '#9fe8c1';
+    t.style.opacity = '1';
+    clearTimeout(shopToast.__t);
+    shopToast.__t = setTimeout(() => { t.style.opacity = '0'; }, 1600);
+  }
+
+  function buyFromShop(id) {
+    if (!shopAvailable()) return;
+    let r = null;
+    try { r = window.__shop.buy(id); } catch (e) { r = { ok: false, msg: '购买异常：' + (e && e.message) }; }
+    r = r || {};
+    shopToast(r.msg || (r.ok ? '✔ 已购买' : '✖ 购买失败'), !r.ok);
+    refreshShop();
+  }
+
+  function openShop() {
+    if (shopOpen || chatOpen) return;
+    /* ★ §4.2 单人也要有商店：仅在"已阵亡观战"时禁止打开 */
+    if (spectating) return;
+    if (!shopAvailable()) return;
+    shopOpen = true;
+    const el = buildShopUi();
+    el.style.display = 'flex';
+    /* ★ 暂停玩家输入与游戏主循环（与聊天一致） */
+    try { if (window.__shopOpenFlag !== undefined) window.__shopOpenFlag = true; } catch (_) {}
+    if (window.__pauseForInput) { try { window.__pauseForInput(true); } catch (_) {} }
+    refreshShop();
+    /* 事件委托：购买 */
+    if (!el.__wired) {
+      el.__wired = true;
+      el.addEventListener('click', e => {
+        const b = e.target.closest && e.target.closest('button[data-buy]');
+        if (!b || b.disabled) return;
+        buyFromShop(b.getAttribute('data-buy'));
+      });
+    }
+  }
+
+  function closeShop() {
+    if (!shopOpen) return;
+    shopOpen = false;
+    const el = document.getElementById('mp-shop');
+    if (el) el.style.display = 'none';
+    try { if (window.__shopOpenFlag !== undefined) window.__shopOpenFlag = false; } catch (_) {}
+    if (window.__pauseForInput) { try { window.__pauseForInput(false); } catch (_) {} }
+  }
+
+  function toggleShop() { if (shopOpen) closeShop(); else openShop(); }
+
+  /* B / Esc 原生监听（仅当本图实现了 __shop） */
+  function bindShopKeys() {
+    if (bindShopKeys.done) return; bindShopKeys.done = true;
+    window.addEventListener('keydown', e => {
+      if (e.__shopHandled) return;                 /* 地图页已处理 → 不重复切换 */
+      if (e.code === 'KeyB') {
+        if (!shopAvailable()) return;
+        if (chatOpen) return;
+        if (!shopOpen && spectating) return;
+        e.__shopHandled = true;
+        e.preventDefault(); toggleShop(); return;
+      }
+      if (e.code === 'Escape' && shopOpen) { e.preventDefault(); closeShop(); }
+    });
+  }
+  /* 暴露给地图页原生 B 键处理器（避免双触发） */
+  window.__shopToggle = () => toggleShop();
+
+  /* 医疗兵缓慢回血（每帧） */
+  function tickRegen(dt) {
+    if (spectating || downed) return;
+    if (!CLASS_CSS(myClass).regen) return;
+    if (hp < 100) {
+      const prev = hp; hp = Math.min(100, hp + 3 * dt);
+      if (window.__revived && Math.round(prev) !== Math.round(hp)) { /* 由地图页同步；此处仅兜底 */ }
+      if (hud && typeof hud.onRegen === 'function') { try { hud.onRegen(hp); } catch (_) {} }
+    }
+  }
+
   function heartbeat() {
+    /* ★ 本地 UI（雷达 / 技能 CD / 职业提示 / 医疗兵回血）在单人下也要推进 */
+    const dt = Math.min(0.05, (performance.now() - (heartbeat.__last || performance.now())) / 1000);
+    heartbeat.__last = performance.now();
+    try { tickSkillCd(dt); tickClassPrompt(); } catch (_) {}
+    try { drawRadar(); } catch (_) {}
     if (state.active) {
       try {
         const pose = readLocalPose();
         if (pose) P2P.setLocal(pose);
         syncAvatars();
         animateAvatars();
+        /* ★ §3.1 濒死倒计时 + 救援进度 */
+        tickDown(dt);
+        tickRevive(dt);
+        tickRegen(dt);
+        updateDownHint();
+        updateReviveBtn();
+        _lastPos.x = localPos().x; _lastPos.z = localPos().z;
+        /* ★ §3.4 聊天淡出重绘 */
+        renderChat();
+        /* ★ §4 商店：打开时每帧刷新（余额/可购买态随战斗变化） */
+        if (shopOpen && shopAvailable()) refreshShop();
         for (let i = tracers.length - 1; i >= 0; i--) {
           const t = tracers[i];
           t.life -= 0.08;
@@ -3235,6 +6319,10 @@ window.MP = (() => {
       } catch (err) {
         if (!heartbeat.__err) { heartbeat.__err = true; console.error('[MP] heartbeat error:', err); }
       }
+    } else {
+      /* ★ 单人：医疗兵被动回血同样生效 */
+      try { tickRegen(dt); } catch (_) {}
+      try { if (shopOpen && shopAvailable()) refreshShop(); } catch (_) {}
     }
     requestAnimationFrame(heartbeat);
   }
@@ -3243,19 +6331,47 @@ window.MP = (() => {
   async function boot() {
     hookRenderer();
     requestAnimationFrame(heartbeat);
-    if (!MODE || !CODE) return;
+    /* ★ §15.11 先装配本地 UI（单人 / 联机共用，必须早于任何 return） */
+    try { initLocalUi(); } catch (e) { console.error('[MP] initLocalUi:', e); }
+    if (!MODE || !CODE) return;                     /* ★ 单人：到此为止（小地图/商店/职业已就绪） */
     if (!window.P2P) { badge('❌ 联机模块未加载', true); return; }
     badge(MODE === 'host' ? '联机 · 房主建立对局中…' : '联机 · 连接房间 ' + CODE + '…');
     try { await P2P.enterGame({ code: CODE, isHost: MODE === 'host', name: NAME }); state.active = true; }
     catch (e) { badge('❌ 联机失败: ' + (e.type || e.message || e), true); return; }
 
     P2P.on('shot', d => { if (d && d.s) spawnTracer(d.s.x, d.s.y || 1.6, d.s.z, d.s.ry || 0); });
-    P2P.on('host-lost', () => badge('⚠ 与房主断线', true));
+    P2P.on('host-lost', () => { hostLost = true; badge('⚠ 与房主断线', true); });
+
+    /* ★ §3.4 聊天：收到任意端发言 → 入栈渲染 */
+    P2P.on('chat', d => {
+      if (!d) return;
+      pushChat({ name: d.name || '玩家', text: d.text, quick: d.quick, self: d.id === (P2P.info && P2P.info().id) });
+    });
+    /* ★ §3.1 被队友救起 → 本地恢复 */
+    P2P.on('revive', d => { if (d && d.done) onRevived(0.4); });
+    /* ★ §3.1 队友进入濒死 → 刷新名单/血条 */
+    P2P.on('players', () => { /* 由下方 players 监听统一处理 */ });
+
+    bindSquadKeys();
+    bindShopKeys();
+    /* ★ §3.2 职业由开局面板选择（单机/联机同一条路径），此处不再建侧边卡片 */
+    refreshTopbarState();
 
     /* 丧尸快照 / 全局状态 / 命中结算 → 桥接到地图页钩子 */
     P2P.on('zombies',    snap => { refreshTeamRoster(); if (window.__zombieSync) try { window.__zombieSync(snap); } catch (_) {} });
     P2P.on('game-state', s    => { if (window.__gameSync)  try { window.__gameSync(s);    } catch (_) {} });
     P2P.on('hit-zombie', d    => { if (window.__hitZombie) try { window.__hitZombie(d);    } catch (_) {} });
+    /* ★ §2.3 尸潮预警（房主广播）→ 客户端弹横幅 */
+    P2P.on('horde', () => { if (window.__hordeWarn) try { window.__hordeWarn(); } catch (_) {} });
+
+    /* ★ §0.1 房主咬中"本机（客户端）玩家" → 本地结算掉血 */
+    P2P.on('hit-player', d => {
+      if (!d || spectating) return;
+      const dmg = +d.dmg || 0;
+      if (!(dmg > 0)) return;
+      if (typeof window.__playerHurt === 'function') { try { window.__playerHurt(dmg); return; } catch (_) {} }
+      hp = Math.max(0, hp - dmg);
+    });
 
     /* 队伍名册（存活状态） */
     P2P.on('players', r => {
@@ -3271,20 +6387,43 @@ window.MP = (() => {
     P2P.on('all-dead', () => {
       showAllDead();
       if (hud && typeof hud.onAllDead === 'function') { try { hud.onAllDead(); } catch (_) {} }
+      /* ★ §7 联机落幕：本机写一份档案（地图页提供全局钩子） */
+      if (window.__recordProfile) { try { window.__recordProfile(false); } catch (_) {} }
+    });
+
+    /* ★ §5.1 有限防守胜利（房主广播）→ 客户端弹同款面板 */
+    P2P.on('victory', d => {
+      showVictory(d && d.wave);
+      if (hud && typeof hud.onVictory === 'function') { try { hud.onVictory(d && d.wave); } catch (_) {} }
+      /* ★ §7 联机通关：本机写一份档案 */
+      if (window.__recordProfile) { try { window.__recordProfile(true); } catch (_) {} }
     });
 
     /* 统一重开 */
     P2P.on('restart', d => {
       hideAllDead();
+      hideVictory();
       exitSpectate();
       if (window.__clearAllZombies) try { window.__clearAllZombies(); } catch (_) {}
       if (window.resetMatch) try { window.resetMatch(d); } catch (_) {}
       if (hud && typeof hud.onRestart === 'function') { try { hud.onRestart(d); } catch (_) {} }
       refreshTeamRoster();
+      /* ★ §3.2 新一局 → 重新选职业（解锁 + 清 CD） */
+      resetClassRound();
     });
 
     refreshTeamRoster();
     updateBadge();
+    refreshTopbarState();
+  }
+
+  /* ★ §3.2 新一局：解锁职业选择（resetMatch 后调用） */
+  function resetClassRound() {
+    classPicked = false;
+    skillCd = 0;
+    const el = document.getElementById('mp-class-start');
+    if (el) el.style.display = 'none';
+    refreshClassHud(); refreshTopbarState();
   }
 
   function showAllDead() {
@@ -3307,6 +6446,35 @@ window.MP = (() => {
     if (el) el.style.display = 'none';
   }
 
+  /* ============================================================
+   * ★ §5.1 有限防守：胜利结算面板（房主权威判定，广播 victory）
+   * ============================================================ */
+  function showVictory(wave) {
+    let el = document.getElementById('mp-victory');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mp-victory';
+      el.style.cssText = 'position:fixed;inset:0;z-index:99996;display:flex;align-items:center;'
+        + 'justify-content:center;background:rgba(6,14,10,.84);backdrop-filter:blur(3px)';
+      el.innerHTML = '<div style="text-align:center;font:700 22px system-ui;color:#9fe8c1;letter-spacing:2px">'
+        + '<div style="font-size:44px;margin-bottom:10px">🏆 防守成功</div>'
+        + '<div id="mp-victory-sub" style="font-size:14px;color:#c3e8d5;font-weight:500;margin-bottom:18px"></div>'
+        + '<div style="font-size:13px;color:#8a93a3;font-weight:500">正在重新开局…</div></div>';
+      document.body.appendChild(el);
+    }
+    const sub = el.querySelector('#mp-victory-sub');
+    if (sub) sub.textContent = '全员坚守 ' + (wave || '?') + ' 波 · 校园守住了';
+    el.style.display = 'flex';
+  }
+  function hideVictory() {
+    const el = document.getElementById('mp-victory');
+    if (el) el.style.display = 'none';
+  }
+  /* 房主：广播胜利（客户端收到后弹同款面板） */
+  function broadcastVictory(wave) {
+    try { if (window.P2P && P2P.broadcastVictory) P2P.broadcastVictory(wave); } catch (_) {}
+  }
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
@@ -3316,6 +6484,62 @@ window.MP = (() => {
     setHud: h => { hud = h || null; },              // 地图页注入 UI 句柄
     spectating: () => spectating,
     reportDeath: () => { if (window.P2P) P2P.reportDeath(); },
+    /* ★ §2.3 尸潮：房主广播预警给客户端 */
+    broadcastHorde: () => { if (window.P2P && P2P.broadcastHorde) P2P.broadcastHorde(); },
+    /* ★ §3.1 救援：地图页 HP 归零时优先调用；返回 true=已转为濒死 */
+    tryEnterDown: () => tryEnterDown(),
+    isDowned: () => downed,
+    downRemain: () => downT,
+    canRevive: () => { try { return canGoDown(); } catch (_) { return false; } },
+    /* ★ §3.2 职业 */
+    myClass: () => myClass,
+    classInfo: () => CLASS_CSS(myClass),
+    setClass: cls => setClass(cls),
+    classes: () => CLASSES,
+    classPicked: () => classPicked,
+    pickClass: cls => pickClass(cls),
+    promptClass: () => maybePromptClass(),
+    /* ★ §3.2 主动技能 */
+    useSkill: () => useSkill(),
+    skillCd: () => skillCd,
+    setSkillCd: v => { skillCd = Math.max(0, +v || 0); refreshClassHud(); refreshTopbarState(); },
+    /* ★ §3.3 雷达（单人可用） */
+    _radarPoint: radarPoint,
+    toggleRadar: () => toggleRadar(),
+    radarCollapsed: () => radarCollapsed,
+    setRadarCollapsed: v => setRadarCollapsed(v),
+    /* ★ §3.3 雷达半径（常量，供单测） */
+    RADAR_R: () => RADAR_R,
+    RADAR_SIZE: () => RADAR_SIZE,
+    /* ★ §3.1 救援时长常量（供单测） */
+    REVIVE_TIME: () => REVIVE_TIME,
+    MEDIC_REVIVE_TIME: () => MEDIC_REVIVE_TIME,
+    /* ★ §15.11 本地 UI 装配（单人也在 boot 内自动调用） */
+    initLocalUi: () => initLocalUi(),
+    buildTopbar: () => buildTopbar(),
+    /* ★ 游戏菜单（左上角三条杠，不暂停） */
+    openGameMenu: () => openGameMenu(),
+    closeGameMenu: () => closeGameMenu(),
+    gameMenuOpen: () => gameMenuOpen,
+    returnToMainMenu: () => returnToMainMenu(),
+    /* ★ §3.4 聊天 */
+    chatOpen: () => chatOpen,
+    openChat: () => openChat(),
+    sendChat: (t, q) => sendChatText(t, q),
+    /* ★ §4 商店 */
+    shopOpen: () => shopOpen,
+    openShop: () => openShop(),
+    closeShop: () => closeShop(),
+    toggleShop: () => toggleShop(),
+    /* ★ §5.1 胜利结算 */
+    showVictory: w => showVictory(w),
+    hideVictory: () => hideVictory(),
+    broadcastVictory: w => broadcastVictory(w),
+    /* ★ §0.1 房主侧丧尸索敌用：返回可作为目标的远端玩家列表（y 为脚底世界高度） */
+    peerTargets: () => Array.from(avatars.entries()).map(([id, a]) => {
+      const p = a.group ? a.group.position : null;
+      return { id, x: p ? p.x : 0, y: p ? p.y : 0, z: p ? p.z : 0, alive: a.alive !== false };
+    }),
     state,
     _debug: () => ({
       scene: !!scene, camera: !!camera, avatars: avatars.size, players: state.players,
@@ -3328,7 +6552,6 @@ window.MP = (() => {
     })
   };
 })();
-
 </script>
 <script>
 /* 内联自 zsync.js · 自动生成，勿手工编辑 */
@@ -3366,6 +6589,10 @@ window.ZS = (() => {
 
   /* ---------- 丧尸登记表：id → { grp, ref } ---------- */
   const byId = new Map();
+
+  /* ★ 已死亡 id 墓碑：防止客户端在房主移除该 id 前"重建一只全新丧尸"
+     → 下帧再次收到 dead:true → 二次倒地（"重复倒地死亡"根因） */
+  const deadIds = new Set();
 
   /* 供地图页在创建/移除丧尸时登记，保证 id 稳定 */
   function register(grp, id) {
@@ -3463,6 +6690,8 @@ window.ZS = (() => {
       const s = list[i];
       if (!s || !s.id) continue;
       seen.add(s.id);
+      /* ★ 已判死的 id：禁止重建（否则新 Group 的 __deadSync 为 false → 二次倒地） */
+      if (deadIds.has(s.id)) continue;
       let rec = byId.get(s.id);
 
       /* 本地没有 → 按类型新建（由地图页工厂负责） */
@@ -3491,8 +6720,9 @@ window.ZS = (() => {
       g.userData.tgt = { x: s.x, y: s.y, z: s.z, ry: s.ry || 0 };
       g.userData.hp = s.hp;
 
-      /* ③ 房主已判死 → 客户端立刻走死亡流程 */
+      /* ③ 房主已判死 → 客户端立刻走死亡流程（只触发一次，写墓碑防重建） */
       if (s.dead || s.hp <= 0) {
+        deadIds.add(s.id);
         if (!g.userData.__deadSync) {
           g.userData.__deadSync = true;
           if (typeof window.__onZombieKilled === 'function') {
@@ -3515,6 +6745,8 @@ window.ZS = (() => {
       const g = rec.grp;
       if (g && g.parent) g.parent.remove(g);
       byId.delete(id);
+      /* ★ 房主彻底出队 → 清墓碑（防内存增长） */
+      deadIds.delete(id);
       const ix = window.__zombies.indexOf(g);
       if (ix >= 0) window.__zombies.splice(ix, 1);
     }
@@ -3526,8 +6758,15 @@ window.ZS = (() => {
       else rec.goneN = 0;
       if (gone && rec.goneN >= MISS_GRACE) {
         byId.delete(id);
+        deadIds.delete(id);
         const ix = window.__zombies.indexOf(g);
         if (ix >= 0) window.__zombies.splice(ix, 1);
+      }
+    }
+    /* ★ 墓碑兜底清理：房主快照里若已彻底没有该 id，则一并清除（防无限增长） */
+    if (deadIds.size) {
+      for (const id of Array.from(deadIds)) {
+        if (!seen.has(id)) deadIds.delete(id);
       }
     }
   };
@@ -3546,6 +6785,7 @@ window.ZS = (() => {
       if (g && g.parent) g.parent.remove(g);
     }
     byId.clear();
+    deadIds.clear();                 // ★ 重开时清墓碑
     if (window.__zombies) window.__zombies.length = 0;
     localSpawningOff = false;
   };
@@ -3606,6 +6846,12 @@ try{
 }catch(e){}
 /* ★ 应用 index 设置页的触屏按钮自定义位置 */
 try{ if(window.TouchUI){ TouchUI.apply(document); TouchUI.watch(document); } }catch(e){}
+/* ★ §6.2 环境叙事对象（黑板 / 书包 / 课本）构建 */
+try{ buildNarrative(); }catch(e){}
+/* ★ §7.2 应用武器等级（来自档案的持久等级） */
+try{ applyAllWeaponLevels(); }catch(e){}
+/* ★ §6.3 BGM 分层：绑定 AudioContext 并进入平静层 */
+try{ if(window.BGM){ BGM.attach(audio); BGM.set('calm'); } }catch(e){}
 /* ★ 标记启动完成：仅在全程无启动期错误时才置位，避免后续错误被吞 */
 if (!window.__bootErrors || !window.__bootErrors.length) window.__bootOk = true;
 </script>
