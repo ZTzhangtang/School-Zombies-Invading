@@ -408,9 +408,12 @@
     <tr><td class="k"><b>左键 / F</b></td><td>射击 · 爆头一击</td></tr>
     <tr><td class="k"><b>W A S D</b></td><td>走路</td></tr>
     <tr><td class="k"><b>Shift</b></td><td>疾跑 · 耗体力</td></tr>
+    <tr><td class="k"><b>Ctrl</b></td><td>滑铲 · 冲刺中触发（0.4s 位移 4m + 无敌帧 · CD 3s）</td></tr>
     <tr><td class="k"><b>R</b></td><td>换弹</td></tr>
+    <tr><td class="k"><b>6 / F</b></td><td>近战（挥砍耗 15 体力 · 不足只能推 · 击杀回 5）</td></tr>
+    <tr><td class="k"><b>G 按住</b></td><td>蓄力 0.4s 显示手雷弹道 + 落点红圈</td></tr>
   </table>
-  <div class="touch">触屏：左摇杆移动 · 滑动环视 · 右侧开火<br>西门可出操场 · 教学楼内可躲避</div>
+  <div class="touch">触屏：左摇杆移动 · 滑动环视 · 右侧开火<br>西门可出操场 · 教学楼内可躲避<br><b>BOSS 三阶段：拍地 → 召唤 → 狂暴冲刺；25% 血原地蓄爆，3 秒内跑出 10 米！</b></div>
   <div class="stat"><span><b id="fps">--</b> FPS</span><span>实时反射 <b id="refl">--</b></span></div>
 </div-->
 
@@ -425,6 +428,7 @@
   <div class="tbtn" id="tbtn-nade"   data-tbtn="nade">手雷</div>
   <div class="tbtn" id="tbtn-swap"   data-tbtn="swap">换枪</div>
   <div class="tbtn" id="tbtn-sprint" data-tbtn="sprint">疾跑</div>
+  <div class="tbtn" id="tbtn-slide"  data-tbtn="slide">滑铲</div>
 </div>
 
 <div id="deathScreen">
@@ -536,14 +540,16 @@ window.Keys = (function () {
     { key: 'w4',      label: '武器 4',    def: 'Digit4',        group: '战斗' },
     { key: 'w5',      label: '武器 5',    def: 'Digit5',        group: '战斗' },
     { key: 'w6',      label: '武器 6',    def: 'Digit6',        group: '战斗' },
-    { key: 'nade',    label: '手雷',      def: 'KeyG',          group: '战斗' }
+    { key: 'nade',    label: '手雷',      def: 'KeyG',          group: '战斗' },
+    { key: 'slide',   label: '滑铲',      def: 'ControlLeft',   group: '移动' }
   ];
 
   /* 所有武器槽动作（w1~w6）：用于统一做 preventDefault 判定 */
   const WP_ACTIONS = ACTIONS.filter(a => /^w[1-9]$/.test(a.key)).map(a => a.key);
 
   /* 疾跑额外允许 ShiftRight，两键同义 */
-  const ALIAS = { sprint: ['ShiftLeft', 'ShiftRight'] };
+  const ALIAS = { sprint: ['ShiftLeft', 'ShiftRight'],
+                  slide:  ['ControlLeft', 'ControlRight'] };
 
   const LS = 'zs_keys';
   let map = {};                                  // action → code
@@ -1373,7 +1379,8 @@ window.TouchUI = (function () {
     { action: 'reload', id: 'tbtn-reload', label: '换弹', kind: 'normal', def: { x: 70, y: 78 } },
     { action: 'nade',   id: 'tbtn-nade',   label: '手雷', kind: 'normal', def: { x: 62, y: 92 } },
     { action: 'swap',   id: 'tbtn-swap',   label: '换枪', kind: 'normal', def: { x: 74, y: 92 } },
-    { action: 'sprint', id: 'tbtn-sprint', label: '疾跑', kind: 'normal', def: { x: 58, y: 64 } }
+    { action: 'sprint', id: 'tbtn-sprint', label: '疾跑', kind: 'normal', def: { x: 58, y: 64 } },
+    { action: 'slide',  id: 'tbtn-slide',  label: '滑铲', kind: 'normal', def: { x: 78, y: 92 } }
   ];
 
   var byAction = {};
@@ -3055,6 +3062,10 @@ if (window.Keys) {
   Keys.onDown('w5',     function () { weaponSwitch(4); });
   Keys.onDown('w6',     function () { weaponSwitch(5); });
   Keys.onDown('nade',   function () { throwNade(); });
+  /* ★ §9 滑铲：Ctrl 触发；手雷改为按住蓄力预览弹道 */
+  Keys.onDown('slide',  function () { startSlide(); });
+  Keys.onDown('nade',   function () { if (!game.dead) { nadeCharging = true; nadeChargeT = 0; } });
+  Keys.onUp('nade',     function () { if (nadeCharging) { nadeCharging = false; releaseNadeCharge(); } });
   updSlots();
 }
 
@@ -3217,9 +3228,45 @@ function updateControls(dt) {
   var ml = Math.hypot(mvx, mvz);
   var moving = ml > 0.001 && !game.dead;
 
+  /* ============ ★ §9 滑铲：冲刺中触发，0.4s 位移 4m + 无敌帧，CD 3s ============ */
+  if (slideCd > 0) slideCd = Math.max(0, slideCd - dt);
+  if (slideT > 0) {
+    slideT = Math.max(0, slideT - dt);
+    /* ★ 位移按"时间进度"插值到固定总距离，而非按 dt 累加：
+       掉帧/卡顿时总位移仍恒为 SLIDE_DIST，不会缩水。 */
+    var prog = 1 - Math.max(0, slideT) / Math.max(0.01, TUNING.SLIDE_DUR);
+    var want = prog * TUNING.SLIDE_DIST;
+    var sstep = want - slideDone;
+    slideDone = want;
+    player.pos.x += slideDir.x * sstep;
+    player.pos.z += slideDir.z * sstep;
+    if (!slideHitDone) { slideHitDone = true; sSlide(); }
+    /* ★ 滑铲自然结束：补齐剩余位移，保证"0.4s 必定走满 4m"，不与帧率挂钩 */
+    if (slideT <= 0) {
+      var rest = TUNING.SLIDE_DIST - slideDone;
+      if (rest > 0.001) {
+        player.pos.x += slideDir.x * rest;
+        player.pos.z += slideDir.z * rest;
+        slideDone = TUNING.SLIDE_DIST;
+      }
+    }
+    var scr = collideXZ(player.pos.x, player.pos.z, 0.42);
+    player.pos.x = clamp(scr[0], P_BOUND.x0, P_BOUND.x1);
+    player.pos.z = clamp(scr[1], P_BOUND.z0, P_BOUND.z1);
+    game.sprinting = false;
+    camera.position.set(player.pos.x, P_EYE + 0.55, player.pos.z);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(player.pitch, player.yaw, 0);
+    return;
+  }
+
   game.sprinting = moving && wantSprint && game.stamina > 1.5;
   if (game.sprinting) game.stamina = Math.max(0, game.stamina - 26 * dt);
-  else game.stamina = Math.min(100, game.stamina + 15 * dt);
+  else {
+    /* ★ §9 停手 0.5s 后才回体，避免"走一步回一点"的抖动 */
+    if (stRegenDelay > 0) stRegenDelay = Math.max(0, stRegenDelay - dt);
+    else game.stamina = Math.min(TUNING.ST_MAX, game.stamina + TUNING.ST_REGEN * dt);
+  }
   /* ★ 切换式疾跑：体力耗尽时自动关闭 toggle，并同步按钮高亮，
      避免出现"按钮亮着但不疾跑"的错觉状态 */
   if (game.sprintToggle && game.stamina <= 1.5) {
@@ -3285,7 +3332,7 @@ if (btnReset) btnReset.addEventListener('click', function () {
 
 /* ================= 16.5 战斗系统 ================= */
 var game = {
-  hp: 100, maxHp: 100, stamina: 100,
+  hp: 100, maxHp: 100, stamina: 60,
   ammo: 100, mag: 12, reloading: false, reloadT: 0,
   fireCd: 0, recoil: 0,
   shooting: false, locked: false, sprintToggle: false, sprintHeld: false, sprinting: false, aiming: false,
@@ -3294,6 +3341,24 @@ var game = {
   meleeSwingT: 0                                // ★ 近战挥击动画计时
 };
 var MELEE_SWING_DUR = 0.28;                     // ★ 一次挥击时长（秒）
+
+/* ============================================================
+   ★ §9 战斗调参表（TUNING）—— 与 map1 完全一致，改手感只改这一块
+   ============================================================ */
+var TUNING = {
+  ST_MAX: 60, ST_REGEN: 8, ST_REGEN_DELAY: 0.5,
+  MELEE_COST: 15, MELEE_KILL_GAIN: 5, PUSH_COST: 0,
+  SLIDE_DUR: 0.4, SLIDE_DIST: 4.0, SLIDE_CD: 3.0, SLIDE_IFRAME: 0.4, SLIDE_ST_COST: 0,
+  BOSS_PH1: 0.75, BOSS_PH2: 0.50, BOSS_PH3: 0.25,
+  BOSS_SLAM_R: 8.0, BOSS_SLAM_DMG: 34, BOSS_SLAM_CD: 3.2,
+  BOSS_SUMMON_N: 4, BOSS_SUMMON_CD: 6.5,
+  BOSS_RUSH_SPD: 9.5, BOSS_RUSH_BASE_SPD: 3.2, BOSS_RUSH_CD: 20.0, BOSS_RUSH_DMG: 30,
+  DEATH_FUSE: 3.0, DEATH_SAFE_DIST: 10.0, DEATH_BLAST_R: 13.0, DEATH_DMG: 55, DEATH_TP_CD: 30
+};
+/* ★ §9 运行时状态 */
+var slideT = 0, slideCd = 0, slideDir = new THREE.Vector3(), slideHitDone = false, slideDone = 0;
+var stRegenDelay = 0, meleePushOnly = false;
+var nadeChargeT = 0, nadeCharging = false, nadeAimGroup = null;
 
 /* ---------- 枪械模型（★ §1.1 六槽：每个槽一个子组，切换时只显示当前槽） ---------- */
 var gunGrp = new THREE.Group();
@@ -3494,7 +3559,9 @@ function makeZombie(type, opts) { opts = opts || {};
     runner: type === 'runner', atkCd: 0, phase: Math.random() * 6.28,
     armL: armL, armR: armR, legL: legL, legR: legR,
     dead: false, deadT: 0,
-    boss: isBossZ, hpMax: bossHp, bossDmg: isBossZ ? (26 + bk * 2.5) : 0, tpCd: 30
+    boss: isBossZ, hpMax: bossHp, bossDmg: isBossZ ? (26 + bk * 2.5) : 0, tpCd: 30,
+    /* ★ §9 BOSS 三阶段运行态 */
+    phaseIdx: 1, slamCd: 0, sumCd: 0, rushCd: 0, rushT: 0, rushDirX: 0, rushDirZ: 0, deathFuse: 0
   };
 
   /* ★ 联机：把 hp 唯一数据源放在 grp.userData.hp，
@@ -3559,6 +3626,8 @@ function damageZombie(z, dmg, opts) {
       z.__rewarded = true;
       addCredits(KILL_REWARD[z.boss ? 'boss' : (z.type || 'normal')] || 5);
     }
+    /* ★ §9 击杀回复体力（形成"越砍越有余力"的清场循环） */
+    game.stamina = Math.min(TUNING.ST_MAX, game.stamina + TUNING.MELEE_KILL_GAIN);
   }
 }
 
@@ -3760,11 +3829,79 @@ function fireRayHit() {
   return best;
 }
 
+/* ============================================================
+   ★ §9 滑铲 startSlide() —— 冲刺中触发（键盘 Ctrl / 移动端「滑铲」按钮）
+   规则：0.4 秒内位移 4m（10 m/s）+ 全程无敌帧，冷却 3 秒。
+   ============================================================ */
+function startSlide() {
+  if (game.dead) return false;
+  if (window.MP && MP.spectating && MP.spectating()) return false;
+  if (slideT > 0) return false;
+  if (slideCd > 0) return false;
+  /* 方向：优先移动输入；无输入时取面朝方向 */
+  var ix = 0, iz = 0;
+  if (Keys && Keys.isDown) {
+    if (Keys.isDown('forward')) iz += 1;
+    if (Keys.isDown('back'))    iz -= 1;
+    if (Keys.isDown('left'))    ix -= 1;
+    if (Keys.isDown('right'))   ix += 1;
+  }
+  if (typeof joyMove !== 'undefined' && joyMove && joyMove.active) { ix += joyMove.x; iz += -joyMove.y; }
+  _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  _rgt.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+  var dx = (_fwd.x * iz + _rgt.x * ix), dz = (_fwd.z * iz + _rgt.z * ix);
+  var L = Math.hypot(dx, dz);
+  if (L < 0.05) { dx = _fwd.x; dz = _fwd.z; } else { dx /= L; dz /= L; }
+  slideDir.set(dx, 0, dz).normalize();
+  slideT = TUNING.SLIDE_DUR;
+  slideCd = TUNING.SLIDE_CD;
+  slideHitDone = false;
+  slideDone = 0;
+  if (TUNING.SLIDE_ST_COST > 0) {
+    game.stamina = Math.max(0, game.stamina - TUNING.SLIDE_ST_COST);
+    stRegenDelay = TUNING.ST_REGEN_DELAY;
+  }
+  crossSpread += 2.2;
+  if (navigator.vibrate) navigator.vibrate(12);
+  return true;
+}
+function slideInvuln() { return slideT > 0; }
+/* ★ §9 滑铲/推击音效 */
+function sSlide() {
+  var a = audio2(); if (!a) return; var t = a.currentTime;
+  var n = a.createBufferSource(); n.buffer = _noiseBuf(a);
+  var f = a.createBiquadFilter(); f.type = 'bandpass';
+  f.frequency.setValueAtTime(1800, t); f.frequency.exponentialRampToValueAtTime(320, t + 0.34); f.Q.value = 1.1;
+  var g = a.createGain(); g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.26, t + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
+  n.connect(f); f.connect(g); g.connect(a.destination); n.start(t); n.stop(t + 0.4);
+}
+function sPush() {
+  var a = audio2(); if (!a) return; var t = a.currentTime;
+  var o = a.createOscillator(); o.type = 'triangle';
+  o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.12);
+  var g = a.createGain(); g.gain.setValueAtTime(0.20, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.16);
+}
+
 function weaponFire() {
   if (game.dead || game.reloading || game.fireCd > 0) return;
   if (window.MP && MP.spectating()) return;                 // ★ 观战不可开火
   var isMelee = (W.gun === false);
   var headMul = (W.key === 'pistol') ? 2 : 3;        // ★ 清单④：手枪爆头倍率减半（2），其他 3
+  /* ============================================================
+     ★ §9 近战体力经济：体力 ≥ 15 正常挥砍（扣 15）；不足则降级为「推」（只击退）
+     ============================================================ */
+  if (isMelee) {
+    if (game.stamina >= TUNING.MELEE_COST) {
+      game.stamina -= TUNING.MELEE_COST;
+      stRegenDelay = TUNING.ST_REGEN_DELAY;
+      meleePushOnly = false;
+    } else {
+      meleePushOnly = true;
+    }
+  }
   /* ★ 清单⑤：每把枪独立弹匣；打空弹匣自动换弹，从共享储备 game.ammo 补满 */
   if (W.usesAmmo) {
     if (game.mag <= 0) { weaponReload(); return; }
@@ -3808,7 +3945,15 @@ function weaponFire() {
     } else {
       /* 房主 / 单机：本地结算；近战秒杀非 BOSS */
       var lethal = false;
-      if (isMelee && hit.z && !hit.z.boss) { damageZombie(hit.z, 9999); lethal = true; }
+      if (isMelee && meleePushOnly) {
+        /* ★ §9 体力不足：只击退不伤害 */
+        var pdx = hit.z.grp.position.x - player.pos.x, pdz = hit.z.grp.position.z - player.pos.z;
+        var pd = Math.hypot(pdx, pdz) || 1;
+        hit.z.grp.position.x += (pdx / pd) * 1.5;
+        hit.z.grp.position.z += (pdz / pd) * 1.5;
+        sPush(); banner('体力不足 · 只能推开');
+      }
+      else if (isMelee && hit.z && !hit.z.boss) { damageZombie(hit.z, 9999); lethal = true; }
       else {
         var dmg = hit.hs ? W.damage * headMul : W.damage;   // ★ 清单④：爆头倍率（手枪2/其他3），加成伤害不秒杀
         lethal = !!(hit.z && !hit.z.boss && (hit.z.hp - dmg * (hit.hs ? 1 : armorMulMap2(hit.z, {}))) <= 0);
@@ -3982,7 +4127,7 @@ function cycleMelee() {
   updateHUD(1);
 }
 
-function throwNade() {
+function throwNade(power) {
   if (game.dead || nadeCount <= 0) return;
   nadeCount--;
   var dir = new THREE.Vector3();
@@ -3992,12 +4137,84 @@ function throwNade() {
   var m = new THREE.Mesh(geo, mat);
   m.position.copy(camera.position).addScaledVector(dir, 0.6);
   scene.add(m);
+  /* ★ §9 蓄力越久抛得越远 */
+  var pw = (power == null) ? 1 : clamp(power, 0, 1);
   liveNades.push({
-    m: m, v: dir.clone().multiplyScalar(19).add(new THREE.Vector3(0, 3.2, 0)),
+    m: m, v: dir.clone().multiplyScalar(14 + 12 * pw).add(new THREE.Vector3(0, 2.6 + 2.4 * pw, 0)),
     fuse: 2.5, geo: geo, mat: mat
   });
   var el = document.getElementById('nadeN');
   if (el) el.textContent = nadeCount;
+}
+
+/* ============================================================
+   ★ §9 手雷投掷轨迹预览（与 map1 一致）
+   按住 G / 长按「手雷」按钮蓄力 0.4s → 抛物线 + 落点红圈
+   ============================================================ */
+var NADE_CHARGE_MAX = 0.4, NADE_CHARGE_MIN = 0.12;
+var nadeAimDots = null, nadeAimRing = null;
+(function buildNadeAim() {
+  nadeAimGroup = new THREE.Group();
+  nadeAimGroup.visible = false;
+  var dotGeo = new THREE.SphereGeometry(0.075, 6, 5);
+  nadeAimDots = [];
+  for (var i = 0; i < 26; i++) {
+    var d = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({
+      color: 0xff6a4a, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false
+    }));
+    nadeAimGroup.add(d); nadeAimDots.push(d);
+  }
+  nadeAimRing = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.5, 40),
+    new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0.95,
+      side: THREE.DoubleSide, depthTest: false, depthWrite: false }));
+  nadeAimRing.rotation.x = -Math.PI / 2;
+  nadeAimGroup.add(nadeAimRing);
+  scene.add(nadeAimGroup);
+})();
+function nadeBallistic(power) {
+  var pw = clamp(power, 0, 1);
+  var dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  var start = camera.position.clone().addScaledVector(dir, 0.55).add(new THREE.Vector3(0, -0.10, 0));
+  var v = dir.multiplyScalar(14 + 12 * pw).add(new THREE.Vector3(0, 2.6 + 2.4 * pw, 0));
+  var pts = [], p = start.clone(), h = 1 / 40;
+  for (var i = 0; i < 130; i++) {
+    v.y -= 23 * h;
+    var nx = p.x + v.x * h, nz = p.z + v.z * h, ny = p.y + v.y * h;
+    if (i > 3 && insideAnyCollider(nx, nz, 0.16)) break;
+    if (ny - 0.115 <= 0.12) { p.set(nx, 0.12, nz); pts.push(p.clone()); break; }
+    p.set(nx, ny, nz);
+    if (i % 4 === 0) pts.push(p.clone());
+  }
+  return { pts: pts, end: pts.length ? pts[pts.length - 1] : start };
+}
+function updateNadeAim(dt) {
+  if (!nadeCharging || game.dead || nadeCount <= 0) {
+    if (nadeAimGroup) nadeAimGroup.visible = false;
+    return;
+  }
+  nadeChargeT = Math.min(NADE_CHARGE_MAX, nadeChargeT + dt);
+  var power = nadeChargeT / NADE_CHARGE_MAX;
+  var bal = nadeBallistic(power);
+  var pts = bal.pts, end = bal.end;
+  nadeAimGroup.visible = true;
+  for (var i = 0; i < nadeAimDots.length; i++) {
+    var d = nadeAimDots[i];
+    if (i < pts.length) {
+      d.visible = true; d.position.copy(pts[i]);
+      d.material.color.setRGB(1, 0.42 - 0.30 * power, 0.28 - 0.24 * power);
+      d.material.opacity = 0.35 + 0.6 * power;
+    } else d.visible = false;
+  }
+  nadeAimRing.position.copy(end);
+  nadeAimRing.scale.setScalar(1 + 0.10 * Math.sin(performance.now() / 90));
+  nadeAimRing.material.opacity = 0.70 + 0.30 * power;
+}
+function releaseNadeCharge() {
+  if (game.dead) { nadeChargeT = 0; return; }
+  if (nadeChargeT < NADE_CHARGE_MIN) { nadeChargeT = 0; return; }
+  var power = clamp(nadeChargeT / NADE_CHARGE_MAX, 0, 1);
+  nadeChargeT = 0;
+  throwNade(power);
 }
 
 function updateNades(dt) {
@@ -4245,22 +4462,132 @@ function updateZombies(dt) {
     var dxn = 0, dzn = 0;
     if (dist > 0.001) { dxn = dx / dist; dzn = dz / dist; }
     z.grp.rotation.y = Math.atan2(-dxn, -dzn);
-    /* ★ 清单⑧：BOSS 每 30 秒 60% 概率瞬移到玩家 9~16m 处 */
+    /* ============================================================
+       ★ §9 BOSS 三阶段（75%/50%/25%）：拍地 → 召唤 → 狂暴冲刺
+        血量 ≤25% 进入「原地蓄爆」：3 秒内玩家必须跑出 10m，否则重伤
+       ============================================================ */
     if (z.boss) {
-      z.tpCd -= dt;
-      if (z.tpCd <= 0) {
-        z.tpCd = 30;
-        if (Math.random() < 0.6) {
-          var ang = Math.random() * Math.PI * 2;
-          var rad = 9 + Math.random() * 7;
-          var nx = player.pos.x + Math.cos(ang) * rad;
-          var nz = player.pos.z + Math.sin(ang) * rad;
-          if (!insideAnyCollider(nx, nz, 0.9)) { p.x = nx; p.z = nz; }
+      var hpK = z.hp / z.hpMax;
+      var ph = hpK > TUNING.BOSS_PH1 ? 1 : (hpK > TUNING.BOSS_PH2 ? 2 : 3);
+      if (z.phaseIdx === undefined) z.phaseIdx = 1;
+      if (z.deathFuse > 0) { /* 蓄爆中，跳过常规阶段 */ }
+      else if (ph !== z.phaseIdx) {
+        z.phaseIdx = ph;
+        z.slamCd = 0.6; z.sumCd = 1.0; z.rushCd = 1.0; z.rushT = 0;
+        game.shake = Math.max(game.shake, 0.7);
+        if (ph === 1) { z.speed = Math.min(2.05 + Math.max(0, game.wave - 1) * 0.045, 3.0); banner('BOSS · 第一阶段 · 拍地'); }
+        else if (ph === 2) { z.speed = 2.4; banner('BOSS · 第二阶段 · 召唤'); }
+        else { z.speed = TUNING.BOSS_RUSH_BASE_SPD; banner('BOSS · 第三阶段 · 狂暴冲刺'); }
+      }
+      /* --- 瞬移（蓄爆期间禁用） --- */
+      if (z.deathFuse > 0) { z.tpCd = 8; }
+      else {
+        z.tpCd -= dt;
+        if (z.tpCd <= 0) {
+          z.tpCd = 30;
+          if (Math.random() < 0.6) {
+            var ang = Math.random() * Math.PI * 2;
+            var rad = 9 + Math.random() * 7;
+            var nx = player.pos.x + Math.cos(ang) * rad;
+            var nz = player.pos.z + Math.sin(ang) * rad;
+            if (!insideAnyCollider(nx, nz, 0.9)) { p.x = nx; p.z = nz; banner('BOSS 瞬移！'); }
+          }
+        }
+      }
+      /* --- 招式形态（worldRun 才结算，避免暂停时误伤） --- */
+      if (z.deathFuse <= 0 && worldRun && !game.dead) {
+        var pdistB = Math.hypot(player.pos.x - p.x, player.pos.z - p.z);
+        if (z.phaseIdx === 1) {
+          z.slamCd -= dt;
+          if (pdistB < TUNING.BOSS_SLAM_R && z.slamCd <= 0) {
+            z.slamCd = TUNING.BOSS_SLAM_CD;
+            bloodBurst(p.x, 0.3, p.z);
+            game.shake = Math.max(game.shake, 0.8);
+            if (pdistB < TUNING.BOSS_SLAM_R) {
+              hurtPlayer(Math.round(TUNING.BOSS_SLAM_DMG * (1 - pdistB / (TUNING.BOSS_SLAM_R * 1.15))));
+              banner('BOSS 拍地！');
+            }
+          }
+        } else if (z.phaseIdx === 2) {
+          z.sumCd -= dt;
+          if (z.sumCd <= 0) {
+            z.sumCd = TUNING.BOSS_SUMMON_CD;
+            var cnt = 0;
+            for (var sn = 0; sn < TUNING.BOSS_SUMMON_N; sn++) {
+              var sa = Math.random() * Math.PI * 2, sr = 2.5 + Math.random() * 2.5;
+              var sx = p.x + Math.cos(sa) * sr, sz = p.z + Math.sin(sa) * sr;
+              if (!insideAnyCollider(sx, sz, 0.6)) {
+                try { spawnZombie({ at: { x: sx, z: sz, y: 0 } }); cnt++; } catch (_) {}
+              }
+            }
+            banner(cnt > 0 ? ('BOSS 召唤了 ' + cnt + ' 只丧尸') : 'BOSS · 召唤（场上已满）');
+          }
+        } else {
+          z.rushCd -= dt;
+          if (z.rushT > 0) {
+            z.rushT -= dt;
+            z.speed = TUNING.BOSS_RUSH_SPD;          // ★ 仅冲刺瞬间拉满速度
+            var rdx = player.pos.x - p.x, rdz = player.pos.z - p.z;
+            var rd = Math.hypot(rdx, rdz) || 1;
+            z.rushDirX = rdx / rd; z.rushDirZ = rdz / rd;
+            if (rd < 2.2) {
+              hurtPlayer(TUNING.BOSS_RUSH_DMG);
+              game.shake = Math.max(game.shake, 0.6);
+              z.rushT = 0; z.rushCd = TUNING.BOSS_RUSH_CD;
+              banner('BOSS 冲撞命中！');
+            }
+            if (insideAnyCollider(p.x + z.rushDirX * 0.6, p.z + z.rushDirZ * 0.6, 0.9)) {
+              z.rushT = 0; z.rushCd = TUNING.BOSS_RUSH_CD * 0.6;
+            }
+            /* 冲刺结束：速度回落至阶段3常态追击速度 */
+            if (z.rushT <= 0) z.speed = TUNING.BOSS_RUSH_BASE_SPD;
+          } else if (z.rushCd <= 0 && pdistB < 26) {
+            z.rushCd = TUNING.BOSS_RUSH_CD;
+            z.rushT = 1.1;
+            z.speed = TUNING.BOSS_RUSH_SPD;          // ★ 冲刺瞬间拉满
+            game.shake = Math.max(game.shake, 0.5);
+            banner('BOSS 狂暴冲刺！');
+          }
+        }
+      }
+      /* --- ★ 死亡蓄爆 --- */
+      if (z.deathFuse === undefined) z.deathFuse = 0;
+      if (hpK <= TUNING.BOSS_PH3 && z.deathFuse <= 0 && !z.__fuseFired) {
+        z.deathFuse = TUNING.DEATH_FUSE;
+        z.__fuseFired = true;
+        z.rushT = 0; z.phaseIdx = 4; z.speed = 0; z.tpCd = 99;
+        game.shake = Math.max(game.shake, 0.9);
+        banner('⚠ BOSS 原地蓄爆！3 秒内跑出 10 米！');
+        if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 120]);
+      }
+      if (z.deathFuse > 0) {
+        z.deathFuse -= dt;
+        z.speed = 0;
+        game.shake = Math.max(game.shake, 0.06 + (1 - z.deathFuse / TUNING.DEATH_FUSE) * 0.22);
+        var pdF = Math.hypot(player.pos.x - p.x, player.pos.z - p.z);
+        if (z.deathFuse <= 0) {
+          nadeBoom(p.clone().setY(p.y + 1.0));
+          game.shake = Math.max(game.shake, 1.2);
+          if (pdF < TUNING.DEATH_SAFE_DIST) {
+            hurtPlayer(TUNING.DEATH_DMG);
+            banner('💥 未能脱离！受到重伤');
+          } else {
+            banner('💥 蓄爆落空 · 你跑掉了');
+          }
+          z.hp = Math.min(z.hp, 1);
+          z.deathFuse = -1;
+          z.speed = TUNING.BOSS_RUSH_BASE_SPD * 0.5;   // 残血脱离后虚弱追进
+        } else if (pdF >= TUNING.DEATH_SAFE_DIST) {
+          banner('✅ 已脱离 · ' + z.deathFuse.toFixed(1) + 's');
+        } else {
+          banner('⚠ 距离 ' + pdF.toFixed(1) + 'm / 10m · ' + z.deathFuse.toFixed(1) + 's');
         }
       }
     }
-    if (dist > 1.15 && worldRun) {
+    if ((!z.boss || z.deathFuse <= 0) && dist > 1.15 && worldRun) {
       var sp = z.speed * (1 + game.wave * 0.02);
+      /* ★ §9 BOSS 狂暴冲刺：直接取锁定方向，忽略常规朝向 */
+      if (z.boss && z.rushT > 0 && z.rushDirX != null) { dxn = z.rushDirX; dzn = z.rushDirZ; }
       var nx = p.x + dxn * sp * dt;
       var nz = p.z + dzn * sp * dt;
       for (var j = 0; j < zombies.length; j++) {
@@ -4303,6 +4630,7 @@ function updateZombies(dt) {
 /* ---------- 玩家受击 / 死亡 / 重开 ---------- */
 function hurtPlayer(dmg) {
   if (game.dead) return;
+  if (slideInvuln()) return;                       // ★ §9 滑铲无敌帧
   /* ★ §3.2 职业减伤（壮汉 0.8） */
   var hm = (window.__CLS && window.__CLS.hurtMul) ? window.__CLS.hurtMul : 1;
   game.hp -= dmg * hm;
@@ -4458,7 +4786,7 @@ function restartGame() {
   if (window.ZS && ZS.byId) ZS.byId.clear();
 
   game.hp = game.maxHp;
-  game.stamina = 100;
+  game.stamina = TUNING.ST_MAX;
   game.ammo = AMMO_MAX_BASE;                    // ★ §1.1 共享弹药池重置
   game.reloading = false;
   wIdx = 0; W = W_SLOTS[0]; meleeSub = 0;       // ★ §1.1 武器槽重置
@@ -4480,6 +4808,10 @@ function restartGame() {
   if (btnAim) btnAim.classList.remove('on');
   if (btnSprint) btnSprint.classList.remove('on');
   nadeCount = NADE_MAX;
+  /* ★ §9 复位滑铲 / 蓄力 / 体力延迟状态 */
+  slideT = 0; slideCd = 0; slideHitDone = false; slideDone = 0; stRegenDelay = 0; meleePushOnly = false;
+  nadeCharging = false; nadeChargeT = 0;
+  if (nadeAimGroup) nadeAimGroup.visible = false;
   player.pos.set(SPAWN.x, P_EYE, SPAWN.z);
   player.yaw = SPAWN.yaw;
   player.pitch = SPAWN.pitch;
@@ -4542,7 +4874,18 @@ function updateHUD(dt) {
       : (game.hp > 25 ? 'linear-gradient(90deg,#e8c04a,#d99a2b)' : 'linear-gradient(90deg,#ef5350,#c62828)');
   }
   if (elHpNum) elHpNum.textContent = Math.ceil(game.hp);
-  if (elStFill) elStFill.style.width = game.stamina + '%';
+  if (elStFill) {
+    elStFill.style.width = Math.max(0, Math.min(100, (game.stamina / TUNING.ST_MAX) * 100)) + '%';
+    /* ★ §9 体力低于一次挥砍消耗 → 体力条转红，提示"只能推" */
+    elStFill.style.background = game.stamina < TUNING.MELEE_COST ? '#ff6a4a' : '';
+  }
+  /* ★ §9 滑铲按钮冷却指示 */
+  (function () {
+    var sb = document.getElementById('tbtn-slide');
+    if (!sb) return;
+    if (slideCd > 0) { sb.style.opacity = '0.40'; sb.classList.add('cool'); }
+    else { sb.style.opacity = '1'; sb.classList.remove('cool'); }
+  })();
   if (elAmmo) {
     var sub = (wIdx === 5) ? (' · ' + MELEE_SUB[meleeSub]) : '';
     elAmmo.textContent = game.reloading ? '装填' : (W.name + sub + ' · ' + (W.usesAmmo ? (game.mag + ' / ' + game.ammo) : '∞'));
@@ -4609,7 +4952,32 @@ if (btnAim) {
   });
 }
 if (btnReloadM) btnReloadM.addEventListener('click', weaponReload);
-if (btnNade) btnNade.addEventListener('click', throwNade);
+/* ★ §9 手雷按钮：长按蓄力预览弹道，松手投出（替换原来的"点击即扔"） */
+if (btnNade) (function () {
+  var holding = false;
+  var start = function () {
+    if (game.dead) return;
+    holding = true; nadeCharging = true; nadeChargeT = 0; btnNade.classList.add('on');
+  };
+  var end = function () {
+    if (!holding) return;
+    holding = false; btnNade.classList.remove('on');
+    nadeCharging = false; releaseNadeCharge();
+  };
+  btnNade.addEventListener('touchstart', function (e) { e.preventDefault(); e.stopPropagation(); audio2(); if (navigator.vibrate) navigator.vibrate(8); btnNade.classList.add('hit'); start(); }, { passive: false });
+  btnNade.addEventListener('touchend', function (e) { e.preventDefault(); e.stopPropagation(); btnNade.classList.remove('hit'); end(); }, { passive: false });
+  btnNade.addEventListener('touchcancel', function () { btnNade.classList.remove('hit'); end(); });
+  btnNade.addEventListener('mousedown', function (e) { if (e.button !== 0) return; audio2(); btnNade.classList.add('hit'); start(); });
+  btnNade.addEventListener('mouseup', function () { btnNade.classList.remove('hit'); end(); });
+  btnNade.addEventListener('mouseleave', function () { btnNade.classList.remove('hit'); end(); });
+})();
+/* ★ §9 滑铲按钮 */
+(function () {
+  var el = document.getElementById('tbtn-slide'); if (!el) return;
+  var fire = function () { if (slideCd > 0) { if (navigator.vibrate) navigator.vibrate(4); return; } if (startSlide() && navigator.vibrate) navigator.vibrate(12); };
+  el.addEventListener('touchstart', function (e) { e.preventDefault(); e.stopPropagation(); audio2(); fire(); }, { passive: false });
+  el.addEventListener('mousedown', function (e) { if (e.button !== 0) return; audio2(); fire(); });
+})();
 if (btnSwap) btnSwap.addEventListener('click', function () {
   /* ★ §1.1 触摸换枪：在已解锁槽位间循环；若只有当前槽则轮换近战 */
   var n = wIdx;
@@ -4732,6 +5100,7 @@ function animate() {
   game.elapsed += dt;
   updateWeapon(dt);
   updateNades(dt);
+  updateNadeAim(dt);                                      // ★ §9 手雷弹道预览
   updateZombies(dt);
   updateBlood(dt);
   updateShells(dt);
