@@ -731,7 +731,10 @@ function spawnZombie(){
   ok=true;
   for(var i=0;i<solids.length;i++){var s2=solids[i];
    if(x>s2.x1-0.6&&x<s2.x2+0.6&&z>s2.z1-0.6&&z>s2.z2+0.6){ok=false;break;}}
-  if(Math.hypot(x-player.x,z-player.z)<25)ok=false;
+  /* 距玩家过近不刷；观战时改以出生点为基准（相机乱飞不影响刷怪分布） */
+  var cxp=(window.MP&&MP.spectating&&MP.spectating())?SPAWN.x:player.x;
+  var czp=(window.MP&&MP.spectating&&MP.spectating())?SPAWN.z:player.z;
+  if(Math.hypot(x-cxp,z-czp)<25)ok=false;
  }
  if(!ok)return;
  var type=pickZTypeMap3(),T=ZT[type]||ZT.normal;
@@ -761,7 +764,9 @@ function spawnZombie(){
 }
 /* ★ §0.1 候选目标表：本地玩家 + 所有存活远端玩家（单机时仅本地玩家） */
 function collectTargets(){
- var out=[{id:'local',x:player.x,z:player.z,y:player.y,local:true}];
+ /* ★ 观战（本地已阵亡）时把自己排除出目标表：否则丧尸会围着观战者打转 */
+ var spectating=!!(window.MP&&MP.spectating&&MP.spectating());
+ var out=spectating?[]:[{id:'local',x:player.x,z:player.z,y:player.y,local:true}];
  try{
   if(window.MP&&typeof MP.peerTargets==='function'){
    var list=MP.peerTargets();
@@ -1059,6 +1064,8 @@ function updateWaves(dt){
  }
 }
 function damagePlayer(d){
+ /* ★ 观战（本地已阵亡）时免疫伤害，避免观战中被丧尸反复扣血 */
+ if(window.MP&&MP.spectating&&MP.spectating())return;
  /* ★ §0.1 房主咬中本机（客户端）玩家 → mp-bridge 收到 hit-player 调用此钩子 */
  window.__playerHurt=window.__playerHurt||function(d){try{damagePlayer(+d||0);}catch(e){}};
  player.hp-=d;player.lastHit=t_now;dmgA=0.85;sfxHurt();
@@ -1355,9 +1362,18 @@ function loop(now){
   if(playing&&!dead)runT+=dt;                           // ★ §7 存活计时
   frames++;fpsT+=dt;
   if(fpsT>=0.5){document.getElementById('fpsN').textContent=Math.round(frames/fpsT)+' FPS';frames=0;fpsT=0;}
+  /* ★ 世界模拟：联机对局中即使本地已阵亡（房主观战）也要继续跑
+     —— 房主是权威，负责广播丧尸快照与波次；停摆会让所有客户端"丧尸不动/波数冻结"。
+     单机死亡仍按原逻辑冻结（保留死亡界面演出）。 */
+  var mpAliveWorld = !!(window.P2P && P2P.inGame && P2P.inGame());
   if(playing&&!player.down){
    updatePlayer(dt);
    shoot(t_now);
+   updateZombies(dt);updateWaves(dt);updateNades(dt);
+  }else if(mpAliveWorld){
+   /* 联机观战：不控制本机角色（保持俯视相机），但世界继续演算 */
+   camera.position.set(player.x,1.7,player.z);
+   camera.rotation.set(player.pitch,player.yaw,0);
    updateZombies(dt);updateWaves(dt);updateNades(dt);
   }else{
    camera.position.set(player.x,1.7,player.z);

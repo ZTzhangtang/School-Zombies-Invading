@@ -3067,11 +3067,26 @@ var joyCenter = { x: 0, y: 0 };
 var joyId = -1;
 
 function joyStart(e) {
-  var t = e.touches[0];
+  /* ★ 修复（多点触控互相干扰）：原先取 e.touches[0]，即"屏幕上最早已按下的触点"。
+     当用户先在右侧长按（转动视角）后再按下左侧摇杆时，touches[0] 仍是右侧那个
+     触点，于是 joyId 被错误地绑定到右侧手指上 —— 之后无论怎样操作摇杆，
+     joyTrack 都在跟随右手指的坐标，摇杆就"飘"向右侧触点。
+     正确做法：只认本次真正落在摇杆上的那一根手指（changedTouches[0]）。
+     若摇杆已被占用（joyId !== -1），忽略后来的触点。 */
+  if (joyId !== -1) { e.preventDefault(); return; }
+  var t = (e.changedTouches && e.changedTouches[0]) || e.touches[0];
+  if (!t) return;
   joyId = t.identifier;
   var r = joyEl.getBoundingClientRect();
   joyCenter.x = r.left + r.width / 2;
   joyCenter.y = r.top + r.height / 2;
+  var dx = t.clientX - joyCenter.x, dy = t.clientY - joyCenter.y;
+  var d = Math.hypot(dx, dy);
+  if (d > JOY_R) { dx = dx / d * JOY_R; dy = dy / d * JOY_R; d = JOY_R; }
+  joyMove.x = dx / JOY_R;
+  joyMove.y = dy / JOY_R;
+  joyMove.active = d > 8;
+  if (joyThumb) joyThumb.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
   e.preventDefault();
 }
 function joyTrack(e) {
@@ -3084,16 +3099,30 @@ function joyTrack(e) {
     joyMove.x = dx / JOY_R;
     joyMove.y = dy / JOY_R;
     joyMove.active = d > 8;
-    joyThumb.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    if (joyThumb) joyThumb.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
     e.preventDefault();
     return;
   }
+  /* ★ 摇杆指针对应的手指若已不在（异常丢失），立刻复位，避免"卡住" */
+  if (joyId !== -1) {
+    var stillHere = false;
+    for (var j = 0; j < e.touches.length; j++) {
+      if (e.touches[j].identifier === joyId) { stillHere = true; break; }
+    }
+    if (!stillHere) joyReset();
+  }
+}
+function joyReset() {
+  joyId = -1;
+  joyMove.x = 0; joyMove.y = 0; joyMove.active = false;
+  if (joyThumb) joyThumb.style.transform = 'translate(0px,0px)';
 }
 function joyEnd(e) {
-  if (e.changedTouches && e.changedTouches[0].identifier === joyId) {
-    joyId = -1;
-    joyMove.x = 0; joyMove.y = 0; joyMove.active = false;
-    joyThumb.style.transform = 'translate(0px,0px)';
+  /* ★ 用 changedTouches 精确匹配摇杆指针；只有"绑定的那根手指"抬起才复位，
+     抬其他手指（例如右侧视角手指）不影响摇杆。 */
+  if (!e.changedTouches) { joyReset(); return; }
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === joyId) { joyReset(); return; }
   }
 }
 if (joyEl) {
@@ -3191,6 +3220,12 @@ function updateControls(dt) {
   game.sprinting = moving && wantSprint && game.stamina > 1.5;
   if (game.sprinting) game.stamina = Math.max(0, game.stamina - 26 * dt);
   else game.stamina = Math.min(100, game.stamina + 15 * dt);
+  /* ★ 切换式疾跑：体力耗尽时自动关闭 toggle，并同步按钮高亮，
+     避免出现"按钮亮着但不疾跑"的错觉状态 */
+  if (game.sprintToggle && game.stamina <= 1.5) {
+    game.sprintToggle = false;
+    if (btnSprint) btnSprint.classList.remove('on');
+  }
 
   if (moving) {
     var inv = ml > 1 ? 1 / ml : 1;
@@ -3225,11 +3260,15 @@ function updateControls(dt) {
   var cp = Math.cos(player.pitch);
   _look.set(cp * -Math.sin(player.yaw), Math.sin(player.pitch), cp * -Math.cos(player.yaw));
   camera.position.set(player.pos.x, P_EYE + bobY, player.pos.z);
-  camera.lookAt(
-    player.pos.x + _look.x,
-    P_EYE + bobY + _look.y,
-    player.pos.z + _look.z
-  );
+  /* ★ 修复（相机倒转）：原先用 camera.lookAt() 设置朝向。
+     lookAt 内部走默认 'XYZ' 欧拉分解，当 yaw 越过 ±90° 时分解会翻转
+     （rotation.x 变为 ±π），随后主循环再写 camera.rotation.z（被咬侧倾 / 归零）
+     就会在这个已翻转的欧拉上二次改写，导致相机整体上下颠倒
+     —— 表现为"视角转到远离主席台那一面，天空在下、地在上了"。
+     改用与 map3 一致的 'YXZ' 顺序 + rotation.set(pitch, yaw, roll)，
+     朝向稳定，且侧倾(roll)天然工作在正确轴上。 */
+  camera.rotation.order = 'YXZ';
+  camera.rotation.set(player.pitch, player.yaw, camera.rotation.z);
 }
 
 /* ================= 16. UI 交互 ================= */
@@ -3907,6 +3946,10 @@ function banner(t) {
 
 /* ★ §1.1 刷新 6 个槽位徽标 */
 function updSlots() {
+  /* ★ 防御：初始化早期（武器表 W_SLOTS/解锁表尚未赋值）被调用时直接返回，
+     否则 W_SLOTS[k] 会抛 "Cannot read properties of undefined (reading '0')"
+     导致整段场景构建中断、地图无法进入。武器表就绪后各处的 updSlots() 会正常刷新。 */
+  if (!W_SLOTS || !wpUnlocked || typeof wIdx === 'undefined') return;
   for (var k = 0; k < 6; k++) {
     var el = document.getElementById('ws' + k);
     if (!el) continue;
@@ -4040,7 +4083,9 @@ function updateWeapon(dt) {
 /* ---------- 丧尸 AI（★ 联机：客户端分支） ---------- */
 /* ★ §0.1 候选目标表：本地玩家 + 所有存活远端玩家。单机模式下只有本地玩家一项。 */
 function collectTargets() {
-  var out = [{ id: 'local', x: player.pos.x, z: player.pos.z, y: player.pos.y, local: true }];
+  /* ★ 观战（本地已阵亡）时把自己排除出目标表：否则丧尸会追着观战相机跑 */
+  var spectating = !!(window.MP && MP.spectating && MP.spectating());
+  var out = spectating ? [] : [{ id: 'local', x: player.pos.x, z: player.pos.z, y: player.pos.y, local: true }];
   try {
     if (window.MP && typeof MP.peerTargets === 'function') {
       var list = MP.peerTargets();
@@ -4058,19 +4103,24 @@ function collectTargets() {
 function pickTarget(z) {
   var cands = collectTargets();
   if (!cands.length) return null;
+  /* ★ 修复：map2 的丧尸位置存于 z.grp.position（无 z.pos 字段）。
+     原代码误用 map1 的 z.pos 约定，会抛 "Cannot read properties of undefined (reading 'x')"
+     并让每帧渲染中断 → 黑屏。此处统一取 grp.position。 */
+  var zp = (z.grp && z.grp.position) ? z.grp.position : z.pos;
+  if (!zp) return null;
   var chosen = null, bd = 1e9, i, t, d;
   for (i = 0; i < cands.length; i++) {
-    t = cands[i]; d = Math.hypot(t.x - z.pos.x, t.z - z.pos.z);
+    t = cands[i]; d = Math.hypot(t.x - zp.x, t.z - zp.z);
     if (chosen && z.tgtId && t.id === z.tgtId && d < bd + 3.0) { chosen = t; bd = d; continue; }
     if (d < bd) { bd = d; chosen = t; }
   }
   /* 二次筛选：跨层且过不到的目标降权。必须先排除不可达者再比距离 */
-  var reachable = function (q) { return Math.abs(q.y - z.pos.y) < 2.5; };
+  var reachable = function (q) { return Math.abs(q.y - zp.y) < 2.5; };
   if (chosen && !reachable(chosen)) {
     var best = null, bd2 = 1e9;
     for (i = 0; i < cands.length; i++) {
       t = cands[i]; if (!reachable(t)) continue;
-      d = Math.hypot(t.x - z.pos.x, t.z - z.pos.z);
+      d = Math.hypot(t.x - zp.x, t.z - zp.z);
       if (d < bd2) { bd2 = d; best = t; }
     }
     if (best) chosen = best;
@@ -4088,12 +4138,13 @@ function updateZombies(dt) {
     game.spawnT -= dt;
     var alive = 0;
     for (var i = 0; i < zombies.length; i++) if (!zombies[i].dead) alive++;
-    /* ★ 清单⑧：BOSS 触发（房主/单机）：死亡后冷却倒计时再生成 */
+    /* ★ 清单⑧：BOSS 触发（房主/单机）：死亡后冷却倒计时再生成
+       ★ 房主阵亡后仍应继续刷怪（房主是权威；否则队友那边永远不再来丧尸） */
     if (bossLive) {
       if (!bossRef || bossRef.dead) { bossLive = false; bossRef = null; bossCd = 45 + Math.random() * 50; }
     } else {
       bossCd -= dt;
-      if (bossCd <= 0 && alive < target && !game.dead) {
+      if (bossCd <= 0 && alive < target && (!game.dead || window.MP && MP.spectating && MP.spectating())) {
         spawnZombie({ boss: true });
         if (!bossLive) bossCd = 45 + Math.random() * 50;
       }
@@ -4112,7 +4163,9 @@ function updateZombies(dt) {
     }
     var inHorde = game.__hordeUntil && game.elapsed < game.__hordeUntil;
     if (inHorde) target = Math.round(target * 1.6);  // 尸潮期间上限提升
-    if (game.spawnT <= 0 && alive < target && !game.dead) {
+    /* ★ 房主阵亡（观战）时继续刷怪，保证客户端仍有丧尸可打 */
+    var hostSpectating = !!(window.MP && MP.spectating && MP.spectating());
+    if (game.spawnT <= 0 && alive < target && (!game.dead || hostSpectating)) {
       spawnZombie();
       game.spawnT = inHorde ? 0.32 : 0.7;
     }
@@ -4121,6 +4174,8 @@ function updateZombies(dt) {
   for (var i = zombies.length - 1; i >= 0; i--) {
     var z = zombies[i];
     var p = z.grp.position;
+    /* ★ 房主阵亡观战时，丧尸仍要继续移动（否则客户端那边全部静止） */
+    var worldRun = !game.dead || !!(window.MP && MP.spectating && MP.spectating());
 
     if (z.dead) {
       z.deadT += dt;
@@ -4204,7 +4259,7 @@ function updateZombies(dt) {
         }
       }
     }
-    if (dist > 1.15 && !game.dead) {
+    if (dist > 1.15 && worldRun) {
       var sp = z.speed * (1 + game.wave * 0.02);
       var nx = p.x + dxn * sp * dt;
       var nz = p.z + dzn * sp * dt;
@@ -4420,6 +4475,10 @@ function restartGame() {
   if (window.MP && MP.hideVictory) { try { MP.hideVictory(); } catch(e){} }
   game.hurtT = 0;
   game.shake = 0;
+  /* ★ 重开时复位切换式按钮状态与高亮 */
+  game.aiming = false; game.sprintToggle = false; game.sprintHeld = false;
+  if (btnAim) btnAim.classList.remove('on');
+  if (btnSprint) btnSprint.classList.remove('on');
   nadeCount = NADE_MAX;
   player.pos.set(SPAWN.x, P_EYE, SPAWN.z);
   player.yaw = SPAWN.yaw;
@@ -4519,13 +4578,34 @@ if (btnFire) {
     btnFire.addEventListener(ev, function () { game.shooting = false; });
   });
 }
-/* 瞄准：按住开镜，松开复位 */
-if (btnAim) {
-  btnAim.addEventListener('pointerdown', function (e) {
-    e.preventDefault(); game.aiming = true; btnAim.classList.add('on');
+/* ★ 开关式（toggle）按钮辅助：点一下开、再点一下关。
+   按钮是独立 DOM（不与画布视角拖动冲突），故只需忽略"明显拖动"即可：
+   手指按下后若移动超过 16px 视为误触（不计为点击），否则抬起时翻转状态。 */
+function bindToggleBtn(el, onChange) {
+  if (!el) return;
+  var _down = 0, _moved = false, _sx = 0, _sy = 0;
+  el.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    _down = Date.now(); _moved = false; _sx = e.clientX; _sy = e.clientY;
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
   });
-  ['pointerup','pointercancel','pointerleave'].forEach(function (ev) {
-    btnAim.addEventListener(ev, function () { game.aiming = false; btnAim.classList.remove('on'); });
+  el.addEventListener('pointermove', function (e) {
+    if (Math.abs(e.clientX - _sx) > 16 || Math.abs(e.clientY - _sy) > 16) _moved = true;
+  });
+  var _up = function (e) {
+    if (e) e.preventDefault();
+    var fire = _down && !_moved;
+    _down = 0;
+    if (fire) onChange();
+  };
+  el.addEventListener('pointerup', _up);
+  el.addEventListener('pointercancel', function () { _down = 0; });
+}
+/* ★ 开镜按钮：改为切换模式（点一下开镜、再点一下收镜），不再需要一直按住 */
+if (btnAim) {
+  bindToggleBtn(btnAim, function () {
+    game.aiming = !game.aiming;
+    btnAim.classList.toggle('on', game.aiming);
   });
 }
 if (btnReloadM) btnReloadM.addEventListener('click', weaponReload);
@@ -4539,33 +4619,14 @@ if (btnSwap) btnSwap.addEventListener('click', function () {
   }
   if (n === wIdx) cycleMelee(); else weaponSwitch(n);
 });
-/* ★ 修复：疾跑按钮原用 click，触屏上按住时若手指有微动会被判定为非点击，
-   导致 toggle 从不翻转、疾跑失灵且体力不消耗。
-   改为 pointerdown/up 按住式：按下即疾跑，松开停止；同时保留"点一下锁住"的
-   体验（短按 < 180ms 视为切换锁定）。 */
+/* ★ 疾跑按钮：改为切换模式（点一下持续疾跑、再点一下停止）。
+   之前是"按住 + 短按切换"的混合模式，用户反馈希望与开镜一致，
+   统一为纯切换：一次点击翻转状态，无需按住。 */
 if (btnSprint) {
-  var _sprintDownAt = 0, _sprintWasToggle = false;
-  btnSprint.addEventListener('pointerdown', function (e) {
-    e.preventDefault();
-    _sprintDownAt = Date.now();
-    if (!game.sprintToggle) {           // 若未锁定，按住期间强制疾跑
-      game.sprintHeld = true;
-      btnSprint.classList.add('on');
-    }
-    try { btnSprint.setPointerCapture(e.pointerId); } catch (_) {}
-  });
-  var _endSprint = function (e) {
-    if (e) e.preventDefault();
-    var dur = Date.now() - _sprintDownAt;
+  bindToggleBtn(btnSprint, function () {
+    game.sprintToggle = !game.sprintToggle;
     game.sprintHeld = false;
-    if (dur < 180) {                    // 短按 = 切换锁定疾跑
-      game.sprintToggle = !game.sprintToggle;
-    }
-    var on = game.sprintToggle || game.sprintHeld;
-    btnSprint.classList.toggle('on', on);
-  };
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
-    btnSprint.addEventListener(ev, _endSprint);
+    btnSprint.classList.toggle('on', game.sprintToggle);
   });
 }
 if (btnRestart) btnRestart.addEventListener('click', restartGame);
@@ -4688,7 +4749,8 @@ function animate() {
     camera.position.y += (Math.random() - 0.5) * game.shake * 0.15;
     game.shake = Math.max(0, game.shake - dt * 1.7);
   }
-  /* ★ §6.1 被咬镜头侧倾 */
+  /* ★ §6.1 被咬镜头侧倾。camera.rotation.order 已由 updateControls 设为 'YXZ'，
+     故此处写 .z 即纯粹绕视线轴的 roll，不会再引发欧拉翻转导致的画面颠倒。 */
   if (game.camLeanT > 0) camera.rotation.z = game.camLeanDir * 0.09 * game.camLeanT;
   else camera.rotation.z = 0;
   /* ★ 湿地反射最易在低端 GPU/半浮点不支持时抛异常，单独兜底 */

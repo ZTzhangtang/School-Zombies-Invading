@@ -2814,11 +2814,19 @@ function spawnZombie(opt){
    房主侧丧尸 AI 据此挑选"最近且可达"的目标；单机模式下只有本地玩家一项，
    行为与旧版 targetFor 完全等价。 */
 function collectTargets(){
- const out=[{ id:'local', x:player.pos.x, z:player.pos.z, y:player.y, local:true }];
+ /* ★ 观战（本地已阵亡）时把自己排除出目标表：
+    否则丧尸会追着观战者自由飞行的相机跑，真正的存活队友反而被无视。 */
+ const spectating = !!(window.MP && MP.spectating && MP.spectating());
+ const out=spectating?[]:[{ id:'local', x:player.pos.x, z:player.pos.z, y:player.y, local:true }];
  try{
   if(window.MP&&typeof MP.peerTargets==='function'){
    for(const t of MP.peerTargets()){
     if(!t||t.alive===false)continue;
+    /* ★ 修复：房间主的"自己"会被 p2p 以 id='__host' 写进远端表（供客户端救援用）。
+       房主侧丧尸 AI 若把它当成远端玩家，咬中时会走 sendHitPlayer('__host') →
+       查不到该连接 → 静默丢弃 → 房主永远不掉血。
+       这里直接跳过，房主自己已由上面的 { id:'local' } 项代表。 */
+    if(t.id==='__host')continue;
     out.push({ id:t.id, x:t.x, z:t.z, y:t.y, local:false });
    }
   }
@@ -2856,7 +2864,11 @@ function selectChosen(z){
  return chosen;
 }
 function pickTarget(z,tgt){
- if(!tgt)return{x:player.pos.x,z:player.pos.z,y:player.y};   /* ★ 兜底：无有效目标时盯本地玩家，避免空引用 */
+ /* ★ 兜底：无有效目标时盯本地玩家（避免空引用）；但观战时不盯自己（会追着相机跑） */
+ if(!tgt){
+  if(window.MP&&MP.spectating&&MP.spectating())return{x:z.pos.x,z:z.pos.z,y:z.pos.y};
+  return{x:player.pos.x,z:player.pos.z,y:player.y};
+ }
  const py=tgt.y,zy=z.pos.y;
  /* ① 已经踩在某跑楼梯的坡面中段：锁死这跑，一直走到那一端。
       否则 y 卡在两层之间时"本层"判据会在梯底/梯顶之间反复横跳，
@@ -3049,15 +3061,15 @@ function updateZombies(dt){
       z.parts.legR.rotation.x=-Math.sin(z.phase)*0.7;
       z.parts.torso.position.y=1.12+Math.abs(Math.sin(z.phase))*0.04;}
     }
-    /* ★ §2.1 类型行为分发（仅房主/单机） */
-    if(state==='play'){
+    /* ★ §2.1 类型行为分发（房主/单机；spectate 亦需继续，保证观战时世界仍在演算） */
+    if(state==='play'||state==='spectate'){
      if(z.type==='boomer')updateBoomer(z,dt,chosen,pdist);
      else if(z.type==='spitter')updateSpitter(z,dt,chosen,pdist);
      else if(z.type==='summoner')updateSummoner(z,dt,chosen,pdist);
     }
-    /* 投掷者：隔着距离砸玩家，砸完要等 30 秒 */
+    /* 投掷者：隔着距离砸玩家，砸完要等 30 秒（spectate 亦继续，房主权威） */
     if(z.throwAnim>0)z.throwAnim-=dt;
-    if(z.type==='thrower'&&state==='play'&&chosen&&chosen.local){
+    if(z.type==='thrower'&&(state==='play'||state==='spectate')&&chosen&&chosen.local){
      z.throwCd-=dt;
      if(z.throwCd<=0&&pdist>3.6&&pdist<42&&Math.abs(player.y-z.pos.y)<7&&
         clearLine(z.pos.x,z.pos.z,player.pos.x,player.pos.z,z.pos.y)){
@@ -3090,7 +3102,7 @@ function updateZombies(dt){
      if(pdist>3.5&&moved<Math.max(0.012,z.speed*dt*0.5))z.stuckT+=dt;
      else z.stuckT=0;
      z.__px=z.pos.x;z.__pz=z.pos.z;
-     if(z.stuckT>1.6&&state==='play'){
+     if(z.stuckT>1.6&&(state==='play'||state==='spectate')){
       z.stuckT=0;z.escN=(z.escN||0)+1;
       if(z.escN>=4){relocateZombie(z);z.escN=0;}
       else{
@@ -3356,8 +3368,9 @@ function updateWaves(dt){
   // ★ 客户端不推进波次（房主权威）
   if (window.ZS && window.ZS.isClient()) return;
 
-  /* BOSS：第 2 波起不定时（45~95 秒）刷一只，场上同时最多一只；尸潮期间冻结 */
-  if(state==='play'&&wave>=2&&!horde.active){
+  /* BOSS：第 2 波起不定时（45~95 秒）刷一只，场上同时最多一只；尸潮期间冻结
+     ★ spectate 也算"对局进行中"（房主权威需继续刷怪） */
+  if((state==='play'||state==='spectate')&&wave>=2&&!horde.active){
    if(bossLive){if(!bossRef||bossRef.dead){bossLive=false;bossRef=null;}}
    else{bossCd-=dt;
     if(bossCd<=0&&aliveCount()<ZMAX+4){spawnZombie({boss:true});if(!bossLive)bossCd=rand(45,95);}}
@@ -4323,7 +4336,12 @@ function frame(now){
  frameTick++;
  if(window.__dashT>0)window.__dashT=Math.max(0,window.__dashT-dt);   // ★ §3.2 战术突进计时
  if(window.__tickDown)window.__tickDown(dt);              // ★ §3.1 濒死倒计时
- if(state==='play'){updatePlayer(dt);updateZombies(dt);updateWaves(dt);updateProjectiles(dt);}
+ /* ★ 主循环世界模拟：play 与 spectate 都要推进丧尸/波次/投射物。
+    原因：联机房主是权威，负责广播丧尸快照(zb)与波次(gs)。
+    过去 spectate 不在任何分支 → 房主阵亡后丧尸停摆、波次冻结、客户端像"断联"。
+    spectate 下 updatePlayer 走内部"自由飞行观战"分支；丧尸咬人/特殊行为
+    各自的 state==='play' 门控保证观战者不被攻击。 */
+ if(state==='play'||state==='spectate'){updatePlayer(dt);updateZombies(dt);updateWaves(dt);updateProjectiles(dt);}
  else if(state==='dying'){tickDying(dt);updateZombies(dt);updateParticles(dt);}
  else if(state==='menu'){camRig.rotation.y+=dt*0.05;
   sun.position.set(camRig.position.x+45,75,camRig.position.z+25);
@@ -5436,10 +5454,18 @@ function bindLocalKeys() {
   function syncAvatars() {
     if (!scene || !window.P2P || typeof P2P.eachRemote !== 'function') return;
     const seen = new Set();
+    /* ★ 修复：房主把自己也写进了 remotes（id = '__host'，见 p2p netTick），
+       目的是让客户端能"看到并救起"濒死的房主。
+       但房主本地绝不能给自己也建一个头像模型 —— 那样模型会卡在第一人称
+       相机（camRig）脚下，一走动就糊住视野。
+       这里直接把自身的 '__host' 快照跳过，只渲染真正的队友。 */
+    const selfId = (window.P2P && P2P.info) ? (P2P.info() || {}).id : null;
     P2P.eachRemote((s, id) => {
       if (!s) return;
       const pid = id != null ? id : s.id;
       if (pid == null) return;
+      /* 跳过"自己"：房主侧为 '__host'，客户端侧为本机 peer id */
+      if (pid === '__host' || (selfId != null && pid === selfId)) return;
       seen.add(pid);
       const isAlive = s.alive !== false && !(s.hp != null && s.hp <= 0);
 
@@ -5681,13 +5707,18 @@ function bindLocalKeys() {
   /* 找最近的可救目标（远端队友 / 房主）→ { id, x, z } */
   function findReviveTarget() {
     const me = localPos();
+    const selfId = (window.P2P && P2P.info) ? (P2P.info() || {}).id : null;
     let best = null, bestD = REVIVE_RANGE;
     try {
       P2P.eachRemote((s, id) => {
         if (!s || !s.down) return;
         if (s.alive === false) return;
+        /* ★ 修复：房主侧的 '__host' / 客户端的本机 id 就是"自己"，
+           不排除的话房主倒地后会把 0 米处的自己当成可救目标。 */
+        const pid = (id != null ? id : s.id);
+        if (pid === '__host' || (selfId != null && pid === selfId)) return;
         const d = Math.hypot((s.x || 0) - me.x, (s.z || 0) - me.z);
-        if (d <= bestD) { bestD = d; best = { id: (id != null ? id : s.id), x: s.x, z: s.z }; }
+        if (d <= bestD) { bestD = d; best = { id: pid, x: s.x, z: s.z }; }
       });
     } catch (_) {}
     return best;
@@ -5876,8 +5907,13 @@ function bindLocalKeys() {
     }
     /* 队友（★ 清单：蓝点 + 血量环；濒死橙点） */
     try {
+      const selfId = (window.P2P && P2P.info) ? (P2P.info() || {}).id : null;
       if (window.P2P && P2P.eachRemote) P2P.eachRemote((s, id) => {
         if (!s) return;
+        /* ★ 修复：排除自己（房主 '__host' / 客户端本机 id），
+           否则雷达中心会叠一个"自己"的蓝点。 */
+        const pid = (id != null ? id : s.id);
+        if (pid === '__host' || (selfId != null && pid === selfId)) return;
         const p = plot((s.x || 0) - me.x, (s.z || 0) - me.z);
         const alive = s.alive !== false && !s.down;
         g.fillStyle = s.down ? '#ff9f43' : (alive ? '#4d96ff' : '#888');
@@ -6535,11 +6571,15 @@ function bindLocalKeys() {
     showVictory: w => showVictory(w),
     hideVictory: () => hideVictory(),
     broadcastVictory: w => broadcastVictory(w),
-    /* ★ §0.1 房主侧丧尸索敌用：返回可作为目标的远端玩家列表（y 为脚底世界高度） */
-    peerTargets: () => Array.from(avatars.entries()).map(([id, a]) => {
-      const p = a.group ? a.group.position : null;
-      return { id, x: p ? p.x : 0, y: p ? p.y : 0, z: p ? p.z : 0, alive: a.alive !== false };
-    }),
+    /* ★ §0.1 房主侧丧尸索敌用：返回可作为目标的远端玩家列表（y 为脚底世界高度）
+       ★ 修复：排除 id='__host'（房主自己写入 remotes 的镜像），
+       否则房主会被自己的快照"再咬一次"，而 sendHitPlayer('__host') 无连接可发 → 房主不掉血。 */
+    peerTargets: () => Array.from(avatars.entries())
+      .filter(([id]) => id !== '__host')
+      .map(([id, a]) => {
+        const p = a.group ? a.group.position : null;
+        return { id, x: p ? p.x : 0, y: p ? p.y : 0, z: p ? p.z : 0, alive: a.alive !== false };
+      }),
     state,
     _debug: () => ({
       scene: !!scene, camera: !!camera, avatars: avatars.size, players: state.players,
