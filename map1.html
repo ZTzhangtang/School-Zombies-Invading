@@ -911,7 +911,206 @@ window.Profile = (function () {
 })();
 </script>
 
-<script src="bgm.js"></script>
+<script>
+/* 内联自 bgm.js · 自动生成，勿手工编辑 */
+/* ============================================================
+ * bgm.js — 生化·校园突围 分层背景音乐（§6.3）
+ *
+ * 与 settings.js / profile.js 并列的「三图共用」模块。
+ * 纯 WebAudio 程序化合成，不引入任何音频文件（零体积 / 零加载失败风险）。
+ *
+ * 四层：
+ *   calm   平静 —— 低音 pad + 极缓 LFO（菜单 / 间歇）
+ *   combat 战斗 —— 叠加八分音符低频脉冲（战斗中）
+ *   horde  尸潮 —— 叠加十六分音符 + 噪声扫频（horde.active）
+ *   down   濒死 —— 压低各层 + 心跳 + 耳鸣（玩家濒死）
+ *
+ * 用法：
+ *   BGM.attach(() => AudioContext)   // 可选：复用地图页的 audio() 上下文
+ *   BGM.set('calm'|'combat'|'horde'|'down')
+ *   BGM.on() / off() / toggle()      // 开关（localStorage.zs_bgm）
+ *
+ * 说明：所有增益都挂在一个内部 masterGain 上；若地图页提供了
+ * 自己的 AudioContext 与 master gain，则用 BGM.setVolume 与设置页音量联动。
+ * ============================================================ */
+window.BGM = (function () {
+  'use strict';
+
+  const LS = 'zs_bgm';
+  const LAYERS = ['calm', 'combat', 'horde', 'down'];
+  const VOL = { calm: 0.05, combat: 0.09, horde: 0.13, down: 0.10 };
+  const FADE = 1.2;                         // 交叉淡入淡出时长（秒）
+
+  let enabled = true, vol = 0.7;
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS) || '{}');
+    if (typeof raw.on === 'boolean') enabled = raw.on;
+    if (typeof raw.vol === 'number') vol = Math.max(0, Math.min(1, raw.vol));
+  } catch (_) {}
+
+  let AC = null;
+  let master = null;
+  let userCtxGetter = null;
+  let current = null;                       // 当前层名
+  let nodes = {};                           // 每层的持续音源集合
+  let started = false;
+
+  function save() {
+    try { localStorage.setItem(LS, JSON.stringify({ on: enabled, vol: vol })); } catch (_) {}
+  }
+
+  /* 取得 AudioContext：优先复用地图页 audio()，否则自建 */
+  function ctx() {
+    if (AC) { if (AC.state === 'suspended') { try { AC.resume(); } catch (_) {} } return AC; }
+    try {
+      if (userCtxGetter) { const c = userCtxGetter(); if (c) AC = c; }
+    } catch (_) {}
+    if (!AC) {
+      try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { return null; }
+    }
+    if (!AC) return null;
+    if (!master) {
+      master = AC.createGain();
+      master.gain.value = enabled ? vol : 0;
+      master.connect(AC.destination);
+    }
+    return AC;
+  }
+
+  /* 单个持续振荡器（可挂 LFO） */
+  function drone(type, freq, detune, gainVal, lpf) {
+    const a = ctx(); if (!a) return null;
+    const o = a.createOscillator(); o.type = type; o.frequency.value = freq;
+    if (detune) o.detune.value = detune;
+    const g = a.createGain(); g.gain.value = 0;
+    let chain = o;
+    if (lpf) { const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lpf; o.connect(f); chain = f; }
+    chain.connect(g); g.connect(master);
+    o.start();
+    return { o: o, g: g };
+  }
+  /* 周期性脉冲调度器（用 setInterval 起音，配合 gain 包络） */
+  function pulseScheduler(freq, gainVal, intervalMs, decay) {
+    const id = setInterval(() => {
+      const a = ctx(); if (!a || !enabled) return;
+      const t = a.currentTime;
+      const o = a.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freq, t);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + decay);
+      const g = a.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gainVal * (enabled ? vol : 0), t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + decay + 0.02);
+    }, intervalMs);
+    return id;
+  }
+
+  /* 构建某一层的持续音源（只建一次，用 gain 控制显隐） */
+  function buildLayer(name) {
+    if (nodes[name]) return nodes[name];
+    const set = { gains: [], timers: [] };
+    if (name === 'calm') {
+      const a = drone('sine', 55, 0, 0.5, 400); if (a) set.gains.push(a);
+      const b = drone('sine', 82.4, 7, 0.35, 500); if (b) set.gains.push(b);
+    } else if (name === 'combat') {
+      set.timers.push(pulseScheduler(73, 0.22, 500, 0.16));   // 八分音符
+    } else if (name === 'horde') {
+      set.timers.push(pulseScheduler(98, 0.20, 220, 0.12));   // 十六分音符
+      set.timers.push(pulseScheduler(146, 0.14, 220, 0.10));
+    } else if (name === 'down') {
+      const a = drone('sine', 48, 0, 0.6, 300); if (a) set.gains.push(a);
+      const ear = drone('sine', 4000, 0, 0.06, 6000); if (ear) set.gains.push(ear);  // 耳鸣
+      set.timers.push(pulseScheduler(60, 0.30, 830, 0.20));   // 心跳
+    }
+    nodes[name] = set;
+    return set;
+  }
+
+  /* 把某层的所有 gain 线性淡到目标值 */
+  function fadeLayer(name, target, secs) {
+    const a = ctx(); if (!a) return;
+    const set = buildLayer(name);
+    const t = a.currentTime;
+    set.gains.forEach(x => {
+      try {
+        x.g.gain.cancelScheduledValues(t);
+        x.g.gain.setValueAtTime(x.g.gain.value, t);
+        x.g.gain.linearRampToValueAtTime(target, t + secs);
+      } catch (_) {}
+    });
+  }
+  function stopLayer(name, secs) {
+    const a = ctx(); if (!a) return;
+    const set = nodes[name]; if (!set) return;
+    fadeLayer(name, 0, secs);
+    set.timers.forEach(id => clearInterval(id));
+    set.timers = [];
+  }
+
+  function set(name) {
+    if (LAYERS.indexOf(name) < 0) name = 'calm';
+    if (name === current && started) return;
+    const a = ctx();
+    if (!a) { current = name; return; }
+    /* 淡出旧的持续层 */
+    if (current && current !== name) stopLayer(current, FADE);
+    else if (current && current === name) { /* 同层，保持 */ }
+    /* 淡入新层 */
+    const set = buildLayer(name);
+    const base = VOL[name] || 0.06;
+    const target = (enabled ? vol : 0) * base;
+    set.gains.forEach(x => {
+      if (!x.__started) { x.__started = true; }
+    });
+    fadeLayer(name, target, FADE);
+    /* 若该层之前被 stopLayer 清掉了 timer，重建 */
+    if (name === 'combat' && set.timers.length === 0) set.timers.push(pulseScheduler(73, 0.22, 500, 0.16));
+    if (name === 'horde' && set.timers.length === 0) {
+      set.timers.push(pulseScheduler(98, 0.20, 220, 0.12));
+      set.timers.push(pulseScheduler(146, 0.14, 220, 0.10));
+    }
+    if (name === 'down' && set.timers.length === 0) set.timers.push(pulseScheduler(60, 0.30, 830, 0.20));
+    current = name;
+    started = true;
+  }
+
+  function applyMaster() {
+    if (!master) return;
+    const a = ctx(); if (!a) return;
+    const t = a.currentTime;
+    try {
+      master.gain.cancelScheduledValues(t);
+      master.gain.setValueAtTime(master.gain.value, t);
+      master.gain.linearRampToValueAtTime(enabled ? vol : 0, t + 0.4);
+    } catch (_) {}
+  }
+
+  function on() { enabled = true; save(); applyMaster(); if (current) set(current); }
+  function off() { enabled = false; save(); applyMaster(); }
+  function toggle() { enabled ? off() : on(); return enabled; }
+  function setVolume(v) { vol = Math.max(0, Math.min(1, +v || 0)); save(); applyMaster(); if (current && started) { /* 重新淡到新音量 */ const a = ctx(); if (a) { const base = VOL[current] || 0.06; fadeLayer(current, (enabled ? vol : 0) * base, 0.5); } } }
+
+  function attach(getter) {
+    if (typeof getter === 'function') { userCtxGetter = getter; AC = null; master = null; }
+    return ctx() ? true : false;
+  }
+
+  return {
+    LS, LAYERS, VOL,
+    attach: attach,
+    set: set,
+    on: on, off: off, toggle: toggle,
+    isOn: () => enabled,
+    volume: () => vol,
+    setVolume: setVolume,
+    current: () => current,
+    _ctx: () => AC,
+    _master: () => master
+  };
+})();
+</script>
 
 <script>
 /* 内联自 touch-ui.js · 自动生成，勿手工编辑 */
@@ -7476,23 +7675,8 @@ try{ if(window.TouchUI){ TouchUI.apply(document); TouchUI.watch(document); } }ca
 try{ buildNarrative(); }catch(e){}
 /* ★ §7.2 应用武器等级（来自档案的持久等级） */
 try{ applyAllWeaponLevels(); }catch(e){}
-/* ★ §6.3 BGM：绑定本页 AudioContext，按设置页的开关与音量启动 */
-try{ if(window.BGM){
-  BGM.attach(audio);
-  BGM.setVolume((readCfg().vol|0)/100);
-  if(readCfg().bgm!==false)BGM.on();else BGM.off();
-  BGM.set('calm');
-  /* 返回菜单 / 关页面时停掉，避免与菜单页的音乐叠着响 */
-  window.addEventListener('pagehide', ()=>{ try{ BGM.stop(); }catch(_){} });
-  window.addEventListener('beforeunload', ()=>{ try{ BGM.stop(); }catch(_){} });
-  /* 切到后台自动暂停，回来再继续（移动端省电，也避免与其他音频冲突） */
-  document.addEventListener('visibilitychange', ()=>{
-    try{
-      if(document.hidden) BGM.stop();
-      else if(readCfg().bgm!==false) BGM.on();
-    }catch(_){}
-  });
-} }catch(e){}
+/* ★ §6.3 BGM 分层：绑定 AudioContext 并进入平静层 */
+try{ if(window.BGM){ BGM.attach(audio); BGM.set('calm'); } }catch(e){}
 /* ★ 标记启动完成：仅在全程无启动期错误时才置位，避免后续错误被吞 */
 if (!window.__bootErrors || !window.__bootErrors.length) window.__bootOk = true;
 </script>
