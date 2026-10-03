@@ -47,6 +47,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
 #cross i:nth-child(5){width:2px;height:2px;left:-1px;top:-1px;border-radius:50%;opacity:.75}
 #cross.ads i{opacity:.7}
 #cross.ads i:nth-child(5){opacity:1}
+/* ★ 开镜镜瞄叠加层：狙击=4 倍镜（黑色镜管 + 十字分划），其余=红点；
+   分划交叉点 / 红点恒居屏幕正中心 = 瞄准点（与 #cross 中心一致，确保"镜中准星"落在准星上） */
+#scope{position:fixed;inset:0;z-index:11;pointer-events:none;opacity:0;transition:opacity .1s linear}
+/* 4 倍镜：镜管（圆外全黑），圆内透出场景 */
+#scope.scope4x::before{content:'';position:absolute;left:50%;top:50%;width:min(74vmin,560px);height:min(74vmin,560px);transform:translate(-50%,-50%);border-radius:50%;box-shadow:0 0 0 100vmax #000}
+/* 4 倍镜：中心十字分划（交叉点=屏幕中心=瞄准点） */
+#scope.scope4x::after{content:'';position:absolute;left:50%;top:50%;width:min(74vmin,560px);height:min(74vmin,560px);transform:translate(-50%,-50%);border-radius:50%;
+ background:
+  linear-gradient(to right,transparent calc(50% - 1px),rgba(15,15,15,.92) calc(50% - 1px),rgba(15,15,15,.92) calc(50% + 1px),transparent calc(50% + 1px)),
+  linear-gradient(to bottom,transparent calc(50% - 1px),rgba(15,15,15,.92) calc(50% - 1px),rgba(15,15,15,.92) calc(50% + 1px),transparent calc(50% + 1px));
+ box-shadow:inset 0 0 0 2px rgba(15,15,15,.55)}
+#scope .centerdot{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:#e02424;box-shadow:0 0 5px 2px rgba(224,36,36,.8);z-index:2;display:none}
+#scope.scope4x .centerdot{display:block}
+/* 红点：极淡镜圈 + 屏幕正中心红点（=瞄准点） */
+#scope.reddot::before{content:'';position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#ff2a2a;box-shadow:0 0 6px 2px rgba(255,40,40,.85)}
+#scope.reddot::after{content:'';position:absolute;left:50%;top:50%;width:130px;height:130px;margin:-65px;border-radius:50%;border:1px solid rgba(255,255,255,.10)}
 #ammo{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:6;font-size:13px;letter-spacing:3px;color:#e8e4d8;text-shadow:0 1px 4px #000;white-space:nowrap}
 #footer{position:fixed;left:0;right:0;bottom:7px;text-align:center;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.5);z-index:5;pointer-events:none;padding:0 10px}
 #banner{position:fixed;top:32%;width:100%;text-align:center;font-size:clamp(26px,7vw,52px);font-weight:700;letter-spacing:clamp(4px,1.6vw,12px);color:#fff;text-shadow:0 4px 24px rgba(226,73,59,.9);opacity:0;transition:opacity .45s;z-index:7;pointer-events:none}
@@ -144,6 +160,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#101318;color:#f2efe
 <div id="app"></div>
 
 <div id="cross"><i></i><i></i><i></i><i></i><i></i></div>
+<!-- ★ 开镜镜瞄叠加层：狙击=4 倍镜、其余=红点；centerdot 为狙击镜中心红点 -->
+<div id="scope"><i class="centerdot"></i></div>
 <div id="topUI">
  <div id="stats">
   <span class="chip">第 <b id="uiWave">1</b> 波 · 击杀 <b id="uiKills">0</b> · 丧尸 <b id="uiZom">0</b></span>
@@ -893,206 +911,7 @@ window.Profile = (function () {
 })();
 </script>
 
-<script>
-/* 内联自 bgm.js · 自动生成，勿手工编辑 */
-/* ============================================================
- * bgm.js — 生化·校园突围 分层背景音乐（§6.3）
- *
- * 与 settings.js / profile.js 并列的「三图共用」模块。
- * 纯 WebAudio 程序化合成，不引入任何音频文件（零体积 / 零加载失败风险）。
- *
- * 四层：
- *   calm   平静 —— 低音 pad + 极缓 LFO（菜单 / 间歇）
- *   combat 战斗 —— 叠加八分音符低频脉冲（战斗中）
- *   horde  尸潮 —— 叠加十六分音符 + 噪声扫频（horde.active）
- *   down   濒死 —— 压低各层 + 心跳 + 耳鸣（玩家濒死）
- *
- * 用法：
- *   BGM.attach(() => AudioContext)   // 可选：复用地图页的 audio() 上下文
- *   BGM.set('calm'|'combat'|'horde'|'down')
- *   BGM.on() / off() / toggle()      // 开关（localStorage.zs_bgm）
- *
- * 说明：所有增益都挂在一个内部 masterGain 上；若地图页提供了
- * 自己的 AudioContext 与 master gain，则用 BGM.setVolume 与设置页音量联动。
- * ============================================================ */
-window.BGM = (function () {
-  'use strict';
-
-  const LS = 'zs_bgm';
-  const LAYERS = ['calm', 'combat', 'horde', 'down'];
-  const VOL = { calm: 0.05, combat: 0.09, horde: 0.13, down: 0.10 };
-  const FADE = 1.2;                         // 交叉淡入淡出时长（秒）
-
-  let enabled = true, vol = 0.7;
-  try {
-    const raw = JSON.parse(localStorage.getItem(LS) || '{}');
-    if (typeof raw.on === 'boolean') enabled = raw.on;
-    if (typeof raw.vol === 'number') vol = Math.max(0, Math.min(1, raw.vol));
-  } catch (_) {}
-
-  let AC = null;
-  let master = null;
-  let userCtxGetter = null;
-  let current = null;                       // 当前层名
-  let nodes = {};                           // 每层的持续音源集合
-  let started = false;
-
-  function save() {
-    try { localStorage.setItem(LS, JSON.stringify({ on: enabled, vol: vol })); } catch (_) {}
-  }
-
-  /* 取得 AudioContext：优先复用地图页 audio()，否则自建 */
-  function ctx() {
-    if (AC) { if (AC.state === 'suspended') { try { AC.resume(); } catch (_) {} } return AC; }
-    try {
-      if (userCtxGetter) { const c = userCtxGetter(); if (c) AC = c; }
-    } catch (_) {}
-    if (!AC) {
-      try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { return null; }
-    }
-    if (!AC) return null;
-    if (!master) {
-      master = AC.createGain();
-      master.gain.value = enabled ? vol : 0;
-      master.connect(AC.destination);
-    }
-    return AC;
-  }
-
-  /* 单个持续振荡器（可挂 LFO） */
-  function drone(type, freq, detune, gainVal, lpf) {
-    const a = ctx(); if (!a) return null;
-    const o = a.createOscillator(); o.type = type; o.frequency.value = freq;
-    if (detune) o.detune.value = detune;
-    const g = a.createGain(); g.gain.value = 0;
-    let chain = o;
-    if (lpf) { const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lpf; o.connect(f); chain = f; }
-    chain.connect(g); g.connect(master);
-    o.start();
-    return { o: o, g: g };
-  }
-  /* 周期性脉冲调度器（用 setInterval 起音，配合 gain 包络） */
-  function pulseScheduler(freq, gainVal, intervalMs, decay) {
-    const id = setInterval(() => {
-      const a = ctx(); if (!a || !enabled) return;
-      const t = a.currentTime;
-      const o = a.createOscillator(); o.type = 'sawtooth';
-      o.frequency.setValueAtTime(freq, t);
-      o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + decay);
-      const g = a.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(gainVal * (enabled ? vol : 0), t + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
-      o.connect(g); g.connect(master);
-      o.start(t); o.stop(t + decay + 0.02);
-    }, intervalMs);
-    return id;
-  }
-
-  /* 构建某一层的持续音源（只建一次，用 gain 控制显隐） */
-  function buildLayer(name) {
-    if (nodes[name]) return nodes[name];
-    const set = { gains: [], timers: [] };
-    if (name === 'calm') {
-      const a = drone('sine', 55, 0, 0.5, 400); if (a) set.gains.push(a);
-      const b = drone('sine', 82.4, 7, 0.35, 500); if (b) set.gains.push(b);
-    } else if (name === 'combat') {
-      set.timers.push(pulseScheduler(73, 0.22, 500, 0.16));   // 八分音符
-    } else if (name === 'horde') {
-      set.timers.push(pulseScheduler(98, 0.20, 220, 0.12));   // 十六分音符
-      set.timers.push(pulseScheduler(146, 0.14, 220, 0.10));
-    } else if (name === 'down') {
-      const a = drone('sine', 48, 0, 0.6, 300); if (a) set.gains.push(a);
-      const ear = drone('sine', 4000, 0, 0.06, 6000); if (ear) set.gains.push(ear);  // 耳鸣
-      set.timers.push(pulseScheduler(60, 0.30, 830, 0.20));   // 心跳
-    }
-    nodes[name] = set;
-    return set;
-  }
-
-  /* 把某层的所有 gain 线性淡到目标值 */
-  function fadeLayer(name, target, secs) {
-    const a = ctx(); if (!a) return;
-    const set = buildLayer(name);
-    const t = a.currentTime;
-    set.gains.forEach(x => {
-      try {
-        x.g.gain.cancelScheduledValues(t);
-        x.g.gain.setValueAtTime(x.g.gain.value, t);
-        x.g.gain.linearRampToValueAtTime(target, t + secs);
-      } catch (_) {}
-    });
-  }
-  function stopLayer(name, secs) {
-    const a = ctx(); if (!a) return;
-    const set = nodes[name]; if (!set) return;
-    fadeLayer(name, 0, secs);
-    set.timers.forEach(id => clearInterval(id));
-    set.timers = [];
-  }
-
-  function set(name) {
-    if (LAYERS.indexOf(name) < 0) name = 'calm';
-    if (name === current && started) return;
-    const a = ctx();
-    if (!a) { current = name; return; }
-    /* 淡出旧的持续层 */
-    if (current && current !== name) stopLayer(current, FADE);
-    else if (current && current === name) { /* 同层，保持 */ }
-    /* 淡入新层 */
-    const set = buildLayer(name);
-    const base = VOL[name] || 0.06;
-    const target = (enabled ? vol : 0) * base;
-    set.gains.forEach(x => {
-      if (!x.__started) { x.__started = true; }
-    });
-    fadeLayer(name, target, FADE);
-    /* 若该层之前被 stopLayer 清掉了 timer，重建 */
-    if (name === 'combat' && set.timers.length === 0) set.timers.push(pulseScheduler(73, 0.22, 500, 0.16));
-    if (name === 'horde' && set.timers.length === 0) {
-      set.timers.push(pulseScheduler(98, 0.20, 220, 0.12));
-      set.timers.push(pulseScheduler(146, 0.14, 220, 0.10));
-    }
-    if (name === 'down' && set.timers.length === 0) set.timers.push(pulseScheduler(60, 0.30, 830, 0.20));
-    current = name;
-    started = true;
-  }
-
-  function applyMaster() {
-    if (!master) return;
-    const a = ctx(); if (!a) return;
-    const t = a.currentTime;
-    try {
-      master.gain.cancelScheduledValues(t);
-      master.gain.setValueAtTime(master.gain.value, t);
-      master.gain.linearRampToValueAtTime(enabled ? vol : 0, t + 0.4);
-    } catch (_) {}
-  }
-
-  function on() { enabled = true; save(); applyMaster(); if (current) set(current); }
-  function off() { enabled = false; save(); applyMaster(); }
-  function toggle() { enabled ? off() : on(); return enabled; }
-  function setVolume(v) { vol = Math.max(0, Math.min(1, +v || 0)); save(); applyMaster(); if (current && started) { /* 重新淡到新音量 */ const a = ctx(); if (a) { const base = VOL[current] || 0.06; fadeLayer(current, (enabled ? vol : 0) * base, 0.5); } } }
-
-  function attach(getter) {
-    if (typeof getter === 'function') { userCtxGetter = getter; AC = null; master = null; }
-    return ctx() ? true : false;
-  }
-
-  return {
-    LS, LAYERS, VOL,
-    attach: attach,
-    set: set,
-    on: on, off: off, toggle: toggle,
-    isOn: () => enabled,
-    volume: () => vol,
-    setVolume: setVolume,
-    current: () => current,
-    _ctx: () => AC,
-    _master: () => master
-  };
-})();
-</script>
+<script src="bgm.js"></script>
 
 <script>
 /* 内联自 touch-ui.js · 自动生成，勿手工编辑 */
@@ -1385,6 +1204,7 @@ AK47.uniquifyMaterials=function(){const all=[];AK47.parts.forEach(function(p){co
 if(!window.THREE){document.getElementById('nogl').style.display='flex';document.getElementById('loader').style.display='none';return;}
 const $=id=>document.getElementById(id);
 const crossEl=$('cross');
+const scopeEl=$('scope');
 /* ★ §1.2 准星扩散：crossSpread 为当前扩散像素，updateCrosshair 每帧平滑逼近目标 */
 let crossSpread=0;
 const V3=THREE.Vector3;
@@ -1861,116 +1681,357 @@ postPts.push([-70,6],[-70,-4],[49,62.5],[28.5,62.5]);
 const gunRig=new THREE.Group();camPitch.add(gunRig);
 const HIP=new V3(0.24,-0.14,-0.44);          // 腰射
 const ADS=new V3(0,-0.013,-0.305);           // 开镜：照门/准星对齐屏幕中心
+/* ★ 开镜下沉补偿（仅 ADS 生效，乘 aimBlend 平滑过渡，腰射姿态不变）
+   ------------------------------------------------------------------
+   背景：这些自建模型的原点在「机匣中心」，瞄具/准星位于 y≈+0.05~0.13；
+   套用统一 ADS 位置后，枪身顶部会顶到甚至越过屏幕中心，把中心的红点/分划挡住。
+   （AK47 模型原点本身就是瞄具，天然对齐屏幕中心 → 不需要补偿，故为 0。）
+   取值：以「AK47（天然不挡）」为基准反推出目标位——让各枪最贴近中心的部件落到
+   ndc_y ≈ -0.075（AC-47 自身约为 -0.087），既彻底让开红点，又不至于把枪沉出画面。
+   想再微调观感，直接改下面这些数字即可（数值越大，枪沉得越低）。 */
+const ADS_OFF=[
+  -0.044,   // 0 手枪（GLOCK 18C：机械瞄具顶面 0.042，比旧模高 0.016）
+  0,        // 1 AK-47：模型原点即瞄具，无需下沉（未替换）
+  -0.020,   // 2 霰弹枪（新泵动模：枪管/照门顶面 0.021，比旧模低 0.010）
+  -0.033,   // 3 SMG（新模照门顶面 0.033，比旧模高 0.003）
+  -0.082,   // 4 狙击枪（LRX-9：镜筒顶面 0.082，比旧模高 0.034 → 沉得最多）
+  0         // 5 近战槽：见 MELEE_ADS_OFF（棒球棍/斧头 高度差很大）
+];
+const MELEE_ADS_OFF=[-0.023,-0.072];           // 槽 6：0=棒球棍（顶面 0.017）/ 1=斧头（顶面 0.063）
 let aimBlend=0;
 const rifle=window.AK47?AK47.build(renderer):null;
 
 /* 副武器：泵动霰弹枪。与 AK 用同一套本地坐标约定（枪口沿 +X），
    直接套 scale 0.40 / rotation.y = PI/2 即可对齐第一人称视角。 */
-/* ★ §1.1 手枪：紧凑手枪，短滑套 + 握把。沿 +X 为枪口（与 AK/霰弹约定一致）。 */
+/* ★ §1.1 手枪：GLOCK 18C（提取自 handgun.html，第一人称适配） */
 function buildPistol(){
  const g=new THREE.Group();
- const metal=new THREE.MeshStandardMaterial({color:0x2b2f36,roughness:.36,metalness:.88});
- const dark =new THREE.MeshStandardMaterial({color:0x16191d,roughness:.66,metalness:.42});
- const grip =new THREE.MeshStandardMaterial({color:0x24282e,roughness:.86,metalness:.10});
- const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
- const HALF=Math.PI/2;
- put(new THREE.BoxGeometry(0.24,0.088,0.052),metal,0.03,0.02,0);          // 滑套
- put(new THREE.BoxGeometry(0.20,0.070,0.044),dark,-0.02,0.012,0);          // 套筒座
- put(new THREE.CylinderGeometry(0.014,0.014,0.10,8),metal,0.20,0.02,0,HALF); // 枪口
- put(new THREE.BoxGeometry(0.055,0.135,0.052),grip,-0.075,-0.075,0,0.18);   // 握把
- put(new THREE.BoxGeometry(0.045,0.028,0.030),dark,-0.02,-0.012,0);         // 扳机护圈
- put(new THREE.BoxGeometry(0.010,0.026,0.010),metal,-0.02,0.002,0);         // 扳机
- put(new THREE.BoxGeometry(0.024,0.014,0.030),brassDummy(),0.145,0.058,0);  // 准星
- put(new THREE.BoxGeometry(0.020,0.012,0.026),dark,-0.095,0.058,0);         // 照门
+ const M=new THREE.Group(); g.add(M);
+ const slide=new THREE.MeshStandardMaterial({color:0x1b1c1f,metalness:.86,roughness:.40});
+ const steel=new THREE.MeshStandardMaterial({color:0xb8bbc0,metalness:1,roughness:.30});
+ const dark =new THREE.MeshStandardMaterial({color:0x0a0a0b,metalness:.40,roughness:.72});
+ const white=new THREE.MeshStandardMaterial({color:0xe9e6dd,metalness:.10,roughness:.50});
+ const poly =new THREE.MeshStandardMaterial({color:0x202124,metalness:.06,roughness:.88});
+ /* 滑套轮廓挤出 */
+ const ss=new THREE.Shape();
+ [[-2.2,0],[1.5,0],[2.2,0.28],[2.2,0.60],[2.05,0.72],[-2.2,0.72]].forEach(([x,y],i)=>i?ss.lineTo(x,y):ss.moveTo(x,y));
+ ss.closePath();
+ const sgeo=new THREE.ExtrudeGeometry(ss,{depth:.5,bevelEnabled:true,bevelThickness:.03,bevelSize:.028,bevelSegments:2,curveSegments:4});
+ sgeo.translate(0,0,-.28); M.add(new THREE.Mesh(sgeo,slide));
+ /* 防滑纹 */
+ const tooth=new THREE.BoxGeometry(.055,.62,.60);
+ for(let i=0;i<9;i++){const t=new THREE.Mesh(tooth,slide);t.position.set(-1.95+i*.1,.37,0);t.rotation.z=.35;M.add(t);}
+ for(let i=0;i<4;i++){const t=new THREE.Mesh(tooth,slide);t.position.set(.82+i*.12,.37,0);t.rotation.z=.35;M.add(t);}
+ /* 补偿开孔 + 枪管段 */
+ {const comp=new THREE.Mesh(new THREE.BoxGeometry(.46,.09,.30),steel);comp.position.set(1.72,.70,0);M.add(comp);
+  [1.62,1.82].forEach(px=>{const p=new THREE.Mesh(new THREE.BoxGeometry(.13,.03,.13),dark);p.position.set(px,.745,0);M.add(p);});}
+ /* 抛壳口 */
+ {const ep=new THREE.Mesh(new THREE.BoxGeometry(.55,.18,.012),dark);ep.position.set(1.18,.47,.283);M.add(ep);}
+ /* 三点式瞄具 */
+ {const fs=new THREE.Mesh(new THREE.BoxGeometry(.09,.10,.09),slide);fs.position.set(2.0,.77,0);M.add(fs);
+  const fd=new THREE.Mesh(new THREE.BoxGeometry(.024,.05,.05),white);fd.position.set(2.048,.78,0);M.add(fd);
+  [-.16,.16].forEach(z=>{const r=new THREE.Mesh(new THREE.BoxGeometry(.10,.09,.12),slide);r.position.set(-1.9,.765,z);M.add(r);
+   const d=new THREE.Mesh(new THREE.BoxGeometry(.024,.05,.05),white);d.position.set(-1.952,.77,z);M.add(d);});}
+ /* 快慢机 */
+ {const sg=new THREE.Group();sg.position.set(-1.52,.42,-.31);
+  const cg=new THREE.CylinderGeometry(.125,.125,.08,20);cg.rotateX(Math.PI/2);sg.add(new THREE.Mesh(cg,steel));
+  const mk=new THREE.Mesh(new THREE.BoxGeometry(.03,.10,.03),white);mk.position.set(0,.085,-.05);sg.add(mk);
+  sg.rotation.z=.35;M.add(sg);}
+ /* 枪管 */
+ {const bg=new THREE.CylinderGeometry(.14,.14,.64,20);bg.rotateZ(Math.PI/2);const b=new THREE.Mesh(bg,steel);b.position.set(2.15,.75,0);M.add(b);
+  const hg=new THREE.CylinderGeometry(.165,.165,.10,20);hg.rotateZ(Math.PI/2);const h=new THREE.Mesh(hg,steel);h.position.set(2.42,.75,0);M.add(h);
+  const bore=new THREE.Mesh(new THREE.CircleGeometry(.10,16),dark);bore.rotation.y=Math.PI/2;bore.position.set(2.478,.75,0);M.add(bore);}
+ /* 框架 + 握把 + 护弓 */
+ {const s=new THREE.Shape();
+  [[-2.05,.30],[-1.90,-.04],[-1.62,-.55],[-1.66,-1.35],[-2.10,-2.35],[-2.12,-2.55],[-1.10,-2.55],[-1.14,-2.32],[-.70,-1.35],[-.72,-.50],[-.74,-.95],[.52,-.95],[.58,-.55],[.58,.02],[1.32,.02],[1.32,.30]].forEach(([x,y],i)=>i?s.lineTo(x,y):s.moveTo(x,y));
+  s.closePath();
+  const hole=new THREE.Path();
+  [[-.55,-.30],[.46,-.30],[.48,-.78],[-.52,-.78]].forEach(([x,y],i)=>i?hole.lineTo(x,y):hole.moveTo(x,y));
+  hole.closePath();s.holes.push(hole);
+  const fg=new THREE.ExtrudeGeometry(s,{depth:.58,bevelEnabled:true,bevelThickness:.02,bevelSize:.02,bevelSegments:2});
+  fg.translate(0,0,-.31);M.add(new THREE.Mesh(fg,poly));}
+ /* 扳机 */
+ {const tr=new THREE.Group();tr.position.set(-.05,-.30,0);
+  const bl=new THREE.Mesh(new THREE.BoxGeometry(.09,.42,.13),poly);bl.position.y=-.20;tr.add(bl);
+  const lv=new THREE.Mesh(new THREE.BoxGeometry(.05,.20,.10),poly);lv.position.set(.05,-.12,0);tr.add(lv);M.add(tr);}
+ /* 框架小件 */
+ {const st=new THREE.Mesh(new THREE.BoxGeometry(.08,.30,.05),dark);st.position.set(-.52,.40,-.315);M.add(st);
+  const pd=new THREE.Mesh(new THREE.BoxGeometry(.17,.12,.06),dark);pd.position.set(-.45,.20,-.33);M.add(pd);
+  const bt=new THREE.Mesh(new THREE.BoxGeometry(.15,.24,.07),dark);bt.position.set(-1.02,-.30,-.33);M.add(bt);
+  const pg=new THREE.CylinderGeometry(.045,.045,.72,12);pg.rotateX(Math.PI/2);
+  const pn=new THREE.Mesh(pg,steel);pn.position.set(-1.5,.16,0);M.add(pn);}
+ /* 弹匣 */
+ {const mg=new THREE.Group();
+  const bd=new THREE.Mesh(new THREE.BoxGeometry(.55,2.30,.46),poly);
+  const bs=new THREE.Mesh(new THREE.BoxGeometry(.80,.14,.58),dark);bs.position.y=-1.16;
+  mg.add(bd,bs);mg.position.set(-1.39,-1.48,0);mg.rotation.z=-.22;M.add(mg);}
+ /* 归一化：枪口落本地 +X ≈0.20 */
+ const S=0.20/(2.478*0.40)*0.389;
+ M.scale.setScalar(S);
+ M.position.set(-1.05*S+0.1375,0.62*S-0.015,-0.1375+0.1375);
  return g;
 }
-/* ★ §1.1 SMG：紧凑冲锋枪，弹匣前握 + 折叠托。 */
+/* ★ §1.1 SMG：紧凑冲锋枪（程序化，风格对齐其它枪）。 */
 function buildSMG(){
  const g=new THREE.Group();
+ const M=new THREE.Group(); g.add(M);
  const metal=new THREE.MeshStandardMaterial({color:0x2a2e35,roughness:.42,metalness:.80});
  const dark =new THREE.MeshStandardMaterial({color:0x171a1e,roughness:.65,metalness:.40});
  const poly =new THREE.MeshStandardMaterial({color:0x1f242b,roughness:.9,metalness:.05});
- const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
+ const steel=new THREE.MeshStandardMaterial({color:0x9aa1a8,roughness:.30,metalness:1.0});
+ const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;M.add(m);return m;};
  const HALF=Math.PI/2;
- put(new THREE.BoxGeometry(0.34,0.100,0.064),metal,0.03,0,0);              // 机匣
- put(new THREE.CylinderGeometry(0.019,0.019,0.30,10),metal,0.34,0.010,0,HALF); // 枪管
- put(new THREE.CylinderGeometry(0.026,0.026,0.045,10),dark,0.47,0.010,0,HALF); // 消焰器
- put(new THREE.BoxGeometry(0.05,0.16,0.05),poly,0.10,-0.105,0);            // 前握把
- put(new THREE.BoxGeometry(0.06,0.20,0.05),poly,-0.09,-0.115,0,0.12);      // 弹匣
- put(new THREE.BoxGeometry(0.055,0.13,0.06),poly,-0.20,-0.06,0,0.16);      // 握把
- put(new THREE.BoxGeometry(0.20,0.030,0.045),dark,-0.33,-0.005,0);         // 折叠托
- put(new THREE.BoxGeometry(0.020,0.024,0.03),dark,0.02,0.064,0);           // 照门
- put(new THREE.SphereGeometry(0.010,6,5),metal,0.50,0.036,0);              // 准星
+ const cylX=(r,len,mat,seg)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg||12),mat);m.rotation.z=-HALF;return m;};
+ put(new THREE.BoxGeometry(.34,.100,.064),metal,.03,0,0);
+ put(new THREE.BoxGeometry(.12,.028,.070),dark,.02,.058,0);
+ {const b=cylX(.019,.30,metal);b.position.set(.34,.010,0);M.add(b);}
+ {const f=cylX(.026,.045,steel);f.position.set(.47,.010,0);M.add(f);}
+ put(new THREE.BoxGeometry(.05,.16,.05),poly,.10,-.105,0);
+ for(let i=0;i<3;i++)put(new THREE.BoxGeometry(.052,.006,.052),dark,.10,-.070-i*.03,0);
+ put(new THREE.BoxGeometry(.06,.20,.05),poly,-.09,-.115,0,.12);
+ put(new THREE.BoxGeometry(.064,.014,.054),dark,-.078,-.222,0,.12);
+ put(new THREE.BoxGeometry(.055,.13,.06),poly,-.20,-.06,0,.16);
+ put(new THREE.BoxGeometry(.20,.030,.045),dark,-.33,-.005,0);
+ put(new THREE.BoxGeometry(.022,.048,.045),dark,-.43,-.012,0);
+ put(new THREE.BoxGeometry(.020,.024,.03),dark,.02,.064,0);
+ {const fs=new THREE.Mesh(new THREE.SphereGeometry(.010,8,6),steel);fs.position.set(.50,.036,0);M.add(fs);}
+ put(new THREE.BoxGeometry(.012,.033,.012),steel,-.02,-.045,0);
+ {const tg=new THREE.Mesh(new THREE.TorusGeometry(.028,.004,6,12),dark);tg.position.set(-.02,-.058,0);M.add(tg);}
+ const S=0.34/(0.50*0.40)*0.581;
+ M.scale.setScalar(S);M.position.set(.02+0.015,.01-0.0025,0.015-0.015);
  return g;
 }
-/* ★ §1.1 狙击枪：长枪管 + 高倍镜 + 两脚架。 */
+/* ★ §1.1 狙击枪：LRX-9 «LONGSHADOW»（提取自 sniper_rifle.html，第一人称适配）。 */
 function buildSniper(){
  const g=new THREE.Group();
- const metal=new THREE.MeshStandardMaterial({color:0x272b31,roughness:.38,metalness:.82});
- const dark =new THREE.MeshStandardMaterial({color:0x15181c,roughness:.62,metalness:.45});
- const stock=new THREE.MeshStandardMaterial({color:0x35402f,roughness:.85,metalness:.06});
- const glass=new THREE.MeshStandardMaterial({color:0x1a3b52,roughness:.15,metalness:.9});
- const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
- const HALF=Math.PI/2;
- put(new THREE.BoxGeometry(0.44,0.108,0.070),metal,0.04,0,0);              // 机匣
- put(new THREE.CylinderGeometry(0.022,0.022,0.78,12),metal,0.62,0.012,0,HALF); // 长枪管
- put(new THREE.CylinderGeometry(0.030,0.030,0.07,12),dark,1.00,0.012,0,HALF);  // 枪口制退器
- put(new THREE.CylinderGeometry(0.035,0.035,0.26,12),dark,0.05,0.085,0,HALF);  // 镜筒
- put(new THREE.SphereGeometry(0.036,10,8),glass,0.185,0.085,0);            // 物镜
- put(new THREE.SphereGeometry(0.030,10,8),glass,-0.085,0.085,0);           // 目镜
- put(new THREE.BoxGeometry(0.06,0.07,0.05)===undefined?0: new THREE.BoxGeometry(0.06,0.05,0.05),dark,0.02,-0.10,0); // 弹匣
- put(new THREE.BoxGeometry(0.24,0.13,0.075),stock,-0.28,-0.04,0);          // 托身
- put(new THREE.BoxGeometry(0.06,0.15,0.078),stock,-0.42,-0.055,0);         // 托底
- put(new THREE.BoxGeometry(0.055,0.13,0.06),stock,-0.10,-0.075,0,0.14);    // 握把
+ const M=new THREE.Group(); g.add(M);
+ const metal=new THREE.MeshStandardMaterial({color:0x22252b,metalness:.85,roughness:.42});
+ const steel=new THREE.MeshStandardMaterial({color:0x5c636c,metalness:.95,roughness:.28});
+ const body =new THREE.MeshStandardMaterial({color:0x1b1e24,metalness:.55,roughness:.58});
+ const stockM=new THREE.MeshStandardMaterial({color:0x1b1d22,metalness:.20,roughness:.82});
+ const black=new THREE.MeshStandardMaterial({color:0x0c0d10,metalness:.35,roughness:.72});
+ const rubber=new THREE.MeshStandardMaterial({color:0x0a0a0c,metalness:0,roughness:.95});
+ const scopeM=new THREE.MeshStandardMaterial({color:0x101216,metalness:.70,roughness:.45});
+ const lens =new THREE.MeshStandardMaterial({color:0x0a1622,metalness:.90,roughness:.06});
+ const cylZ=(rT,rB,len,m,seg)=>{const x=new THREE.Mesh(new THREE.CylinderGeometry(rT,rB,len,seg||20),m);x.rotation.x=Math.PI/2;return x;};
+ const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+ const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+ const barBetween=(a,b,r,m)=>{const d=b.clone().sub(a),len=d.length();const mm=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,10),m);mm.position.copy(a).addScaledVector(d,.5);mm.quaternion.setFromUnitVectors(V3(0,1,0),d.normalize());return mm;};
+ const extrudeYZ=(pts,depth,m)=>{const s=new THREE.Shape();s.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)s.lineTo(pts[i][0],pts[i][1]);const gg=new THREE.ExtrudeGeometry(s,{depth,bevelEnabled:false});const mm=new THREE.Mesh(gg,m);mm.rotation.y=-Math.PI/2;mm.position.x=depth/2;return mm;};
+ const makeRail=(len,mBase,mTeeth)=>{const rg=new THREE.Group();rg.add(box(.034,.007,len,mBase));const n=Math.max(3,Math.round(len/.024));for(let i=0;i<n;i++){const t=box(.034,.0045,.006,mTeeth);t.position.set(0,.0048,-len/2+(i+.5)*len/n);rg.add(t);}return rg;};
+ /* 抑制器 */
+ {const supp=new THREE.Group();
+  const t=cylZ(.027,.027,.25,metal,32);t.position.z=-1.0;supp.add(t);
+  for(let i=0;i<5;i++){const r=cylZ(.0284,.0284,.007,metal,32);r.position.z=-.92-i*.04;supp.add(r);}
+  const fr=cylZ(.025,.0285,.024,metal,32);fr.position.z=-1.135;supp.add(fr);
+  const bk=cylZ(.028,.02,.05,metal,32);bk.position.z=-.875;supp.add(bk);
+  const hole=cylZ(.009,.009,.004,black);hole.position.z=-1.148;supp.add(hole);M.add(supp);}
+ /* 枪管 + 制退器 */
+ {const barrel=new THREE.Group();
+  const t=cylZ(.0115,.0125,.72,metal,24);t.position.z=-.52;barrel.add(t);
+  const th=cylZ(.0145,.0145,.06,metal,24);th.position.z=-.86;barrel.add(th);
+  const tip=cylZ(.0145,.0145,.006,black,24);tip.position.z=-.892;barrel.add(tip);
+  const nut=cylZ(.021,.021,.048,metal,6);nut.position.z=-.155;barrel.add(nut);
+  const br=new THREE.Group();br.add(cylZ(.0165,.0165,.072,steel,18));
+  for(let i=0;i<3;i++)for(const s of [1,-1]){const p=box(.004,.0062,.014,black);p.position.set(0,s*.0155,-.018-i*.021);br.add(p);}
+  const be=cylZ(.0145,.0165,.008,steel,18);be.position.z=-.04;br.add(be);
+  br.position.z=-.928;barrel.add(br);M.add(barrel);}
+ /* 护木 */
+ {const fore=new THREE.Group();
+  const oct=cylZ(.03,.03,.43,body,8);oct.rotation.z=Math.PI/8;oct.position.z=-.375;fore.add(oct);
+  const cF=cylZ(.031,.031,.014,body,8);cF.rotation.z=Math.PI/8;cF.position.z=-.578;fore.add(cF);
+  const cR=cylZ(.032,.032,.016,body,8);cR.rotation.z=Math.PI/8;cR.position.z=-.158;fore.add(cR);
+  const rT=makeRail(.4,body,black);rT.position.set(0,.0305,-.375);fore.add(rT);
+  const rB=makeRail(.14,body,black);rB.rotation.x=Math.PI;rB.position.set(0,-.0305,-.475);fore.add(rB);
+  for(const sx of [1,-1])for(let i=0;i<5;i++){const s=box(.0025,.012,.048,black);s.position.set(sx*.0295,0,-.2-i*.068);fore.add(s);}
+  M.add(fore);}
+ /* 两脚架（收拢态） */
+ {const bipod=new THREE.Group();
+  bipod.add(box(.032,.016,.052,black));
+  const cb=box(.036,.012,.03,steel);cb.position.y=.012;bipod.add(cb);
+  for(const sx of [1,-1]){
+   const piv=new THREE.Group();piv.position.set(sx*.017,-.008,0);
+   const up=new THREE.Mesh(new THREE.CylinderGeometry(.0065,.006,.19,10),steel);up.position.y=-.095;piv.add(up);
+   const knee=new THREE.Group();knee.position.y=-.19;
+   const lo=new THREE.Mesh(new THREE.CylinderGeometry(.005,.0045,.20,10),steel);lo.position.y=-.10;knee.add(lo);
+   const ft=new THREE.Mesh(new THREE.CylinderGeometry(.0035,.0105,.03,10),rubber);ft.position.y=-.215;knee.add(ft);
+   piv.add(knee);bipod.add(piv);
+   piv.rotation.z=sx*.10;knee.rotation.z=-sx*2.55;
+  }
+  bipod.position.set(0,-.037,-.475);M.add(bipod);}
+ /* 机匣 */
+ {const recv=new THREE.Group();
+  const b=box(.052,.062,.36,metal);b.position.z=.03;recv.add(b);
+  const sh=box(.054,.014,.36,body);sh.position.set(0,.024,.03);recv.add(sh);
+  const port=box(.002,.022,.052,black);port.position.set(.0268,.006,.09);recv.add(port);
+  const mw=box(.05,.024,.09,metal);mw.position.set(0,-.042,-.085);recv.add(mw);
+  const rel=box(.014,.008,.03,black);rel.position.set(-.0275,-.028,-.05);recv.add(rel);
+  const rr=makeRail(.37,metal,black);rr.position.set(0,.0345,.02);recv.add(rr);
+  const tg=new THREE.Mesh(new THREE.TorusGeometry(.024,.0028,10,26,Math.PI),metal);tg.rotation.z=Math.PI;tg.position.set(0,-.062,.185);recv.add(tg);
+  const tr=box(.007,.028,.011,steel);tr.rotation.x=-.12;tr.position.set(0,-.056,.183);recv.add(tr);
+  M.add(recv);}
+ /* 枪机 */
+ {const bolt=new THREE.Group();
+  const b=cylZ(.0165,.0165,.17,steel,20);b.position.z=.295;bolt.add(b);
+  const cap=cylZ(.019,.019,.028,steel,20);cap.position.z=.388;bolt.add(cap);
+  const kb=new THREE.Mesh(new THREE.SphereGeometry(.0125,16,12),steel);kb.position.z=.41;bolt.add(kb);
+  const arm=new THREE.Mesh(new THREE.CylinderGeometry(.0055,.0055,.062,12),steel);arm.rotation.z=-(Math.PI/2+.35);arm.position.set(.036,-.014,.30);bolt.add(arm);
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(.0115,14,10),steel);ball.position.set(.066,-.025,.30);bolt.add(ball);
+  M.add(bolt);}
+ /* 弹匣 */
+ {const mag=new THREE.Group();
+  mag.add(extrudeYZ([[-.05,-.046],[-.148,-.046],[-.158,-.128],[-.066,-.142]],.034,metal));
+  const bt=box(.036,.01,.012,black);bt.rotation.x=.35;bt.position.set(0,-.138,-.112);mag.add(bt);
+  for(let i=0;i<3;i++){const r=box(.038,.002,.004,black);r.position.set(0,-.07-i*.03,-.155+i*.026);mag.add(r);}
+  M.add(mag);}
+ /* 瞄准镜 */
+ {const scope=new THREE.Group();scope.position.y=.105;
+  const tube=cylZ(.024,.024,.30,scopeM,28);tube.position.z=.05;scope.add(tube);
+  const cone=cylZ(.024,.036,.07,scopeM,28);cone.position.z=-.135;scope.add(cone);
+  const foc=cylZ(.0365,.0365,.045,scopeM,28);foc.position.z=-.19;scope.add(foc);
+  for(let i=0;i<4;i++){const r=cylZ(.0372,.0372,.004,scopeM,28);r.position.z=-.208+i*.011;scope.add(r);}
+  const bell=cylZ(.036,.041,.075,scopeM,28);bell.position.z=-.25;scope.add(bell);
+  const obj=cylZ(.038,.038,.004,lens,32);obj.position.z=-.286;scope.add(obj);
+  const eye=cylZ(.031,.031,.06,scopeM,28);eye.position.z=.235;scope.add(eye);
+  const ec=cylZ(.034,.028,.045,scopeM,28);ec.position.z=.29;scope.add(ec);
+  const oc=cylZ(.028,.028,.004,lens,32);oc.position.z=.311;scope.add(oc);
+  const tb=box(.034,.024,.05,scopeM);tb.position.set(0,.123,.03);scope.add(tb);
+  const t1=new THREE.Mesh(new THREE.CylinderGeometry(.0145,.0145,.018,20),scopeM);t1.position.set(0,.142,.03);scope.add(t1);
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const k=box(.003,.004,.003,scopeM);k.position.set(Math.sin(a)*.0145,.142,.03+Math.cos(a)*.0145);scope.add(k);}
+  const t2=new THREE.Mesh(new THREE.CylinderGeometry(.013,.013,.016,20),scopeM);t2.rotation.z=Math.PI/2;t2.position.set(.037,.105,.03);scope.add(t2);
+  for(const z of [-.01,.12]){const b1=box(.032,.02,.026,metal);b1.position.set(0,-.053,z);scope.add(b1);
+   for(const sx of [1,-1]){const p=box(.007,.032,.026,metal);p.position.set(sx*.0145,-.043,z);scope.add(p);}
+   const rc=cylZ(.0268,.0268,.017,metal,24);rc.position.set(0,0,z);scope.add(rc);}
+  M.add(scope);}
+ /* 枪托 + 握把 */
+ {const stock=new THREE.Group();
+  stock.add(extrudeYZ([[.195,.03],[.315,.024],[.50,0],[.535,-.055],[.535,-.115],[.40,-.128],[.315,-.15],[.26,-.148],[.235,-.12],[.205,-.075],[.195,-.075]],.044,stockM));
+  const blk=box(.048,.05,.05,stockM);blk.position.set(0,-.012,.215);stock.add(blk);
+  const chk=box(.046,.026,.15,stockM);chk.position.set(0,.045,.385);stock.add(chk);
+  const kn=new THREE.Mesh(new THREE.CylinderGeometry(.009,.009,.012,14),metal);kn.rotation.z=Math.PI/2;kn.position.set(.029,.045,.385);stock.add(kn);
+  const pad=box(.05,.077,.016,rubber);pad.position.set(0,-.085,.543);stock.add(pad);
+  const grip=new THREE.Group();grip.add(box(.03,.115,.044,stockM));
+  for(let i=0;i<4;i++)for(const sx of [1,-1]){const s=box(.0008,.015,.036,black);s.position.set(sx*.0155,-.035+i*.019,0);grip.add(s);}
+  grip.rotation.x=.25;grip.position.set(0,-.062,.245);stock.add(grip);
+  M.add(stock);}
+ /* 朝向：原 -Z 为枪口 → 绕 Y 转 -90° 使枪口朝 +X */
+ M.rotation.y=-Math.PI/2;
+ const S=0.60/(1.16*0.40)*0.675;
+ M.scale.setScalar(S);
+ M.position.x=0.03; M.position.y=-.42+0.16/S+0.2175; M.position.z=0;
  return g;
 }
-/* ★ §1.1 斧头：木柄 + 单刃斧头（近战槽轮换用）。 */
+/* ★ §1.1 斧头：野营斧（提取自 axe.html）。 */
 function buildAxe(){
  const g=new THREE.Group();
- const wood=new THREE.MeshStandardMaterial({color:0x6d4626,roughness:.82,metalness:.04});
- const steel=new THREE.MeshStandardMaterial({color:0x7d838b,roughness:.42,metalness:.78});
- const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
- const HALF=Math.PI/2;
- put(new THREE.CylinderGeometry(0.012,0.014,0.66,8),wood,0.30,0.02,0,HALF);   // 木柄
- put(new THREE.BoxGeometry(0.10,0.11,0.030),steel,0.60,0.075,0);              // 斧头
- put(new THREE.CylinderGeometry(0.020,0.020,0.06,8),steel,0.58,0.05,0,HALF);  // 斧箍
+ const A=new THREE.Group(); g.add(A);
+ const steel=new THREE.MeshStandardMaterial({color:0xd9dade,metalness:.92,roughness:.55});
+ const brass=new THREE.MeshStandardMaterial({color:0xc79a4b,metalness:1,roughness:.32});
+ const wood =new THREE.MeshStandardMaterial({color:0x9a6b3a,metalness:.04,roughness:.62});
+ const dark =new THREE.MeshStandardMaterial({color:0x241a10,metalness:.10,roughness:.92});
+ const leath=new THREE.MeshStandardMaterial({color:0x74502f,metalness:0,roughness:.88});
+ /* 斧刃轮廓 */
+ const bs=new THREE.Shape();
+ bs.moveTo(-8.4,1.3);bs.quadraticCurveTo(-8.85,0,-8.4,-1.3);bs.quadraticCurveTo(-7.2,-2.1,-5.0,-2.35);
+ bs.quadraticCurveTo(-2.9,-2.6,-1.1,-3.3);bs.quadraticCurveTo(1.8,-4.5,3.6,-4.7);bs.quadraticCurveTo(5.5,-4.9,6.3,-3.2);
+ bs.quadraticCurveTo(7.4,-1.2,7.2,.5);bs.quadraticCurveTo(6.9,2.0,5.3,2.8);bs.quadraticCurveTo(3.3,3.8,.9,3.3);
+ bs.quadraticCurveTo(-1.7,2.8,-3.2,2.35);bs.quadraticCurveTo(-5.8,1.85,-8.4,1.3);bs.closePath();
+ {const geo=new THREE.ExtrudeGeometry(bs,{depth:1.3,bevelEnabled:true,bevelThickness:.5,bevelSize:.5,bevelSegments:4,curveSegments:24});
+  geo.translate(0,0,-1.15);A.add(new THREE.Mesh(geo,steel));}
+ /* 黄铜锁销 */
+ {const pn=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,2.9,12),brass);pn.rotation.x=Math.PI/2;pn.position.set(-7.6,0,0);A.add(pn);
+  const cg=new THREE.CylinderGeometry(.52,.52,.22,14);
+  const c1=new THREE.Mesh(cg,brass);c1.rotation.x=Math.PI/2;c1.position.set(-7.6,0,1.5);A.add(c1);
+  const c2=new THREE.Mesh(cg,brass);c2.rotation.x=Math.PI/2;c2.position.set(-7.6,0,-1.5);A.add(c2);}
+ /* 涨紧楔 */
+ {const w=new THREE.Mesh(new THREE.BoxGeometry(.48,2.3,1.9),steel);w.position.set(-4.5,3.65,0);A.add(w);
+  const sm=new THREE.Mesh(new THREE.BoxGeometry(3.7,.1,.3),dark);sm.position.set(-4.5,4.71,0);A.add(sm);}
+ /* 斧柄 */
+ {const hd=new THREE.Mesh(new THREE.CylinderGeometry(1.85,1.85,7.2,24),wood);hd.position.set(-4.5,1.1,0);hd.scale.z=.45;A.add(hd);
+  const pts=[[1.98,-2.4],[2.06,-3.2],[2.12,-8],[2.2,-16],[2.14,-26],[2.05,-36],[2.1,-43],[2.3,-51],[2.52,-56],[2.36,-58.4],[1.6,-59.3],[.02,-59.6]].map(p=>new THREE.Vector2(p[0],p[1]));
+  const bd=new THREE.Mesh(new THREE.LatheGeometry(pts,32),wood);bd.scale.z=.55;bd.position.x=-4.5;A.add(bd);}
+ /* 皮革缠带 */
+ const helix=(r,y0,y1,turns,zK)=>{const pts=[];const N=100;
+  for(let i=0;i<=N;i++){const t=i/N,a=t*turns*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*r,y0+(y1-y0)*t,Math.sin(a)*r*zK));}
+  return new THREE.CatmullRomCurve3(pts);};
+ const leather=(y0,y1,r)=>{const tube=new THREE.Mesh(new THREE.TubeGeometry(helix(r,y0,y1,5.5,.62),160,.37,10),leath);tube.position.x=-4.5;A.add(tube);};
+ leather(-3.2,-8.6,2.32);leather(-39,-45,2.24);
+ /* 端箍 */
+ {const ring=new THREE.Mesh(new THREE.CylinderGeometry(2.62,2.44,3.1,32),steel);ring.position.set(-4.5,-57.35,0);ring.scale.z=.58;A.add(ring);
+  const t1=new THREE.Mesh(new THREE.TorusGeometry(2.6,.1,8,32),steel);t1.rotation.x=Math.PI/2;t1.position.set(-4.5,-56.1,0);t1.scale.z=.58;A.add(t1);
+  const t2=new THREE.Mesh(new THREE.TorusGeometry(2.6,.1,8,32),steel);t2.rotation.x=Math.PI/2;t2.position.set(-4.5,-58.5,0);t2.scale.z=.58;A.add(t2);}
+ /* 朝向：柄轴 -Y → 绕 Z 转 -90°，柄尾朝 -X、刃区朝 +X */
+ A.rotation.z=-Math.PI/2;
+ const S=0.50/(63.6*0.40)*0.538;
+ A.scale.setScalar(S);
+ A.position.set(0.60,0.06,0);
  return g;
 }
-/* 棒球棍（近战槽默认）：木棍，粗端在外。 */
+/* 棒球棍（近战槽默认，提取自 baseball_bat.html）。 */
 function buildBat(){
  const g=new THREE.Group();
- const wood=new THREE.MeshStandardMaterial({color:0x9a6b3a,roughness:.80,metalness:.05});
- const dark=new THREE.MeshStandardMaterial({color:0x3a2a1c,roughness:.88,metalness:.04});
- const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
- const HALF=Math.PI/2;
- put(new THREE.CylinderGeometry(0.020,0.014,0.20,8),dark,0.02,0.02,0,HALF);   // 握把
- put(new THREE.CylinderGeometry(0.016,0.030,0.42,10),wood,0.33,0.02,0,HALF);  // 棍身
- put(new THREE.SphereGeometry(0.031,10,8),wood,0.55,0.02,0);                  // 棍头
+ const cv=document.createElement('canvas');cv.width=64;cv.height=256;
+ const x=cv.getContext('2d');
+ x.fillStyle='#c99a5f';x.fillRect(0,0,64,256);
+ for(let i=0;i<60;i++){x.strokeStyle=`rgba(${90+Math.random()*60|0},${55+Math.random()*35|0},${22+Math.random()*18|0},${.12+Math.random()*.2})`;
+  x.lineWidth=.5+Math.random()*1.6;const px=Math.random()*64;x.beginPath();x.moveTo(px,0);x.lineTo(px+(Math.random()-.5)*4,256);x.stroke();}
+ const wtex=new THREE.CanvasTexture(cv);wtex.colorSpace=THREE.SRGBColorSpace;wtex.wrapS=wtex.wrapT=THREE.RepeatWrapping;
+ const wood=new THREE.MeshStandardMaterial({map:wtex,roughness:.55,metalness:.04});
+ const knob=new THREE.MeshStandardMaterial({color:0x8a6236,roughness:.62,metalness:.04});
+ const PROFILE=[[0.02,0.0],[1.05,0.0],[1.35,0.12],[1.45,0.45],[1.45,1.15],[1.30,1.50],[1.15,1.75],[1.10,2.2],
+  [1.08,4.0],[1.07,8.0],[1.08,12.0],[1.10,16.0],[1.13,20.0],[1.17,24.0],[1.23,28.0],[1.33,32.0],[1.47,36.0],[1.65,40.0],[1.85,44.0],
+  [2.05,48.0],[2.25,52.0],[2.45,56.0],[2.63,60.0],[2.78,64.0],[2.90,68.0],[2.98,72.0],[3.02,75.0],[3.00,78.0],
+  [2.88,80.5],[2.60,82.8],[2.05,84.6],[1.30,85.9],[0.50,86.35],[0.02,86.4]];
+ const rawPts=PROFILE.map(p=>new THREE.Vector3(p[0],p[1],0));
+ const curve=new THREE.CatmullRomCurve3(rawPts,false,'centripetal');
+ const SMOOTH=curve.getSpacedPoints(200).map(p=>new THREE.Vector2(Math.max(0.02,p.x),p.y));
+ const bat=new THREE.Mesh(new THREE.LatheGeometry(SMOOTH,72),wood);
+ const cap=new THREE.Mesh(new THREE.CylinderGeometry(1.45,1.45,0.5,24),knob);cap.position.y=0.2;
+ const grp=new THREE.Group();grp.add(bat,cap);
+ grp.rotation.z=-Math.PI/2;
+ const S=0.50/(86.4*0.40)*0.528;
+ grp.scale.setScalar(S);
+ grp.position.set(-0.08,0.02,0);
+ g.add(grp);
  return g;
 }
 function brassDummy(){ return new THREE.MeshStandardMaterial({color:0xb98a3c,roughness:.32,metalness:.90}); }
 
 function buildShotgun(){
  const g=new THREE.Group();
- const metal=new THREE.MeshStandardMaterial({color:0x2b2f36,roughness:.40,metalness:.85});
- const dark =new THREE.MeshStandardMaterial({color:0x191c20,roughness:.62,metalness:.45});
- const wood =new THREE.MeshStandardMaterial({color:0x6d4626,roughness:.78,metalness:.04});
- const brass=new THREE.MeshStandardMaterial({color:0xb98a3c,roughness:.32,metalness:.90});
- const put=(geo,mat,x,y,z,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(rz)m.rotation.z=rz;g.add(m);return m;};
- const HALF=Math.PI/2;
- put(new THREE.BoxGeometry(0.30,0.105,0.076),metal,0.02,0,0);              // 机匣
- put(new THREE.BoxGeometry(0.06,0.05,0.082),dark,0.16,0.052,0);            // 抛壳口
- put(new THREE.CylinderGeometry(0.027,0.027,0.46,10),metal,0.37,0.014,0,HALF); // 枪管
- put(new THREE.CylinderGeometry(0.021,0.021,0.38,8),dark,0.32,-0.030,0,HALF);  // 弹仓管
- put(new THREE.CylinderGeometry(0.032,0.032,0.055,10),brass,0.548,0.014,0,HALF); // 枪口箍
- put(new THREE.BoxGeometry(0.135,0.078,0.088),wood,0.29,-0.038,0);         // 泵动前握
- put(new THREE.TorusGeometry(0.033,0.007,6,12),dark,-0.03,-0.056,0);       // 扳机护圈
- put(new THREE.BoxGeometry(0.012,0.033,0.012),metal,-0.03,-0.030,0);       // 扳机
- put(new THREE.BoxGeometry(0.17,0.098,0.070),wood,-0.20,-0.026,0);         // 枪托颈
- put(new THREE.BoxGeometry(0.20,0.140,0.076),wood,-0.32,-0.076,0);         // 托身
- put(new THREE.BoxGeometry(0.022,0.145,0.082),dark,-0.42,-0.084,0);        // 托底板
- put(new THREE.BoxGeometry(0.022,0.024,0.05),dark,0.02,0.062,0);           // 照门
- put(new THREE.SphereGeometry(0.012,6,5),brass,0.552,0.040,0);             // 准星珠
+ const M=new THREE.Group(); g.add(M);
+ const gunmetal=new THREE.MeshStandardMaterial({color:0x272b31,metalness:.90,roughness:.42});
+ const steel   =new THREE.MeshStandardMaterial({color:0x9aa1a8,metalness:1.0,roughness:.28});
+ const wood    =new THREE.MeshStandardMaterial({color:0x7a4a22,metalness:.04,roughness:.62});
+ const polymer =new THREE.MeshStandardMaterial({color:0x16181b,metalness:.10,roughness:.75});
+ const rubber  =new THREE.MeshStandardMaterial({color:0x101114,metalness:0,roughness:.95});
+ const brass   =new THREE.MeshStandardMaterial({color:0xc9993f,metalness:1.0,roughness:.32});
+ const cylX=(r,len,m,seg)=>{const x=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg||24),m);x.rotation.z=-Math.PI/2;return x;};
+ const box=(w,h,d,m,x,y,z)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);M.add(b);return b;};
+ box(.30,.064,.052,gunmetal,-.02,0,0);
+ box(.085,.028,.002,rubber,-.045,.006,.0265);
+ {const b=cylX(.0125,.52,gunmetal);b.position.set(.38,.002,0);M.add(b);
+  box(.5,.005,.008,gunmetal,.36,.0195,0);
+  for(let i=0;i<8;i++)box(.006,.011,.003,gunmetal,.13+i*.062,.013,0);}
+ {const mz=cylX(.0145,.035,gunmetal);mz.position.set(.635,.002,0);M.add(mz);
+  const bead=new THREE.Mesh(new THREE.SphereGeometry(.0035,12,12),brass);bead.position.set(.63,.024,0);M.add(bead);
+  box(.006,.006,.004,steel,.63,.0215,0);}
+ {const tube=cylX(.0105,.46,gunmetal);tube.position.set(.36,-.028,0);M.add(tube);
+  const cap=cylX(.012,.02,polymer,20);cap.position.set(.60,-.028,0);M.add(cap);
+  box(.022,.03,.007,gunmetal,.56,-.013,0);
+  for(const s of [-1,1])box(.34,.012,.005,steel,.28,-.028,s*.027);}
+ {const forend=new THREE.Group();forend.add(new THREE.Mesh(new THREE.BoxGeometry(.17,.06,.052),polymer));
+  for(let i=0;i<7;i++){const gr=new THREE.Mesh(new THREE.BoxGeometry(.012,.062,.054),rubber);gr.position.x=-.066+i*.022;forend.add(gr);}
+  forend.position.set(.30,-.026,0);M.add(forend);}
+ {const guard=new THREE.Mesh(new THREE.TorusGeometry(.03,.0035,10,24),gunmetal);guard.position.set(-.065,-.062,0);M.add(guard);
+  const tr=new THREE.Mesh(new THREE.BoxGeometry(.006,.024,.009),steel);tr.position.set(-.082,-.056,0);tr.rotation.z=.15;M.add(tr);}
+ {const pts=[[-.14,.032],[-.30,.024],[-.42,-.01],[-.445,-.03],[-.445,-.155],[-.30,-.148],[-.245,-.12],[-.16,-.062],[-.14,-.032]];
+  const shape=new THREE.Shape(pts.map(p=>new THREE.Vector2(p[0],p[1])));
+  const st=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.045,bevelEnabled:true,bevelThickness:.004,bevelSize:.004,bevelSegments:2}),wood);
+  st.position.z=-.0225;M.add(st);}
+ box(.02,.14,.055,rubber,-.455,-.092,0);
+ const S=0.556/(0.6525*0.40)*0.433;
+ M.scale.setScalar(S);M.position.set(0.0025,.006+0.0125,0);
  return g;
 }
 let shotgun=null;
@@ -4271,9 +4332,23 @@ function updateGun(dt){
  const wantAim=(aiming||aimTouch)&&state==='play'&&gun.reloading<=0;
  aimBlend+=((wantAim?1:0)-aimBlend)*Math.min(1,dt*11);
  const ab=aimBlend;
- const nf=74-22*ab;
+ /* ★ 狙击枪 4 倍镜=强放大(FOV→20)，其余枪械红点=轻放大(FOV→52) */
+ const isSniper = W.key==='sniper';
+ const nf = isSniper ? (74-54*ab) : (74-22*ab);
  if(Math.abs(camera.fov-nf)>0.05){camera.fov=nf;camera.updateProjectionMatrix();}
  crossEl.classList.toggle('ads',ab>0.6);
+ /* ★ 开镜镜瞄叠加层：狙击=4 倍镜十字分划，其余=红点；分划/红点恒在屏幕中心=瞄准点 */
+ if(scopeEl){
+   if(wantAim && ab>0.04){
+     scopeEl.className = isSniper ? 'scope4x' : 'reddot';
+     scopeEl.style.opacity = Math.min(1, ab*1.5).toFixed(3);
+     /* 开镜后由镜内分划/红点代表准星，隐藏普通四线准星 */
+     crossEl.style.opacity = ab>0.45 ? '0' : '1';
+   } else {
+     scopeEl.style.opacity = '0';
+     crossEl.style.opacity = '1';
+   }
+ }
  const mv=1-ab*0.85;
  const spd=Math.hypot(joyVec.x,joyVec.y)+(Keys.anyDown()?1:0);
  const moving=Math.min(1,spd);
@@ -4293,9 +4368,12 @@ function updateGun(dt){
  const sw=meleeSwingOffset();
  const swx=sw?sw.dx:0, swy=sw?sw.dy:0, swz=sw?sw.dz:0;
  const swrx=sw?sw.rx:0, swry=sw?sw.ry:0, swrz=sw?sw.rz:0;
+ /* ★ 开镜下沉：按当前武器取补偿量并乘 aimBlend，只影响开镜姿态（腰射不变），
+     作用是让枪身让出屏幕中心，避免挡住中心的红点 / 镜内分划 */
+ const adsDrop=(wIdx===5 ? (MELEE_ADS_OFF[meleeSub]||0) : (ADS_OFF[wIdx]||0))*ab;
  gunRig.position.set(
   HIP.x+(ADS.x-HIP.x)*ab+swayX*0.6*mv+swx,
-  HIP.y+(ADS.y-HIP.y)*ab+bobY+swayY*0.6*mv-dip*0.16+swy,
+  HIP.y+(ADS.y-HIP.y)*ab+adsDrop+bobY+swayY*0.6*mv-dip*0.16+swy,
   HIP.z+(ADS.z-HIP.z)*ab+gun.recoil*0.055+swz);
  gunRig.rotation.set(
   -0.05*(1-ab)-gun.recoil*0.10-dip*0.45+swrx,
@@ -5480,10 +5558,12 @@ function buildRadarUi() {
     b.style.cssText = 'position:fixed;right:14px;top:46px;z-index:99990;cursor:pointer;'
       + 'width:30px;height:30px;border-radius:50%;border:1px solid rgba(90,200,150,.4);'
       + 'background:rgba(10,14,20,.78);color:#9fe8c1;font:700 13px system-ui;line-height:1;'
-      + 'padding:0;backdrop-filter:blur(4px)';
+      + 'padding:0;backdrop-filter:blur(4px);touch-action:none';
     b.textContent = '▸';
     b.title = '收起小地图 (M)';
     b.addEventListener('click', e => { e.preventDefault(); toggleRadar(); });
+    /* ★ 多指：触屏上按住摇杆时也能收起/展开小地图 */
+    b.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleRadar(); }, { passive: false });
     document.body.appendChild(b);
   }
   setRadarCollapsed(radarCollapsed);
@@ -5535,7 +5615,7 @@ function buildTopbar() {
   el.id = 'mp-topbar';
   el.style.cssText = 'position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:99991;'
     + 'display:flex;gap:6px;padding:5px 7px;border-radius:16px;background:rgba(10,14,20,.78);'
-    + 'border:1px solid rgba(120,200,160,.28);backdrop-filter:blur(6px)';
+    + 'border:1px solid rgba(120,200,160,.28);backdrop-filter:blur(6px);touch-action:none';
   const B = (id, label, title) =>
     '<button data-tb="' + id + '" title="' + title + '" style="cursor:pointer;min-width:44px;height:36px;'
     + 'border-radius:11px;border:1px solid rgba(120,200,160,.25);background:rgba(20,30,26,.7);'
@@ -5546,10 +5626,8 @@ function buildTopbar() {
     + B('class', '👤 职业', '查看职业与技能说明')
     + '<span id="mp-tb-chat">' + B('chat', '💬 聊天', '队伍聊天 (T)') + '</span>';
   document.body.appendChild(el);
-  el.addEventListener('click', e => {
-    const b = e.target.closest && e.target.closest('button[data-tb]');
-    if (!b) return;
-    const k = b.getAttribute('data-tb');
+  /* ★ 顶部按钮统一动作：click 与 touchstart 共用，避免重复触发 */
+  const doTopbar = k => {
     try {
       if (k === 'shop') toggleShop();
       else if (k === 'radar') toggleRadar();
@@ -5558,7 +5636,20 @@ function buildTopbar() {
       else if (k === 'chat') openChat();
     } catch (_) {}
     refreshTopbarState();
+  };
+  el.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('button[data-tb]');
+    if (!b) return;
+    doTopbar(b.getAttribute('data-tb'));
   });
+  /* ★ 多指支持：触屏上若另一只手指正按住摇杆 / 底部按键，浏览器常不为第二根手指合成 click；
+     这里直接监听 touchstart 并 preventDefault，保证"按住下方"的同时能点顶部栏 */
+  el.addEventListener('touchstart', e => {
+    const b = e.target.closest && e.target.closest('button[data-tb]');
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    doTopbar(b.getAttribute('data-tb'));
+  }, { passive: false });
   el.style.display = topbarWanted() ? 'flex' : 'none';
   return el;
 }
@@ -5588,11 +5679,16 @@ function mountTopbarToggle() {
   h.title = '显示/隐藏顶部按钮栏';
   h.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99992;cursor:pointer;width:34px;height:34px;'
     + 'border-radius:10px;border:1px solid rgba(120,200,160,.3);background:rgba(10,14,20,.78);'
-    + 'color:#9fe8c1;font:700 15px system-ui;padding:0;backdrop-filter:blur(4px)';
+    + 'color:#9fe8c1;font:700 15px system-ui;padding:0;backdrop-filter:blur(4px);touch-action:none';
   h.addEventListener('click', e => {
     e.preventDefault();
     openGameMenu();
   });
+  /* ★ 多指：触屏上按住摇杆时也能唤出游戏菜单 */
+  h.addEventListener('touchstart', e => {
+    e.preventDefault(); e.stopPropagation();
+    openGameMenu();
+  }, { passive: false });
   document.body.appendChild(h);
 }
 
@@ -5630,17 +5726,26 @@ function ensureGameMenu() {
   document.body.appendChild(el);
   el.addEventListener('click', e => { if (e.target === el) closeGameMenu(); });
   const rb = el.querySelector('#mp-menu-resume');
-  if (rb) rb.addEventListener('click', () => closeGameMenu());
+  if (rb) { rb.addEventListener('click', () => closeGameMenu());
+    rb.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); closeGameMenu(); }, { passive: false }); }
   const tb = el.querySelector('#mp-menu-topbar');
-  if (tb) tb.addEventListener('click', () => {
+  if (tb) { tb.addEventListener('click', () => {
     const bar = document.getElementById('mp-topbar');
     if (!bar) return;
     bar.__forced = !bar.__forced;
     bar.style.display = (bar.__forced || topbarWanted()) ? 'flex' : 'none';
     refreshTopbarState();
   });
+    tb.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation();
+      const bar = document.getElementById('mp-topbar');
+      if (!bar) return;
+      bar.__forced = !bar.__forced;
+      bar.style.display = (bar.__forced || topbarWanted()) ? 'flex' : 'none';
+      refreshTopbarState();
+    }, { passive: false }); }
   const qb = el.querySelector('#mp-menu-quit');
-  if (qb) qb.addEventListener('click', () => returnToMainMenu());
+  if (qb) { qb.addEventListener('click', () => returnToMainMenu());
+    qb.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); returnToMainMenu(); }, { passive: false }); }
   return el;
 }
 
@@ -7371,8 +7476,23 @@ try{ if(window.TouchUI){ TouchUI.apply(document); TouchUI.watch(document); } }ca
 try{ buildNarrative(); }catch(e){}
 /* ★ §7.2 应用武器等级（来自档案的持久等级） */
 try{ applyAllWeaponLevels(); }catch(e){}
-/* ★ §6.3 BGM 分层：绑定 AudioContext 并进入平静层 */
-try{ if(window.BGM){ BGM.attach(audio); BGM.set('calm'); } }catch(e){}
+/* ★ §6.3 BGM：绑定本页 AudioContext，按设置页的开关与音量启动 */
+try{ if(window.BGM){
+  BGM.attach(audio);
+  BGM.setVolume((readCfg().vol|0)/100);
+  if(readCfg().bgm!==false)BGM.on();else BGM.off();
+  BGM.set('calm');
+  /* 返回菜单 / 关页面时停掉，避免与菜单页的音乐叠着响 */
+  window.addEventListener('pagehide', ()=>{ try{ BGM.stop(); }catch(_){} });
+  window.addEventListener('beforeunload', ()=>{ try{ BGM.stop(); }catch(_){} });
+  /* 切到后台自动暂停，回来再继续（移动端省电，也避免与其他音频冲突） */
+  document.addEventListener('visibilitychange', ()=>{
+    try{
+      if(document.hidden) BGM.stop();
+      else if(readCfg().bgm!==false) BGM.on();
+    }catch(_){}
+  });
+} }catch(e){}
 /* ★ 标记启动完成：仅在全程无启动期错误时才置位，避免后续错误被吞 */
 if (!window.__bootErrors || !window.__bootErrors.length) window.__bootOk = true;
 </script>
