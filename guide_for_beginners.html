@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>新手教程 · 生化校园突围</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070a; --panel:#07100e; --ink:#e9e4da; --dim:#8b9793;
+  --red:#ff4438; --amber:#ffb454; --ok:#4ee08a; --blue:#6fb7ff;
+  --line:rgba(233,228,218,.13);
+  --sans:'Noto Sans SC',sans-serif; --serif:'Noto Serif SC',serif; --num:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  line-height:1.75; overflow-x:hidden;
+  background-image:
+    radial-gradient(70% 40% at 50% -6%,rgba(255,68,56,.10),transparent 68%),
+    radial-gradient(50% 30% at 92% 8%,rgba(111,183,255,.06),transparent 70%);
+  background-attachment:fixed;
+}
+::selection{background:rgba(255,68,56,.35);color:#fff}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:#05090b}
+::-webkit-scrollbar-thumb{background:#1e2a28;border-radius:9px}
+::-webkit-scrollbar-thumb:hover{background:#33443f}
+
+/* ================= 顶栏 ================= */
+#top{
+  position:sticky; top:0; z-index:60;
+  background:rgba(4,7,10,.86); backdrop-filter:blur(14px) saturate(1.2);
+  border-bottom:1px solid var(--line);
+}
+.top-in{
+  max-width:1120px; margin:0 auto; padding:12px 20px;
+  display:flex; align-items:center; gap:16px;
+}
+.brand{display:flex; align-items:center; gap:11px; flex:none}
+.brand svg{width:24px;height:24px;color:var(--red);filter:drop-shadow(0 0 8px rgba(255,60,40,.55))}
+.brand .spin{animation:spin 28s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brand b{font:900 16px var(--serif);letter-spacing:.24em;color:#f2ede3;white-space:nowrap}
+.brand b em{font-style:normal;color:var(--red)}
+
+#nav{
+  display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
+  margin-left:auto; padding:2px;
+}
+#nav::-webkit-scrollbar{display:none}
+#nav a{
+  flex:none; text-decoration:none; color:#93a09b;
+  font:500 12.5px var(--sans); letter-spacing:.14em; white-space:nowrap;
+  padding:7px 13px; border:1px solid transparent; border-radius:999px;
+  transition:.25s;
+}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.05)}
+#nav a.on{color:#16090a;background:var(--red);font-weight:700;box-shadow:0 4px 16px -4px rgba(255,68,56,.7)}
+
+/* ================= 首屏 ================= */
+#hero{
+  max-width:1120px; margin:0 auto; padding:64px 20px 40px;
+  position:relative;
+}
+#hero .tagline{
+  display:inline-block; font:700 10.5px var(--num); letter-spacing:.4em;
+  color:var(--red); border:1px solid rgba(255,68,56,.45); border-radius:999px;
+  padding:4px 14px; margin-bottom:20px; text-indent:.4em;
+}
+#hero h1{
+  font:900 clamp(34px,6.4vw,66px)/1.08 var(--serif);
+  letter-spacing:.1em; color:#f2ede3; margin-bottom:18px;
+}
+#hero h1 em{font-style:normal;background:linear-gradient(180deg,#ff7a5e,#c01b20);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+#hero .lead{
+  max-width:660px; font:400 15px/2 var(--sans); color:#a3aeaa; letter-spacing:.04em;
+}
+#hero .lead b{color:var(--amber);font-weight:700}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer;
+  font:700 13.5px var(--sans); letter-spacing:.22em; padding:13px 26px; border:0;
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+  transition:.25s;
+}
+.btn-p{background:linear-gradient(135deg,#ff4438,#b3161c);color:#fff;box-shadow:0 12px 34px -12px rgba(255,50,35,.6)}
+.btn-p:hover{filter:brightness(1.15);transform:translateY(-2px)}
+.btn-g{background:transparent;border:1px solid rgba(255,68,56,.5);color:#ff8d85;
+  clip-path:none;border-radius:0}
+.btn-g:hover{background:rgba(255,68,56,.12);color:#fff}
+.btn svg{width:15px;height:15px}
+
+/* ================= 章节 ================= */
+section.chap{
+  max-width:1120px; margin:0 auto; padding:56px 20px;
+  scroll-margin-top:70px;
+}
+.chap-head{display:flex;align-items:flex-start;gap:18px;margin-bottom:32px}
+.chap-no{
+  font:700 13px var(--num); letter-spacing:.2em; color:var(--red);
+  border:1px solid rgba(255,68,56,.4); padding:5px 10px; flex:none; margin-top:8px;
+}
+.chap-head h2{
+  font:900 clamp(24px,3.6vw,38px)/1.2 var(--serif);
+  letter-spacing:.16em; color:#f2ede3;
+}
+.chap-head p{margin-top:9px;font:400 13.5px/1.9 var(--sans);color:var(--dim);letter-spacing:.05em}
+.chap-rule{height:2px;margin-top:18px;background:linear-gradient(90deg,var(--red),transparent 62%);position:relative}
+.chap-rule::after{content:'';position:absolute;left:0;top:-3px;width:8px;height:8px;background:var(--red);transform:rotate(45deg)}
+
+/* ================= 通用卡片 ================= */
+.card{
+  border:1px solid var(--line); background:linear-gradient(158deg,rgba(255,255,255,.035),transparent 62%);
+  padding:22px; position:relative; transition:.3s;
+}
+.card:hover{border-color:rgba(255,68,56,.4);transform:translateY(-3px);
+  box-shadow:0 20px 46px -22px rgba(255,50,35,.3)}
+.card::before{content:'';position:absolute;top:0;left:0;width:26px;height:2px;background:var(--red)}
+
+/* ================= 快速上手 ================= */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.step{
+  border:1px solid var(--line); padding:22px 20px; position:relative; overflow:hidden;
+  background:linear-gradient(158deg,rgba(255,68,56,.06),transparent 60%);
+  transition:.3s;
+}
+.step:hover{border-color:rgba(255,68,56,.45);transform:translateY(-4px)}
+.step .n{
+  font:700 40px/1 var(--num); color:rgba(255,68,56,.22);
+  position:absolute; right:12px; top:6px; letter-spacing:-.02em;
+}
+.step h4{font:700 16px var(--sans);letter-spacing:.14em;color:#fff;margin-bottom:10px}
+.step p{font:400 12.5px/1.9 var(--sans);color:#9dab a6;color:#9daba6;letter-spacing:.03em}
+.step p b{color:var(--amber);font-weight:700}
+
+/* ================= 键位表 ================= */
+.keys-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 34px}
+.krow{
+  display:flex;align-items:center;gap:14px;padding:10px 0;
+  border-bottom:1px dashed rgba(255,255,255,.09);
+}
+.krow .kk{
+  flex:none; min-width:96px; display:flex; gap:5px; flex-wrap:wrap;
+}
+.kcap{
+  display:inline-block; min-width:30px; text-align:center;
+  border:1px solid rgba(255,255,255,.2); border-bottom-width:2px;
+  border-radius:6px; padding:4px 9px; background:rgba(255,255,255,.05);
+  font:600 11.5px var(--num); letter-spacing:.1em; color:#e6ebe7;
+}
+.krow .kd{font:400 13px var(--sans);color:#b3bfba;letter-spacing:.05em}
+.krow .kd em{font-style:normal;color:var(--amber)}
+.sub-note{margin-top:22px;padding:16px 18px;border-left:2px solid var(--amber);
+  background:rgba(255,180,84,.06);font:400 13px/1.9 var(--sans);color:#c3cbc7;letter-spacing:.03em}
+.sub-note b{color:var(--amber)}
+
+/* ================= 武器 ================= */
+.guns{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gun{
+  border:1px solid var(--line); padding:20px; position:relative;
+  background:linear-gradient(158deg,rgba(255,255,255,.035),transparent 62%);
+  transition:.3s;
+}
+.gun:hover{border-color:rgba(255,68,56,.45);transform:translateY(-3px)}
+.gun .slot{
+  position:absolute; right:14px; top:14px;
+  font:700 22px/1 var(--num); color:rgba(255,255,255,.1); letter-spacing:-.02em;
+}
+.gun h4{font:900 17px var(--sans);letter-spacing:.12em;color:#fff;margin-bottom:5px}
+.gun .cn{font:500 11px var(--sans);letter-spacing:.24em;color:var(--dim);margin-bottom:14px}
+.gun .stat{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;font:400 12px var(--sans);color:#9daba6;letter-spacing:.05em}
+.gun .stat b{font:700 13px var(--num);letter-spacing:.08em;color:var(--amber)}
+.gun .desc{margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);
+  font:400 12px/1.8 var(--sans);color:#8b9793;letter-spacing:.03em}
+.gun.locked{opacity:.62}
+.gun.locked::after{
+  content:'商店解锁';position:absolute;left:20px;bottom:16px;
+  font:700 10px var(--sans);letter-spacing:.2em;color:#16090a;background:var(--amber);
+  padding:3px 9px;
+}
+.gun.free::after{
+  content:'开局自带';position:absolute;left:20px;bottom:16px;
+  font:700 10px var(--sans);letter-spacing:.2em;color:#04180f;background:var(--ok);
+  padding:3px 9px;
+}
+
+/* ================= 职业 ================= */
+.jobs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.job{border:1px solid var(--line);padding:24px 22px;position:relative;
+  background:linear-gradient(158deg,rgba(255,255,255,.035),transparent 62%);transition:.3s}
+.job:hover{transform:translateY(-4px)}
+.job.j1:hover{border-color:rgba(255,140,66,.55);box-shadow:0 20px 46px -22px rgba(255,140,66,.35)}
+.job.j2:hover{border-color:rgba(77,208,225,.55);box-shadow:0 20px 46px -22px rgba(77,208,225,.35)}
+.job.j3:hover{border-color:rgba(255,209,102,.55);box-shadow:0 20px 46px -22px rgba(255,209,102,.35)}
+.job .ico{font-size:34px;line-height:1;margin-bottom:12px}
+.job h4{font:900 20px var(--serif);letter-spacing:.2em;margin-bottom:16px}
+.job.j1 h4{color:#ff8c42}.job.j2 h4{color:#4dd0e1}.job.j3 h4{color:#ffd166}
+.job .line{display:flex;gap:9px;font:400 12.5px/1.85 var(--sans);color:#a8b3ae;
+  letter-spacing:.03em;margin-bottom:8px}
+.job .line .lb{flex:none;font:700 11px var(--sans);letter-spacing:.14em;
+  padding:2px 8px;height:fit-content;border-radius:4px;margin-top:3px}
+.job.j1 .lb{color:#ff8c42;background:rgba(255,140,66,.13)}
+.job.j2 .lb{color:#4dd0e1;background:rgba(77,208,225,.13)}
+.job.j3 .lb{color:#ffd166;background:rgba(255,209,102,.13)}
+
+/* ================= 敌人 ================= */
+.zombs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.zomb{border:1px solid var(--line);padding:18px;display:flex;gap:14px;align-items:flex-start;
+  background:rgba(255,255,255,.02);transition:.3s}
+.zomb:hover{border-color:rgba(255,68,56,.4);background:rgba(255,68,56,.05)}
+.zomb .dot{
+  width:12px;height:12px;border-radius:50%;flex:none;margin-top:8px;
+  box-shadow:0 0 12px currentColor;
+}
+.zomb h5{font:700 15px var(--sans);letter-spacing:.1em;color:#fff;margin-bottom:6px;display:flex;
+  align-items:center;gap:8px}
+.zomb h5 .hp{font:700 11px var(--num);letter-spacing:.1em;color:#7c8b86;
+  border:1px solid rgba(255,255,255,.14);padding:1px 7px;border-radius:4px}
+.zomb p{font:400 12px/1.85 var(--sans);color:#93a09b;letter-spacing:.03em}
+.zomb p b{color:var(--amber);font-weight:700}
+
+/* ================= BOSS ================= */
+.boss-wrap{border:1px solid rgba(255,68,56,.32);
+  background:linear-gradient(160deg,rgba(255,68,56,.09),transparent 65%);
+  padding:28px;position:relative;overflow:hidden}
+.boss-wrap::after{
+  content:'☠';position:absolute;right:16px;top:-14px;font-size:130px;
+  color:rgba(255,68,56,.07);line-height:1;pointer-events:none;
+}
+.boss-wrap h3{font:900 24px var(--serif);letter-spacing:.2em;color:#ff7a5e;margin-bottom:8px}
+.boss-wrap .sub{font:400 13px var(--sans);color:#a3aeaa;letter-spacing:.06em;margin-bottom:24px}
+.phases{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;position:relative;z-index:1}
+.ph{border:1px solid rgba(255,255,255,.12);padding:16px 14px;background:rgba(0,0,0,.28)}
+.ph .pv{font:900 22px/1 var(--num);letter-spacing:.02em;margin-bottom:9px}
+.ph h6{font:700 13.5px var(--sans);letter-spacing:.1em;color:#fff;margin-bottom:8px}
+.ph p{font:400 11.5px/1.8 var(--sans);color:#93a09b;letter-spacing:.02em}
+.ph.p1 .pv{color:#ffb454}.ph.p2 .pv{color:#c07aff}
+.ph.p3 .pv{color:#ff6a3c}.ph.p4 .pv{color:#ff2a1a}
+.ph.p4{border-color:rgba(255,42,26,.6);background:rgba(255,42,26,.09);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 22px rgba(255,42,26,.3)}}
+.boss-tip{margin-top:20px;padding:14px 18px;border-left:2px solid var(--red);
+  background:rgba(255,68,56,.07);font:400 12.5px/1.9 var(--sans);color:#c8b8b4;letter-spacing:.03em}
+.boss-tip b{color:var(--red)}
+
+/* ================= 模式 / 地图 ================= */
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.tile{border:1px solid var(--line);padding:22px;position:relative;
+  background:linear-gradient(158deg,rgba(255,255,255,.035),transparent 62%);transition:.3s}
+.tile:hover{border-color:rgba(255,68,56,.42);transform:translateY(-3px)}
+.tile .tico{font:900 26px/1 var(--serif);color:var(--red);margin-bottom:12px;letter-spacing:.08em}
+.tile h4{font:900 17px var(--serif);letter-spacing:.18em;color:#f2ede3;margin-bottom:9px}
+.tile p{font:400 12.5px/1.85 var(--sans);color:#93a09b;letter-spacing:.03em}
+.tile .badge{position:absolute;right:14px;top:14px;font:700 10px var(--sans);
+  letter-spacing:.16em;padding:3px 8px;border-radius:4px}
+.tile .badge.ok{color:#04180f;background:var(--ok)}
+.tile .badge.no{color:#5f6b68;background:rgba(255,255,255,.07)}
+
+/* ================= 联机流程 ================= */
+.flow{display:flex;flex-direction:column;gap:0}
+.fstep{display:flex;gap:20px;position:relative;padding-bottom:30px}
+.fstep:last-child{padding-bottom:0}
+.fstep::before{
+  content:'';position:absolute;left:19px;top:40px;bottom:0;width:1px;
+  background:linear-gradient(180deg,rgba(255,68,56,.5),rgba(255,68,56,.08));
+}
+.fstep:last-child::before{display:none}
+.fnum{
+  width:40px;height:40px;flex:none;border:1px solid rgba(255,68,56,.5);
+  display:grid;place-items:center;font:700 15px var(--num);color:var(--red);
+  background:rgba(255,68,56,.08);position:relative;z-index:1;
+}
+.ftxt h5{font:700 15.5px var(--sans);letter-spacing:.12em;color:#fff;margin-bottom:7px}
+.ftxt p{font:400 13px/1.9 var(--sans);color:#98a39d;letter-spacing:.03em}
+.ftxt p b{color:var(--amber);font-weight:700}
+.ftxt code{
+  font:600 12px var(--num);letter-spacing:.16em;color:var(--red);
+  background:rgba(255,68,56,.1);border:1px solid rgba(255,68,56,.28);
+  padding:2px 9px;border-radius:4px;margin:0 3px;
+}
+
+/* ================= 技巧 ================= */
+.tips{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tip{display:flex;gap:14px;padding:18px;border:1px solid var(--line);
+  background:rgba(255,255,255,.02);transition:.3s;align-items:flex-start}
+.tip:hover{border-color:rgba(78,224,138,.4);background:rgba(78,224,138,.04)}
+.tip .ti{flex:none;font-size:20px;line-height:1.4}
+.tip h5{font:700 14px var(--sans);letter-spacing:.1em;color:#e6ebe7;margin-bottom:6px}
+.tip p{font:400 12.5px/1.85 var(--sans);color:#93a09b;letter-spacing:.03em}
+.tip p b{color:var(--ok);font-weight:700}
+
+/* ================= 页脚 ================= */
+footer{
+  max-width:1120px;margin:0 auto;padding:52px 20px 80px;
+  border-top:1px solid var(--line);text-align:center;
+}
+footer .fq{font:900 clamp(22px,4vw,34px)/1.2 var(--serif);letter-spacing:.4em;
+  color:#f2ede3;text-indent:.4em;margin-bottom:16px}
+footer .fq em{font-style:normal;color:var(--red)}
+footer p{font:400 12.5px var(--sans);color:#5f6b68;letter-spacing:.16em;margin-bottom:26px}
+
+/* ================= 响应式 ================= */
+@media (max-width:980px){
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .guns,.jobs,.zombs,.grid-3{grid-template-columns:repeat(2,1fr)}
+  .phases{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:680px){
+  .top-in{padding:10px 14px}
+  .brand b{font-size:14px;letter-spacing:.16em}
+  #hero{padding:44px 16px 30px}
+  section.chap{padding:42px 16px}
+  .chap-head{gap:12px;margin-bottom:24px}
+  .chap-no{font-size:11px;padding:4px 8px}
+  .steps,.guns,.jobs,.zombs,.grid-3,.tips,.phases{grid-template-columns:1fr}
+  .keys-grid{grid-template-columns:1fr}
+  .krow .kk{min-width:84px}
+  .boss-wrap{padding:20px 16px}
+  .boss-wrap::after{font-size:86px}
+  .btn{padding:12px 20px;font-size:12.5px;letter-spacing:.16em}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 顶栏 ================= -->
+<header id="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g class="spin" fill="none" stroke="currentColor" stroke-width="5">
+          <circle cx="60" cy="33" r="15"/><circle cx="37" cy="74" r="15"/><circle cx="83" cy="74" r="15"/>
+          <path d="M60 40v-16M45.5 70l-14 8M74.5 70l14 8"/>
+        </g>
+        <circle cx="60" cy="60" r="6.5" fill="currentColor"/>
+      </svg>
+      <b>新手<em> · </em>教程</b>
+    </div>
+    <nav id="nav">
+      <a href="#s1" class="on">快速上手</a>
+      <a href="#s2">操作</a>
+      <a href="#s3">武器</a>
+      <a href="#s4">职业</a>
+      <a href="#s5">敌人</a>
+      <a href="#s6">模式地图</a>
+      <a href="#s7">联机</a>
+      <a href="#s8">进阶技巧</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ================= 首屏 ================= -->
+<div id="hero">
+  <span class="tagline">SURVIVAL GUIDE</span>
+  <h1>欢迎来到<em>校园</em><br>这里有东西在动</h1>
+  <p class="lead">
+    这是一款第一人称丧尸生存射击游戏。你要做的只有一件事：<b>活下去</b>。
+    本教程会带你在 5 分钟内掌握全部核心机制——操作、武器、职业、敌人弱点，以及联机合作的正确姿势。
+  </p>
+  <div class="hero-btns">
+    <a class="btn btn-p" href="index.html">
+      开始突围
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4.5v15L18 12z"/></svg>
+    </a>
+    <a class="btn btn-g" href="#s1">先看教程</a>
+  </div>
+</div>
+
+<!-- ================= 1. 快速上手 ================= -->
+<section class="chap" id="s1">
+  <div class="chap-head">
+    <span class="chap-no">01</span>
+    <div>
+      <h2>快速上手</h2>
+      <p>四步走完新手期 · 不用背键位也能开局</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <span class="n">01</span>
+      <h4>选地图</h4>
+      <p>主菜单 →「地图」。<b>新手推荐双庭院教学楼</b>：有楼梯、有教室，可以上二楼躲，也可以在高处打。</p>
+    </div>
+    <div class="step">
+      <span class="n">02</span>
+      <h4>选模式</h4>
+      <p>「无尽模式」最适合练手。想有个目标感就选「<b>有限防守</b>」，撑过 5~15 波就算赢。</p>
+    </div>
+    <div class="step">
+      <span class="n">03</span>
+      <h4>选职业</h4>
+      <p>开局会弹面板，三选一。<b>第一次玩就选突击兵</b>——伤害 +15%，技能还能加速跑路。</p>
+    </div>
+    <div class="step">
+      <span class="n">04</span>
+      <h4>开打</h4>
+      <p>点画面锁鼠标 → <b>左键开火</b> → 打头伤害翻三倍。攒够零件按 <b>B</b> 去商店买 AK。</p>
+    </div>
+  </div>
+
+  <div class="sub-note" style="margin-top:26px">
+    <b>核心循环：</b>击杀丧尸 → 掉落零件 → 商店解锁武器 / 补弹药 → 打更强的波次 → 循环。
+    别省零件，前期一把 AK 能顶三波怪。
+  </div>
+</section>
+
+<!-- ================= 2. 操作 ================= -->
+<section class="chap" id="s2">
+  <div class="chap-head">
+    <span class="chap-no">02</span>
+    <div>
+      <h2>操作</h2>
+      <p>键鼠为主，触屏自动切换虚拟按键布局</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="keys-grid">
+    <div class="krow">
+      <span class="kk"><i class="kcap">W</i><i class="kcap">A</i><i class="kcap">S</i><i class="kcap">D</i></span>
+      <span class="kd">移动</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">Shift</i></span>
+      <span class="kd">疾跑 · <em>持续消耗体力</em></span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">左键</i><i class="kcap">F</i></span>
+      <span class="kd">开火（按住连发）</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">右键</i></span>
+      <span class="kd">开镜 · 更稳更准 · 移动变慢</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">R</i></span>
+      <span class="kd">换弹 · 从共享弹药池补满弹匣</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">1</i><i class="kcap">2</i><i class="kcap">3</i><i class="kcap">4</i><i class="kcap">5</i><i class="kcap">6</i></span>
+      <span class="kd">切换武器 · 6 是近战（再按轮换棍/斧）</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">G 按住</i></span>
+      <span class="kd">手雷蓄力 · 显示弹道与落点红圈</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">Ctrl</i></span>
+      <span class="kd">滑铲 · 0.4 秒位移 4 米 · <em>全程无敌帧</em></span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">V</i></span>
+      <span class="kd">释放职业主动技能（有冷却）</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">B</i></span>
+      <span class="kd">打开补给站（商店）</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">M</i></span>
+      <span class="kd">收起 / 展开小地图</span>
+    </div>
+    <div class="krow">
+      <span class="kk"><i class="kcap">Esc</i></span>
+      <span class="kd">游戏菜单（不暂停，可返回主菜单）</span>
+    </div>
+  </div>
+
+  <div class="sub-note" style="margin-top:26px">
+    <b>联机专用键位：</b>按住 <b>F</b> 救援倒地队友 · <b>T</b> 打开队伍聊天 · <b>Q</b> 轮播快捷指令（集合 / 撤退 / 求救 / 敌袭）。
+    所有键位都可以在主菜单「设置 → 键位」里改成你顺手的样子。
+  </div>
+</section>
+
+<!-- ================= 3. 武器 ================= -->
+<section class="chap" id="s3">
+  <div class="chap-head">
+    <span class="chap-no">03</span>
+    <div>
+      <h2>武器</h2>
+      <p>六个槽位 · 共用一条弹药池 · 开局只有手枪和棒球棍</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="guns">
+    <div class="gun free">
+      <span class="slot">1</span>
+      <h4>手枪</h4>
+      <div class="cn">PISTOL</div>
+      <div class="stat"><span>伤害</span><b>12.5</b></div>
+      <div class="stat"><span>弹匣</span><b>12</b></div>
+      <div class="stat"><span>弹药</span><b>无限补</b></div>
+      <div class="desc">不消耗共享弹药池，永远不会打空。爆头倍率较低（×2），但胜在可靠。</div>
+    </div>
+
+    <div class="gun locked">
+      <span class="slot">2</span>
+      <h4>AK-47</h4>
+      <div class="cn">ASSAULT RIFLE</div>
+      <div class="stat"><span>伤害</span><b>42</b></div>
+      <div class="stat"><span>弹匣</span><b>30</b></div>
+      <div class="stat"><span>价格</span><b>100 零件</b></div>
+      <div class="desc">全自动，射速与威力平衡。<b>前期最值得买的一把</b>，能稳定打到第 6 波以后。</div>
+    </div>
+
+    <div class="gun locked">
+      <span class="slot">3</span>
+      <h4>霰弹枪</h4>
+      <div class="cn">SHOTGUN</div>
+      <div class="stat"><span>伤害</span><b>24 × 8</b></div>
+      <div class="stat"><span>弹匣</span><b>6</b></div>
+      <div class="stat"><span>价格</span><b>70 零件</b></div>
+      <div class="desc">8 发弹丸齐射，贴脸能一枪秒掉普通丧尸。距离一远就废，走廊和楼梯口是它的主场。</div>
+    </div>
+
+    <div class="gun locked">
+      <span class="slot">4</span>
+      <h4>SMG</h4>
+      <div class="cn">SUBMACHINE GUN</div>
+      <div class="stat"><span>伤害</span><b>19</b></div>
+      <div class="stat"><span>弹匣</span><b>35</b></div>
+      <div class="stat"><span>价格</span><b>120 零件</b></div>
+      <div class="desc">射速极高，泼水式压制。弹匣大但单发弱，适合被围住时清出退路。</div>
+    </div>
+
+    <div class="gun locked">
+      <span class="slot">5</span>
+      <h4>狙击枪</h4>
+      <div class="cn">SNIPER RIFLE</div>
+      <div class="stat"><span>伤害</span><b>160</b></div>
+      <div class="stat"><span>弹匣</span><b>5</b></div>
+      <div class="stat"><span>价格</span><b>200 零件</b></div>
+      <div class="desc">一发穿透 3 只非 BOSS 丧尸。拉栓慢，但打排队来的丧尸群收益极高。</div>
+    </div>
+
+    <div class="gun free">
+      <span class="slot">6</span>
+      <h4>近战</h4>
+      <div class="cn">MELEE · 棒球棍 / 斧头</div>
+      <div class="stat"><span>伤害</span><b>秒杀</b></div>
+      <div class="stat"><span>体力</span><b>消耗 15</b></div>
+      <div class="stat"><span>射程</span><b>5.4 米</b></div>
+      <div class="desc">对非 BOSS 一击必杀，<b>击杀回复 5 点体力</b>。体力不足时只能"推"——只击退不造成伤害。</div>
+    </div>
+  </div>
+
+  <div class="sub-note" style="margin-top:26px">
+    <b>关于弹药：</b>所有枪械共用一条弹药池，换枪不换弹药数量。所以别乱换枪，看清楚还剩多少再决定怎么打。
+    商店里 <b>4 零件</b>就能补满，价格便宜，别舍不得。
+  </div>
+</section>
+
+<!-- ================= 4. 职业 ================= -->
+<section class="chap" id="s4">
+  <div class="chap-head">
+    <span class="chap-no">04</span>
+    <div>
+      <h2>职业</h2>
+      <p>开局三选一 · 一局只能选一次 · 每个职业 1 个被动 + 1 个主动</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="jobs">
+    <div class="job j1">
+      <div class="ico">🔫</div>
+      <h4>突击兵</h4>
+      <div class="line"><span class="lb">被动</span><span>伤害 +15% · 弹药上限 +20%</span></div>
+      <div class="line"><span class="lb">主动 V</span><span><b style="color:#ff8c42">战术突进</b> · CD 25 秒<br>3 秒内移速 +60%，无视丧尸拖拽</span></div>
+      <div class="line" style="margin-top:12px;color:#7c8b86"><span>新手推荐 · 输出最高，技能能救命也能突围</span></div>
+    </div>
+
+    <div class="job j2">
+      <div class="ico">➕</div>
+      <h4>医疗兵</h4>
+      <div class="line"><span class="lb">被动</span><span>脱战缓慢回血 3/s<br><b style="color:#4dd0e1">救援仅需 3 秒</b>（他人 10 秒）</span></div>
+      <div class="line"><span class="lb">主动 V</span><span><b style="color:#4dd0e1">急救包</b> · CD 35 秒<br>自身回 60% 生命，6 米内队友各回 40%</span></div>
+      <div class="line" style="margin-top:12px;color:#7c8b86"><span>联机团队的定海神针 · 单人续航也不错</span></div>
+    </div>
+
+    <div class="job j3">
+      <div class="ico">💪</div>
+      <h4>壮汉</h4>
+      <div class="line"><span class="lb">被动</span><span>最大生命 +50 · 近战伤害 ×2 · 受击伤害 −20%</span></div>
+      <div class="line"><span class="lb">主动 V</span><span><b style="color:#ffd166">怒吼冲撞</b> · CD 30 秒<br>正面 5 米内丧尸被击退并受 80 伤害</span></div>
+      <div class="line" style="margin-top:12px;color:#7c8b86"><span>肉盾型 · 被围住时按 V 直接清出安全区</span></div>
+    </div>
+  </div>
+
+  <div class="sub-note" style="margin-top:26px">
+    <b>选错了怎么办？</b>不能改。但每局重开都会重新弹面板，所以试错成本只有一局。
+    想体验不同职业，多打几局就行。
+  </div>
+</section>
+
+<!-- ================= 5. 敌人 ================= -->
+<section class="chap" id="s5">
+  <div class="chap-head">
+    <span class="chap-no">05</span>
+    <div>
+      <h2>敌人图鉴</h2>
+      <p>七种丧尸 · 各有各的打法 · 别用同一种方式对付所有敌人</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="zombs">
+    <div class="zomb">
+      <span class="dot" style="color:#7d9161;background:#7d9161"></span>
+      <div>
+        <h5>普通丧尸 <span class="hp">58 HP</span></h5>
+        <p>最常见的杂兵。速度慢、血量低，<b>爆头一枪一个</b>。别在它们身上浪费弹药。</p>
+      </div>
+    </div>
+
+    <div class="zomb">
+      <span class="dot" style="color:#c0392b;background:#c0392b"></span>
+      <div>
+        <h5>疾行者 <span class="hp">40 HP</span></h5>
+        <p>跑得极快，直线冲脸。<b>优先处理</b>，不然会被贴住打乱节奏。霰弹枪近距离一枪带走。</p>
+      </div>
+    </div>
+
+    <div class="zomb">
+      <span class="dot" style="color:#8a7a4a;background:#8a7a4a"></span>
+      <div>
+        <h5>投掷者 <span class="hp">72 HP</span></h5>
+        <p>隔老远朝你扔东西。看见它抬手就<b>横向移动躲开</b>，别站着不动。</p>
+      </div>
+    </div>
+
+    <div class="zomb">
+      <span class="dot" style="color:#7ab648;background:#7ab648"></span>
+      <div>
+        <h5>喷吐者 <span class="hp">65 HP</span></h5>
+        <p>远程吐酸液，命中后会在地面留下<b>持续伤害的酸液池</b>。别踩上去，绕开走。</p>
+      </div>
+    </div>
+
+    <div class="zomb">
+      <span class="dot" style="color:#ff8a3c;background:#ff8a3c"></span>
+      <div>
+        <h5>自爆者 <span class="hp">30 HP</span></h5>
+        <p>贴到你身边就会引爆，范围伤害很高。<b>看到鼓着肚子冲过来的，远远点掉它</b>——别让它靠近。</p>
+      </div>
+    </div>
+
+    <div class="zomb">
+      <span class="dot" style="color:#88929b;background:#88929b"></span>
+      <div>
+        <h5>装甲丧尸 <span class="hp">120 HP</span></h5>
+        <p>正面减伤 70%，普通子弹打上去像挠痒。<b>打头、用近战、或绕到背后</b>才能造成全额伤害。</p>
+      </div>
+    </div>
+
+    <div class="zomb">
+      <span class="dot" style="color:#9a5aff;background:#9a5aff"></span>
+      <div>
+        <h5>召唤者 <span class="hp">65 HP</span></h5>
+        <p>会定期召唤普通丧尸，越拖越多。<b>发现它就要立刻集火</b>，不然场面会失控。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-note" style="margin-top:26px">
+    <b>每 3 波一次「精英波」</b>：精英类敌人出现概率翻倍、数量提升 30%。<b>每 3 波还会来一次「尸潮」</b>——
+    短时间内从四面八方涌出 20~30 只，持续约 2 秒的爆发式刷怪。尸潮清完有额外零件奖励和回血。
+  </div>
+
+  <div class="boss-wrap" style="margin-top:34px">
+    <h3>☠ BOSS · 变异体</h3>
+    <div class="sub">血量随波数增长 · 会瞬移 · 四阶段行为</div>
+    <div class="phases">
+      <div class="ph p1">
+        <div class="pv">75%+</div>
+        <h6>阶段一 · 拍地</h6>
+        <p>近身时范围拍地，造成伤害并把你推开。保持距离输出。</p>
+      </div>
+      <div class="ph p2">
+        <div class="pv">75%</div>
+        <h6>阶段二 · 召唤</h6>
+        <p>每次召出 4 只小怪围攻。先清小怪，不然会被拖死。</p>
+      </div>
+      <div class="ph p3">
+        <div class="pv">50%</div>
+        <h6>阶段三 · 狂暴冲刺</h6>
+        <p>锁定方向高速冲撞，撞墙才停。看到它加速就横向跑。</p>
+      </div>
+      <div class="ph p4">
+        <div class="pv">25%</div>
+        <h6>⚠ 蓄爆</h6>
+        <p>原地蓄爆 3 秒。跑出 10 米外否则受 55 点重伤。</p>
+      </div>
+    </div>
+    <div class="boss-tip">
+      <b>关键提示：</b>BOSS 在 25% 血以下会原地蓄爆。屏幕会显示倒计时和你与它的距离——
+      <b>3 秒内跑出 10 米</b>，蓄爆落空后它只剩残血，直接补掉就行。蓄爆期间它不会瞬移，是你唯一能放心拉开距离的窗口。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6. 模式与地图 ================= -->
+<section class="chap" id="s6">
+  <div class="chap-head">
+    <span class="chap-no">06</span>
+    <div>
+      <h2>模式与地图</h2>
+      <p>三种模式 · 三张地图 · 各有各的玩法</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <h3 style="font:900 17px var(--serif);letter-spacing:.3em;color:#e8e3d9;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+    <span style="width:18px;height:2px;background:var(--red);flex:none"></span>三种模式
+  </h3>
+  <div class="grid-3" style="margin-bottom:34px">
+    <div class="tile">
+      <span class="badge ok">推荐</span>
+      <div class="tico">∞</div>
+      <h4>无尽模式</h4>
+      <p>无限刷怪，看你能撑到第几波。死亡即结算，适合练手和刷零件。</p>
+    </div>
+    <div class="tile">
+      <span class="badge ok">有目标</span>
+      <div class="tico">守</div>
+      <h4>有限防守</h4>
+      <p>随机 5~15 波。撑过全部波次且至少 1 人存活就算胜利。适合想有个结局的玩家。</p>
+    </div>
+    <div class="tile">
+      <span class="badge no">仅地图 1</span>
+      <div class="tico">夜</div>
+      <h4>夜战操场</h4>
+      <p>环境光压到最低，四座灯塔照明。玩家自带手电筒（按 <b>L</b> 开关），丧尸眼睛在暗处发红光。</p>
+    </div>
+  </div>
+
+  <h3 style="font:900 17px var(--serif);letter-spacing:.3em;color:#e8e3d9;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+    <span style="width:18px;height:2px;background:var(--red);flex:none"></span>三张地图
+  </h3>
+  <div class="grid-3">
+    <div class="tile">
+      <div class="tico">壹</div>
+      <h4>双庭院教学楼</h4>
+      <p>双跑楼梯直上 3F，楼上教室可以伏击。<b>新手首选</b>：既能上楼躲，也能在高处打。</p>
+    </div>
+    <div class="tile">
+      <div class="tico">贰</div>
+      <h4>西门操场</h4>
+      <p>西门可出操场，教学楼内可躲避。湿地实时反射效果最好看的一张图。</p>
+    </div>
+    <div class="tile">
+      <div class="tico">叁</div>
+      <h4>南门操场</h4>
+      <p>南门可出操场，教学楼庭院内可躲避。植被和围墙组成的通路更复杂。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7. 联机 ================= -->
+<section class="chap" id="s7">
+  <div class="chap-head">
+    <span class="chap-no">07</span>
+    <div>
+      <h2>联机合作</h2>
+      <p>WebRTC P2P · 房主权威 · 最多 4 人</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="fstep">
+      <span class="fnum">01</span>
+      <div class="ftxt">
+        <h5>房主创建房间</h5>
+        <p>主菜单 →「联机」→ 填昵称 → 点 <b>创建房间</b>。系统会生成一个 6 位房间码并自动复制到剪贴板。</p>
+      </div>
+    </div>
+    <div class="fstep">
+      <span class="fnum">02</span>
+      <div class="ftxt">
+        <h5>把房间码发给好友</h5>
+        <p>格式类似 <code>AB-12-CD</code>。好友在主菜单 →「联机」→ 逐格输入房间码 → 点 <b>加入</b>。</p>
+      </div>
+    </div>
+    <div class="fstep">
+      <span class="fnum">03</span>
+      <div class="ftxt">
+        <h5>等所有人进来，房主再点开始</h5>
+        <p><b>重要：</b>好友没进房间之前不要点「开始突围」，否则他后面会连不上。房主切后台也可能让成员断线。</p>
+      </div>
+    </div>
+    <div class="fstep">
+      <span class="fnum">04</span>
+      <div class="ftxt">
+        <h5>倒地了别慌，喊队友来救</h5>
+        <p>血量归零不会立刻死，而是进入 <b>30 秒濒死状态</b>。队友跑到你身边 <b>按住 F</b>，10 秒救起（医疗兵只要 3 秒）。
+          <b>全员阵亡</b>才会统一重开，所以只要还有一个队友活着，这局就还没输。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-note" style="margin-top:26px">
+    <b>联机小知识：</b>丧尸由房主统一模拟并广播给所有人，所以你看到的怪物位置始终以房主为准。
+    命中判定也走房主结算——你打中丧尸会先把伤害上报给房主，由房主决定它死不死。
+    <b>如果只剩你一个人活着，倒地就会直接死</b>，不会弹"等待救援"。
+  </div>
+</section>
+
+<!-- ================= 8. 进阶技巧 ================= -->
+<section class="chap" id="s8">
+  <div class="chap-head">
+    <span class="chap-no">08</span>
+    <div>
+      <h2>进阶技巧</h2>
+      <p>知道这些，能多活五波</p>
+      <div class="chap-rule"></div>
+    </div>
+  </div>
+
+  <div class="tips">
+    <div class="tip">
+      <span class="ti">🎯</span>
+      <div>
+        <h5>打头，永远打头</h5>
+        <p>爆头伤害是躯干的 <b>3 倍</b>（手枪 2 倍）。这一条能让你省下至少一半弹药。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">🪓</span>
+      <div>
+        <h5>近战是回体力的</h5>
+        <p>挥砍消耗 15 体力，但<b>击杀回复 5 点</b>。用近战清杂兵，比一直开枪更可持续。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">💨</span>
+      <div>
+        <h5>滑铲有无敌帧</h5>
+        <p>冲刺中按 <b>Ctrl</b> 滑铲，0.4 秒内位移 4 米且<b>全程免疫伤害</b>。被围住时这是最可靠的脱身手段。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">🛡</span>
+      <div>
+        <h5>装甲要打头或绕后</h5>
+        <p>正面子弹只有 30% 伤害。<b>爆头、近战、爆炸物</b>才能无视护甲。看到灰色甲片的就是它。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">💣</span>
+      <div>
+        <h5>手雷按住看弹道</h5>
+        <p>按住 <b>G</b> 会显示抛物线预览和落点红圈。蓄力越久扔得越远——别凭感觉扔。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">🏃</span>
+      <div>
+        <h5>体力不足会变"推"</h5>
+        <p>体力低于 15 时近战只能击退不能击杀。体力条变红就是在提醒你——<b>该后撤回体力了</b>。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">💰</span>
+      <div>
+        <h5>零件别攒着</h5>
+        <p>普通怪 1 个、精英 2 个、BOSS 10 个。攒到 100 就买 AK，攒到 200 就买狙。早买早享受。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">🗺</span>
+      <div>
+        <h5>小地图会显示密度</h5>
+        <p>按 <b>M</b> 开关。红色块代表丧尸密集区，<b>深红色块表示那一带已经挤满了</b>，别往那边走。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">💊</span>
+      <div>
+        <h5>医疗包只要 10 零件</h5>
+        <p>回 50 点血，比死一次划算太多。血线低于一半就去商店点一下，别硬撑。</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <span class="ti">📢</span>
+      <div>
+        <h5>联机时多用快捷指令</h5>
+        <p>按 <b>Q</b> 循环发送「集合 / 撤退 / 求救 / 敌袭」。比打字快得多，关键时刻能救队友一命。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 页脚 ================= -->
+<footer>
+  <div class="fq">活<em> · </em>下<em> · </em>去</div>
+  <p>你现在知道该做什么了</p>
+  <a class="btn btn-p" href="index.html">
+    开始突围
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4.5v15L18 12z"/></svg>
+  </a>
+</footer>
+
+<script>
+/* ================= 导航高亮（滚动监听） ================= */
+(function(){
+  const links = [...document.querySelectorAll('#nav a')];
+  const secs  = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  if (!secs.length) return;
+
+  let lock = false;
+  function setActive(id){
+    links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + id));
+  }
+  function onScroll(){
+    if (lock) return;
+    const y = window.scrollY + 120;
+    let cur = secs[0];
+    for (const s of secs) { if (s.offsetTop <= y) cur = s; }
+    setActive(cur.id);
+    /* 让当前项在横向导航里可见 */
+    const a = links.find(x => x.getAttribute('href') === '#' + cur.id);
+    if (a && a.scrollIntoView) {
+      try { a.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' }); } catch (_) {}
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
+
+  /* 点击后短暂锁定，避免平滑滚动过程中高亮乱跳 */
+  links.forEach(a => a.addEventListener('click', () => {
+    const id = a.getAttribute('href').slice(1);
+    setActive(id);
+    lock = true;
+    setTimeout(() => { lock = false; onScroll(); }, 620);
+  }));
+})();
+
+/* ================= 章节淡入 ================= */
+(function(){
+  const targets = [...document.querySelectorAll('.chap, .step, .gun, .job, .zomb, .tile, .fstep, .tip, .boss-wrap')];
+  if (!('IntersectionObserver' in window)) return;
+
+  targets.forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(18px)';
+    el.style.transition = 'opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1)';
+  });
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      const delay = Math.min(180, i * 45);
+      setTimeout(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      }, delay);
+      io.unobserve(el);
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+
+  targets.forEach(el => io.observe(el));
+
+  /* 兜底：3 秒后强制显示所有未触发元素，避免某些环境观察器失效导致内容隐形 */
+  setTimeout(() => {
+    targets.forEach(el => {
+      if (el.style.opacity === '0') {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      }
+    });
+  }, 3000);
+})();
+</script>
+</body>
+</html>

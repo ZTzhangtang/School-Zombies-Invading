@@ -749,22 +749,56 @@ const TouchUI_ = window.TouchUI || null;
    ★ 环境音（雨 / 雷）—— 独立于 bgm.js
    ============================================================ */
 const Snd={ctx:null,master:null,rainG:null,on:false,vol:(readCfg().vol||70)/100,
+  clickEl:null,clickBuf:null,clickReady:false,uiG:null,
   ensure(){if(this.ctx)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
     this.ctx=new AC();this.master=this.ctx.createGain();this.master.gain.value=0;this.master.connect(this.ctx.destination);
+    /* UI 反馈（点击音）走独立通道，不受环境音开关影响 */
+    this.uiG=this.ctx.createGain();this.uiG.gain.value=this.vol;this.uiG.connect(this.ctx.destination);
     const len=2*this.ctx.sampleRate,buf=this.ctx.createBuffer(1,len,this.ctx.sampleRate),d=buf.getChannelData(0);
     for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
     const src=this.ctx.createBufferSource();src.buffer=buf;src.loop=true;
     const lp=this.ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=750;
     this.rainG=this.ctx.createGain();this.rainG.gain.value=0;
-    src.connect(lp);lp.connect(this.rainG);this.rainG.connect(this.master);src.start();},
-  enable(v){this.ensure();if(this.ctx&&this.ctx.resume)this.ctx.resume();this.on=v;this.apply()},
+    src.connect(lp);lp.connect(this.rainG);lp.connect(this.master);src.start();
+    this.loadClick();},
+  /* ★ 预加载 sounds/click.mp3，解码成 AudioBuffer 供 click() 复用 */
+  loadClick(){if(this.clickReady||!this.ctx)return;
+    const buf=this.ctx.decodeAudioData;
+    if(!buf){this.clickReady=true;return;}
+    const self=this, AC=window.AudioContext||window.webkitAudioContext;
+    const x=new XMLHttpRequest();
+    x.open('GET','sounds/click.mp3',true);
+    x.responseType='arraybuffer';
+    x.onload=()=>{if(x.status>=200&&x.status<300&&x.response){
+      try{ const p=buf.call(self.ctx,x.response,ab=>{self.clickBuf=ab;},
+        e=>{/* 解码失败则退回振荡器 */});
+        if(p&&p.then)p.then(ab=>{self.clickBuf=ab;}).catch(()=>{});
+      }catch(_){}
+    } self.clickReady=true;};
+    x.onerror=()=>{self.clickReady=true;};
+    try{x.send();}catch(_){this.clickReady=true;}
+    void AC;},
+  /* ★ 开关：v=true 表示开启环境音（雨/雷）；点击音独立于此开关 */
+  enable(v){this.ensure();if(this.ctx&&this.ctx.resume)this.ctx.resume();this.on=!!v;this.apply();this.loadClick();},
   apply(){if(!this.ctx)return;const t=this.ctx.currentTime;
     this.master.gain.setTargetAtTime(this.on?this.vol:0,t,.3);
-    this.rainG.gain.setTargetAtTime(this.on?.06:0,t,.5)},
+    this.rainG.gain.setTargetAtTime(this.on?.06:0,t,.5);
+    /* UI 音量跟随设置页，但不随环境音开关静音 */
+    if(this.uiG)this.uiG.gain.setTargetAtTime(this.vol,t,.2)},
   setVol(v){this.vol=v;this.apply()},
-  click(){if(!this.on||!this.ctx)return;const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();
+  /* ★ 播放点击音：优先用 sounds/click.mp3，缺失时退回振荡器合成
+     走独立 uiG 通道，因此环境音静音时按钮反馈依然可听 */
+  click(){if(!this.ctx)return;const t=this.ctx.currentTime;
+    const out=this.uiG||this.master;
+    if(this.clickBuf){
+      const s=this.ctx.createBufferSource();s.buffer=this.clickBuf;
+      const g=this.ctx.createGain();g.gain.setValueAtTime(.5,t);
+      g.gain.exponentialRampToValueAtTime(.001,t+.09);
+      s.connect(g);g.connect(out);s.start(t);return;
+    }
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain();
     o.type='triangle';o.frequency.value=880;g.gain.setValueAtTime(.1,t);g.gain.exponentialRampToValueAtTime(.001,t+.06);
-    o.connect(g);g.connect(this.master);o.start(t);o.stop(t+.07)},
+    o.connect(g);g.connect(out);o.start(t);o.stop(t+.07)},
   thunder(v=1){if(!this.on||!this.ctx)return;const t=this.ctx.currentTime,sr=this.ctx.sampleRate,len=2.5*sr|0,
     b=this.ctx.createBuffer(1,len,sr),d=b.getChannelData(0);
     for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.6);
@@ -772,8 +806,15 @@ const Snd={ctx:null,master:null,rainG:null,on:false,vol:(readCfg().vol||70)/100,
     const f=this.ctx.createBiquadFilter();f.type='lowpass';
     f.frequency.setValueAtTime(400,t);f.frequency.exponentialRampToValueAtTime(60,t+2);
     const g=this.ctx.createGain();g.gain.value=.5*v;
-    s.connect(f);f.connect(g);g.connect(this.master);s.start(t)}
+    s.connect(f);f.connect(g);g.connect(this.master);s.start(t)},
+  /* 调试快照：控制台/自动化里检查音频状态用 */
+  _dbg(){return{on:this.on,vol:this.vol,ctxState:this.ctx?this.ctx.state:'null',
+    clickReady:this.clickReady,hasBuf:!!this.clickBuf,
+    bufDur:this.clickBuf?+this.clickBuf.duration.toFixed(3):null,
+    uiGain:this.uiG?+this.uiG.gain.value.toFixed(3):null}}
 };
+/* 暴露到 window：便于在控制台/自动化里检查与调试音频状态 */
+window.Snd=Snd;
 
 /* ============================================================
    ★ Three.js 背景
@@ -1159,7 +1200,7 @@ function renderMaps(){
       selMap=c.dataset.map;
       if(isNightMode(selMode)&&selMap!=='map1'){selMode='endless';saveCfg();updateMenuLabels();}
       $$('.map-card',g).forEach(x=>x.classList.toggle('sel',x===c));
-      $('#mapHint').textContent=mapName(selMap);Snd.click();
+      $('#mapHint').textContent=mapName(selMap);
     });
   });
   $('#mapHint').textContent=mapName(selMap);
@@ -1187,7 +1228,7 @@ function renderModes(){
     c.addEventListener('click',()=>{
       selMode=c.dataset.mode;
       $$('.mode-card',g).forEach(x=>x.classList.toggle('sel',x===c));
-      $('#modeHint').textContent=modeName(selMode);Snd.click();
+      $('#modeHint').textContent=modeName(selMode);
     });
   });
   $('#modeHint').textContent=modeName(selMode);
@@ -1285,7 +1326,7 @@ function initSettings(){
     rv.style.setProperty('--p',v+'%');
     $('#vVol').textContent=v;
     Snd.setVol(v/100);
-    if(window.BGM)BGM.setVolume(v/100);
+    if(window.BGM)BGM.setVolume(v/100);   /* BGM 音量联动 */
   });
   $('#swReflect').addEventListener('click',()=>{
     if(!Settings_)return;
@@ -1465,7 +1506,6 @@ $('#btnCreate').addEventListener('click',async()=>{
     copyText(fmtCode(code),'房间码已复制 · '+fmtCode(code));
     /* ★ 房主创建后立刻显示完整的两行提示 */
     if(tip)tip.innerHTML = HOST_TIP_HTML;
-    Snd.click();
   }catch(e){
     const msg=(e&&e.type)||(e&&e.message)||String(e);
     if(tip)tip.textContent='创建失败 · '+msg;
@@ -1577,7 +1617,6 @@ function deployTo(file,mode,mp,roomCode){
 
 /* 单人开始 */
 $('#btnPlay').addEventListener('click',()=>{
-  Snd.click();
   deployTo(mapFile(selMap),effMode(),null,null);
 });
 
@@ -1588,7 +1627,6 @@ function startMPGame(){
   const key=selMap, file=mapFile(selMap), mode=effMode();
   try{
     P2P.startGame({ key, file, mode });
-    Snd.click();
   }catch(e){ toast('开始失败：'+((e&&e.message)||e)); }
 }
 
@@ -1612,11 +1650,26 @@ const CREDITS=[
 /* ============================================================
    ★ 全局
    ============================================================ */
+
+/* ★ 全局点击音：给所有按钮/可点元素播 sounds/click.mp3
+   用捕获阶段监听，不影响各元素自身的业务逻辑；
+   已在业务里显式调过 Snd.click() 的按钮不会重复播放（见下方去重）。 */
+document.addEventListener('pointerdown',e=>{
+  const t=e.target&&e.target.closest?e.target.closest('button,.mi,.segQ button,.switch,[role="button"]'):null;
+  if(!t)return;
+  /* 首次交互时才建AudioContext —— 正好在用户手势内，不会被自动播放策略拦下 */
+  try{ Snd.ensure(); if(Snd.ctx&&Snd.ctx.resume)Snd.ctx.resume(); }catch(_){}
+  /* 点击音走独立通道，不受环境音开关影响 */
+  Snd.click();
+},{capture:true,passive:true});
+
 $('#btnSound').addEventListener('click',function(){
-  const muted=!this.classList.contains('muted');
-  this.classList.toggle('muted',!muted);
-  Snd.enable(muted);Snd.setVol((readCfg().vol|0)/100);
-  toast(muted?'环境音已开启':'环境音已静音');
+  /* 按钮初始带 .muted；点击后应切到「开启」，class 也要同步去掉 muted。
+     原来的写法把 muted 语义用反了，导致永远打不开、一直提示「已静音」。 */
+  const willMute=!this.classList.contains('muted');   // 本次点击后是否静音
+  this.classList.toggle('muted',willMute);
+  Snd.enable(!willMute);Snd.setVol((readCfg().vol|0)/100);
+  toast(willMute?'环境音已静音':'环境音已开启');
 });
 $('#btnFs').addEventListener('click',()=>{
   if(document.fullscreenElement)document.exitFullscreen();
@@ -1629,7 +1682,7 @@ $('#btnFs').addEventListener('click',()=>{
 document.addEventListener('fullscreenchange',()=>{
   document.documentElement.classList.toggle('fs',!!document.fullscreenElement);
 });
-$$('.mi[data-panel]').forEach(b=>b.addEventListener('click',()=>{Snd.click();openPanel(b.dataset.panel);}));
+$$('.mi[data-panel]').forEach(b=>b.addEventListener('click',()=>{openPanel(b.dataset.panel);}));
 $$('.back').forEach(b=>b.addEventListener('click',back));
 addEventListener('keydown',e=>{if(e.key==='Escape'&&currentPanel)back();});
 
