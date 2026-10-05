@@ -57,22 +57,6 @@ button{font-family:inherit}
 #rotate b{display:block;margin-top:26px;font:900 24px var(--serif);letter-spacing:.4em;color:#f2ede3;text-indent:.4em}
 #rotate span{display:block;margin-top:12px;font:400 13px var(--sans);letter-spacing:.2em;color:var(--dim)}
 
-#topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:space-between;align-items:center;padding:20px 28px;opacity:0;transition:opacity 1s .2s}
-body.ready #topbar{opacity:1}
-.bio-mini{width:22px;height:22px;color:var(--red);filter:drop-shadow(0 0 8px rgba(255,60,40,.6))}
-.bio-mini .spin{animation:spin 26s linear infinite;transform-box:fill-box;transform-origin:center}
-.tb-r{display:flex;gap:10px;align-items:center}
-.chip{font:600 12px var(--num);letter-spacing:.2em;color:var(--dim);border:1px solid var(--line);padding:6px 10px}
-.icon-btn{width:38px;height:38px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line);color:#cfd6d2;cursor:pointer;transition:.25s}
-.icon-btn:hover{border-color:var(--red);color:#fff}
-.icon-btn svg{width:19px;height:19px}
-#btnSound .waves,#btnSound .cross{transition:opacity .3s,transform .3s;transform-box:fill-box;transform-origin:center}
-#btnSound .cross{opacity:0;transform:scale(.6)}
-#btnSound.muted .waves{opacity:0;transform:scale(.6)}
-#btnSound.muted .cross{opacity:1;transform:none}
-#btnFs .fs-off{display:none}
-html.fs #btnFs .fs-on{display:none}
-html.fs #btnFs .fs-off{display:block}
 @keyframes pulse{50%{opacity:.35}}
 
 #stage{position:fixed;inset:0;z-index:10;transition:opacity .5s,filter .5s,transform .5s}
@@ -325,7 +309,6 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:0;backg
   .maps,.modes{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:640px){
-  #topbar{padding:14px 16px}
   .panel-inner{padding:76px 0 26px;width:min(1020px,90vw)}
   .back{top:12px;left:12px;padding:8px 12px}
   .maps,.modes,.ol-grid,.match-set{grid-template-columns:1fr;gap:16px}
@@ -379,19 +362,6 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:0;backg
   </svg>
   <b>请横置设备</b><span>本游戏仅支持横屏游玩</span>
 </div>
-
-<header id="topbar">
-  <svg class="bio-mini" viewBox="0 0 120 120" aria-hidden="true"><g class="spin" fill="none" stroke="currentColor" stroke-width="5"><circle cx="60" cy="33" r="15"/><circle cx="37" cy="74" r="15"/><circle cx="83" cy="74" r="15"/><path d="M60 40v-16M45.5 70l-14 8M74.5 70l14 8"/></g><circle cx="60" cy="60" r="6.5" fill="currentColor"/></svg>
-  <div class="tb-r">
-    <span id="fpsChip" class="chip" hidden>— FPS</span>
-    <button id="btnSound" class="icon-btn muted" aria-label="环境音">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L13 19V5L7.5 9.5H4z" fill="currentColor" stroke="none"/><g class="waves"><path d="M16 8.6a4.8 4.8 0 0 1 0 6.8"/><path d="M18.6 6a8.6 8.6 0 0 1 0 12"/></g><g class="cross"><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></g></svg>
-    </button>
-    <button id="btnFs" class="icon-btn" aria-label="全屏">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g class="fs-on"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></g><g class="fs-off"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></g></svg>
-    </button>
-  </div>
-</header>
 
 <main id="stage">
   <div class="stage-in">
@@ -580,7 +550,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:0;backg
         <div class="range-row"><input type="range" id="rVol" min="0" max="100"><b id="vVol">70</b></div>
         <h3 class="sec">画面</h3>
         <button class="switch" id="swReflect"><span class="sw-track"><i></i></span><span class="sw-label">湿地反射</span></button>
-        <button class="switch" id="swFps"><span class="sw-track"><i></i></span><span class="sw-label">显示 FPS</span></button>
+        <button class="switch" id="swAmb"><span class="sw-track"><i></i></span><span class="sw-label">环境音（雨 · 雷）</span></button>
         <button class="switch" id="swBgm"><span class="sw-track"><i></i></span><span class="sw-label">背景音乐</span></button>
       </div>
       <div class="set-col">
@@ -1013,9 +983,7 @@ function loop(){
   const dt=Math.min(clock.getDelta(),.05);tt+=dt;
 
   loop.f=(loop.f||0)+1;loop.a=(loop.a||0)+dt;
-  if(loop.a>=.5){loop.fps=loop.f/loop.a;
-    if(readCfg().fps)$('#fpsChip').textContent=Math.round(loop.fps)+' FPS';
-    loop.f=0;loop.a=0;}
+  if(loop.a>=.5){loop.fps=loop.f/loop.a;loop.f=0;loop.a=0;}
 
   const pos=rainGeo.attributes.position.array,wind=-7;
   for(let i=0;i<RAIN_N;i++){
@@ -1303,9 +1271,8 @@ function refreshSettingsUI(){
   $('#vSens').textContent=(cfg.sens||1).toFixed(1);
   $('#vVol').textContent=(cfg.vol|0);
   $('#swReflect').classList.toggle('on',cfg.refl!==false);
-  $('#swFps').classList.toggle('on',cfg.fps===true);
+  $('#swAmb').classList.toggle('on',!!Snd.on);
   $('#swBgm').classList.toggle('on',cfg.bgm!==false);
-  $('#fpsChip').hidden=!cfg.fps;
 }
 function initSettings(){
   $$('#segQ button').forEach(b=>b.addEventListener('click',()=>{
@@ -1333,9 +1300,12 @@ function initSettings(){
     const on=readCfg().refl===false;
     Settings_.set('refl',on);refreshSettingsUI();applyReflect();
   });
-  $('#swFps').addEventListener('click',()=>{
-    if(!Settings_)return;
-    Settings_.set('fps',!readCfg().fps);refreshSettingsUI();
+  /* ★ 环境音开关（原顶栏按钮的功能迁移到此处） */
+  $('#swAmb').addEventListener('click',()=>{
+    const on=!Snd.on;
+    Snd.enable(on);Snd.setVol((readCfg().vol|0)/100);
+    refreshSettingsUI();
+    toast(on?'环境音已开启':'环境音已静音');
   });
   $('#swBgm').addEventListener('click',()=>{
     if(!Settings_)return;
@@ -1653,35 +1623,14 @@ const CREDITS=[
 
 /* ★ 全局点击音：给所有按钮/可点元素播 sounds/click.mp3
    用捕获阶段监听，不影响各元素自身的业务逻辑；
-   已在业务里显式调过 Snd.click() 的按钮不会重复播放（见下方去重）。 */
+   首次交互时顺带创建 AudioContext（在用户手势内，不会被自动播放策略拦下）。 */
 document.addEventListener('pointerdown',e=>{
-  const t=e.target&&e.target.closest?e.target.closest('button,.mi,.segQ button,.switch,[role="button"]'):null;
+  const t=e.target&&e.target.closest?e.target.closest('button,.mi,.switch,[role="button"]'):null;
   if(!t)return;
-  /* 首次交互时才建AudioContext —— 正好在用户手势内，不会被自动播放策略拦下 */
   try{ Snd.ensure(); if(Snd.ctx&&Snd.ctx.resume)Snd.ctx.resume(); }catch(_){}
-  /* 点击音走独立通道，不受环境音开关影响 */
   Snd.click();
 },{capture:true,passive:true});
 
-$('#btnSound').addEventListener('click',function(){
-  /* 按钮初始带 .muted；点击后应切到「开启」，class 也要同步去掉 muted。
-     原来的写法把 muted 语义用反了，导致永远打不开、一直提示「已静音」。 */
-  const willMute=!this.classList.contains('muted');   // 本次点击后是否静音
-  this.classList.toggle('muted',willMute);
-  Snd.enable(!willMute);Snd.setVol((readCfg().vol|0)/100);
-  toast(willMute?'环境音已静音':'环境音已开启');
-});
-$('#btnFs').addEventListener('click',()=>{
-  if(document.fullscreenElement)document.exitFullscreen();
-  else{
-    const p=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
-    if(p&&p.then)p.then(()=>{try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape');}catch(_){}}).catch(()=>toast('当前环境不支持全屏'));
-    try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape');}catch(e){}
-  }
-});
-document.addEventListener('fullscreenchange',()=>{
-  document.documentElement.classList.toggle('fs',!!document.fullscreenElement);
-});
 $$('.mi[data-panel]').forEach(b=>b.addEventListener('click',()=>{openPanel(b.dataset.panel);}));
 $$('.back').forEach(b=>b.addEventListener('click',back));
 addEventListener('keydown',e=>{if(e.key==='Escape'&&currentPanel)back();});
